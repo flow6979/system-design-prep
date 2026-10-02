@@ -1,19 +1,9 @@
-import { lld, pageBySlug, revisionBody, route, type Page } from '../content'
+import { lld, localize, pageBySlug, revisionBody, route, type Page } from '../content'
+import { useLang, useTr } from '../i18n'
 import { Markdown } from './Markdown'
 import { Checklist } from './Checklist'
 import { LangToggle, type CodeLang } from './CodeBlock'
-
-const EYEBROW: Record<Page['kind'], (p: Page) => string> = {
-  topic: () => 'Topic',
-  question: (p) => `Question · Tier ${p.tier ?? 2}`,
-  lld: () => 'LLD · Design patterns',
-}
-
-const REVISION_NOTE: Record<Page['kind'], string> = {
-  question: 'Revision mode: sirf clarifying sawal, decision table aur 2-minute recap dikh rahe hain.',
-  topic: 'Revision mode: sirf summary, interview lines aur common galtiyan dikh rahi hain.',
-  lld: 'Sirf ⭐ wale (sabse zyada pooche jaane wale) patterns dikh rahe hain.',
-}
+import { shortTitle } from './Sidebar'
 
 /** `## ` headings of the visible body, for the jump list on LLD pages */
 function sections(body: string): string[] {
@@ -26,7 +16,7 @@ function jumpTo(title: string) {
 }
 
 export function PageView({
-  page,
+  page: source,
   revision,
   onToggleRevision,
   codeLang,
@@ -38,9 +28,25 @@ export function PageView({
   codeLang: CodeLang
   onCodeLang: (l: CodeLang) => void
 }) {
+  const { lang } = useLang()
+  const tr = useTr()
+  const page = localize(source, lang)
   const related = page.related.map((s) => pageBySlug.get(s)).filter((p): p is Page => !!p)
   const isLld = page.kind === 'lld'
   const body = revision ? revisionBody(page) : page.body
+
+  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns' }[page.kind]
+  const revisionNote = {
+    question: tr(
+      'Revision mode: sirf clarifying sawal, decision table aur 2-minute recap dikh rahe hain.',
+      'Revision mode: showing only clarifying questions, the decision table and the 2-minute recap.',
+    ),
+    topic: tr(
+      'Revision mode: sirf summary, interview lines aur common galtiyan dikh rahi hain.',
+      'Revision mode: showing only the summary, interview lines and common mistakes.',
+    ),
+    lld: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) patterns dikh rahe hain.', 'Showing only ⭐ patterns (the most asked ones).'),
+  }[page.kind]
 
   return (
     <article className="page">
@@ -48,20 +54,20 @@ export function PageView({
         <nav className="subtabs" aria-label="LLD sections">
           {lld.map((p) => (
             <a key={p.slug} href={route(p)} className={p.slug === page.slug ? 'on' : ''} aria-current={p.slug === page.slug ? 'page' : undefined}>
-              {p.title.replace(/ (Patterns|Principles|Basics)$/, '')}
+              {localize(p, lang).title.replace(/ (Patterns|Principles|Basics)$/, '')}
             </a>
           ))}
         </nav>
       )}
       <div className="page-meta">
         <span className="eyebrow">
-          {EYEBROW[page.kind](page)} · {page.time} min
+          {eyebrow} · {page.time} min
         </span>
         <div className="row wrap">
           {isLld && <LangToggle value={codeLang} onChange={onCodeLang} />}
           <label className="toggle">
             <input type="checkbox" checked={revision} onChange={onToggleRevision} />
-            <span>{isLld ? 'Sirf ⭐ dikhao' : 'Revision mode'}</span>
+            <span>{isLld ? tr('Sirf ⭐ dikhao', 'Only ⭐') : 'Revision mode'}</span>
           </label>
         </div>
       </div>
@@ -72,10 +78,14 @@ export function PageView({
               {p}
             </span>
           ))}
-          {page.askedAt.length > 0 && <span className="muted small">Asked at: {page.askedAt.join(', ')}</span>}
+          {page.askedAt.length > 0 && (
+            <span className="muted small">
+              {tr('Kahan pucha gaya', 'Asked at')}: {page.askedAt.join(', ')}
+            </span>
+          )}
         </div>
       )}
-      {revision && <p className="revision-note small">{REVISION_NOTE[page.kind]}</p>}
+      {revision && <p className="revision-note small">{revisionNote}</p>}
       {isLld && (
         <div className="jump row wrap">
           {sections(body).map((t) => (
@@ -89,11 +99,11 @@ export function PageView({
       <Checklist page={page} />
       {related.length > 0 && (
         <section className="related">
-          <h2>{page.kind === 'topic' ? 'Ye kin questions me lagta hai' : 'Pehle ye topics padh lo'}</h2>
+          <h2>{page.kind === 'topic' ? tr('Ye kin questions me lagta hai', 'Questions that use this') : tr('Pehle ye topics padh lo', 'Read these topics first')}</h2>
           <div className="row wrap">
             {related.map((p) => (
               <a key={p.slug} href={route(p)} className="chip">
-                {p.title.replace(/^Design (an? )?/, '')}
+                {shortTitle(localize(p, lang).title)}
               </a>
             ))}
           </div>

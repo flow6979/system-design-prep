@@ -1,0 +1,1423 @@
+[
+  {
+    "id": "ipl-final-tickets",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "IPL final ke tickets 10 baje open honge. 50 lakh log, 1 lakh seats.",
+      "en": "IPL final tickets open at 10 AM. 5 million people, 100,000 seats."
+    },
+    "patterns": {
+      "hi": [
+        "Virtual waiting queue",
+        "Redis seat hold with TTL",
+        "DB unique constraint",
+        "Rate limiting"
+      ],
+      "en": [
+        "Virtual waiting queue",
+        "Redis seat hold with TTL",
+        "DB unique constraint",
+        "Rate limiting"
+      ]
+    },
+    "why": {
+      "hi": "Same seat pe contention aur sudden spike. BookMyShow wala design + waiting room.",
+      "en": "Contention on the same seats plus a sudden spike. BookMyShow design plus a waiting room."
+    },
+    "links": [
+      "t1-05-bookmyshow",
+      "09-locks-and-contention"
+    ]
+  },
+  {
+    "id": "zomato-live-tracking",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Zomato pe \"order live track karo\" feature: delivery boy ki location har 5 sec me customer ko dikhe.",
+      "en": "Zomato \"track your order live\": the delivery partner's location should reach the customer every 5 seconds."
+    },
+    "patterns": {
+      "hi": [
+        "WebSocket / SSE",
+        "Geospatial store (Redis GEO)",
+        "Pub/Sub"
+      ],
+      "en": [
+        "WebSocket / SSE",
+        "Geospatial store (Redis GEO)",
+        "Pub/Sub"
+      ]
+    },
+    "why": {
+      "hi": "Write-heavy location updates aur real-time push to one subscriber.",
+      "en": "Write-heavy location updates and a real-time push to a single subscriber."
+    },
+    "links": [
+      "08-real-time-communication",
+      "13-geospatial",
+      "t2-14-food-delivery"
+    ]
+  },
+  {
+    "id": "reels-view-count",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Instagram Reels pe view count dikhana hai. Billions of views per day.",
+      "en": "Show the view count on Instagram Reels. Billions of views per day."
+    },
+    "patterns": {
+      "hi": [
+        "Async counting via Kafka",
+        "Sharded counters / stream aggregation",
+        "Approximate is OK"
+      ],
+      "en": [
+        "Async counting via Kafka",
+        "Sharded counters / stream aggregation",
+        "Approximate is OK"
+      ]
+    },
+    "why": {
+      "hi": "Har view pe DB write nahi kar sakte. Batch/stream me aggregate karo.",
+      "en": "You cannot do a DB write per view. Aggregate in batches or in a stream."
+    },
+    "links": [
+      "15-counting-top-k",
+      "07-message-queues-kafka"
+    ]
+  },
+  {
+    "id": "phonepe-double-tap",
+    "category": "hld",
+    "level": "easy",
+    "prompt": {
+      "hi": "PhonePe me \"Send ₹500\" button user ne do baar daba diya, network slow tha.",
+      "en": "On PhonePe the user tapped \"Send ₹500\" twice because the network was slow."
+    },
+    "patterns": {
+      "hi": [
+        "Idempotency key",
+        "Double-entry ledger",
+        "Strong consistency (SQL)"
+      ],
+      "en": [
+        "Idempotency key",
+        "Double-entry ledger",
+        "Strong consistency (SQL)"
+      ]
+    },
+    "why": {
+      "hi": "Retry se duplicate payment na ho. Server same key pe same result de.",
+      "en": "A retry must not create a duplicate payment. The server returns the same result for the same key."
+    },
+    "links": [
+      "10-idempotency-retries",
+      "t1-11-payment-system"
+    ]
+  },
+  {
+    "id": "public-api-free-tier",
+    "category": "hld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Public API ke free users ko 100 requests/min se zyada nahi dena.",
+      "en": "Free users of a public API must not get more than 100 requests per minute."
+    },
+    "patterns": {
+      "hi": [
+        "Token bucket",
+        "Redis + Lua",
+        "API Gateway"
+      ],
+      "en": [
+        "Token bucket",
+        "Redis + Lua",
+        "API Gateway"
+      ]
+    },
+    "why": {
+      "hi": "Classic rate limiter. Distributed counter jo atomic ho.",
+      "en": "Classic rate limiter. A distributed counter that is atomic."
+    },
+    "links": [
+      "11-rate-limiting",
+      "t1-02-rate-limiter"
+    ]
+  },
+  {
+    "id": "kohli-post-feed",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Virat Kohli post karta hai, 25 crore followers ke feed me dikhana hai.",
+      "en": "Virat Kohli posts and it must show up in the feeds of 250 million followers."
+    },
+    "patterns": {
+      "hi": [
+        "Hybrid fan-out",
+        "Pull for celebrities",
+        "Feed cache"
+      ],
+      "en": [
+        "Hybrid fan-out",
+        "Pull for celebrities",
+        "Feed cache"
+      ]
+    },
+    "why": {
+      "hi": "Celebrity ke liye fan-out on write bahut mehenga. Read time pe merge karo.",
+      "en": "Fan-out on write is too expensive for a celebrity. Merge their posts at read time."
+    },
+    "links": [
+      "18-fan-out",
+      "t1-03-news-feed"
+    ]
+  },
+  {
+    "id": "video-upload-transcode",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Users 2GB ki video upload karte hain, phir 4 qualities me play honi chahiye.",
+      "en": "Users upload 2 GB videos, which must then play in 4 qualities."
+    },
+    "patterns": {
+      "hi": [
+        "Pre-signed URL + multipart upload",
+        "Queue + transcoding workers",
+        "CDN + adaptive bitrate"
+      ],
+      "en": [
+        "Pre-signed URL + multipart upload",
+        "Queue + transcoding workers",
+        "CDN + adaptive bitrate"
+      ]
+    },
+    "why": {
+      "hi": "Heavy blob aur long-running task. API server pe file mat lao.",
+      "en": "Heavy blob and a long-running task. Keep the file off the API servers."
+    },
+    "links": [
+      "12-blob-storage-cdn",
+      "t1-07-youtube"
+    ]
+  },
+  {
+    "id": "amazon-typeahead",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Amazon search box me \"iph\" type karte hi suggestions 50ms me aayein.",
+      "en": "Typing \"iph\" into the Amazon search box should show suggestions within 50 ms."
+    },
+    "patterns": {
+      "hi": [
+        "Trie / prefix → top-K precompute",
+        "Cache + CDN",
+        "Offline aggregation of search logs"
+      ],
+      "en": [
+        "Trie / prefix → top-K precompute",
+        "Cache + CDN",
+        "Offline aggregation of search logs"
+      ]
+    },
+    "why": {
+      "hi": "Read latency critical hai. Query time pe compute mat karo.",
+      "en": "Read latency is critical. Do not compute at query time."
+    },
+    "links": [
+      "14-search-indexing",
+      "t1-10-typeahead"
+    ]
+  },
+  {
+    "id": "order-saga",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "Order place hua: payment, inventory aur delivery teen alag services me update hona hai.",
+      "en": "An order is placed: payment, inventory and delivery must update in three separate services."
+    },
+    "patterns": {
+      "hi": [
+        "Saga with compensation",
+        "Transactional outbox",
+        "Idempotent consumers"
+      ],
+      "en": [
+        "Saga with compensation",
+        "Transactional outbox",
+        "Idempotent consumers"
+      ]
+    },
+    "why": {
+      "hi": "Distributed transaction bina 2PC ke.",
+      "en": "A distributed transaction without 2PC."
+    },
+    "links": [
+      "16-distributed-transactions",
+      "07-message-queues-kafka"
+    ]
+  },
+  {
+    "id": "monthly-statement-email",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Har roz raat 2 baje 1 crore users ko unka monthly statement email karna hai.",
+      "en": "Every night at 2 AM, email 10 million users their monthly statement."
+    },
+    "patterns": {
+      "hi": [
+        "Job scheduler",
+        "Queue + worker pool",
+        "Retries + DLQ",
+        "Rate limit to email provider"
+      ],
+      "en": [
+        "Job scheduler",
+        "Queue + worker pool",
+        "Retries + DLQ",
+        "Rate limit to email provider"
+      ]
+    },
+    "why": {
+      "hi": "Bulk async kaam jo fail-safe ho.",
+      "en": "Bulk async work that must be fail-safe."
+    },
+    "links": [
+      "t2-18-job-scheduler",
+      "t1-09-notification-system"
+    ]
+  },
+  {
+    "id": "dream11-live-rank",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Dream11 contest me live rank dikhana hai, 50 lakh players.",
+      "en": "Show live ranks in a Dream11 contest with 5 million players."
+    },
+    "patterns": {
+      "hi": [
+        "Redis sorted set",
+        "Score updates via queue",
+        "Sharding by score range"
+      ],
+      "en": [
+        "Redis sorted set",
+        "Score updates via queue",
+        "Sharding by score range"
+      ]
+    },
+    "why": {
+      "hi": "Top-K aur \"meri rank\" fast chahiye.",
+      "en": "Both top-K and \"my rank\" have to be fast."
+    },
+    "links": [
+      "t2-16-leaderboard",
+      "15-counting-top-k"
+    ]
+  },
+  {
+    "id": "product-price-read-heavy",
+    "category": "hld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Product page pe price 1 crore log dekh rahe hain, update kabhi-kabhi hota hai.",
+      "en": "10 million people are viewing a product page price, and it changes only occasionally."
+    },
+    "patterns": {
+      "hi": [
+        "Cache-aside",
+        "CDN",
+        "Read replicas",
+        "Invalidate on update"
+      ],
+      "en": [
+        "Cache-aside",
+        "CDN",
+        "Read replicas",
+        "Invalidate on update"
+      ]
+    },
+    "why": {
+      "hi": "Read-heavy, thoda stale chalega.",
+      "en": "Read-heavy, and slightly stale data is acceptable."
+    },
+    "links": [
+      "05-caching",
+      "03-indexing-replication"
+    ]
+  },
+  {
+    "id": "hotstar-toss-spike",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "India-Pak match ka toss hote hi Hotstar pe 5 minute me 3 crore concurrent viewers aa jaate hain.",
+      "en": "At the India-Pakistan toss, Hotstar jumps to 30 million concurrent viewers within 5 minutes."
+    },
+    "patterns": {
+      "hi": [
+        "CDN edge caching of video segments",
+        "Pre-scaling / pre-warming before match",
+        "Adaptive bitrate",
+        "Graceful degradation (non-critical features off)"
+      ],
+      "en": [
+        "CDN edge caching of video segments",
+        "Pre-scaling / pre-warming before match",
+        "Adaptive bitrate",
+        "Graceful degradation (non-critical features off)"
+      ]
+    },
+    "why": {
+      "hi": "Spike predictable hai, autoscaling itna fast nahi. Pehle se scale karo aur load CDN pe daalo.",
+      "en": "The spike is predictable but autoscaling is too slow. Scale ahead of time and push load to the CDN."
+    },
+    "links": [
+      "12-blob-storage-cdn",
+      "01-scaling-basics",
+      "20-reliability-observability"
+    ]
+  },
+  {
+    "id": "zerodha-orders-sharding",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Zerodha ka orders table 500 crore rows ka ho gaya, ek Postgres ab write aur query dono me slow hai.",
+      "en": "Zerodha's orders table has grown to 5 billion rows and a single Postgres is now slow for both writes and queries."
+    },
+    "patterns": {
+      "hi": [
+        "Horizontal sharding by user_id",
+        "Avoid cross-shard queries",
+        "Read replicas for reports",
+        "Archive old data (cold storage)"
+      ],
+      "en": [
+        "Horizontal sharding by user_id",
+        "Avoid cross-shard queries",
+        "Read replicas for reports",
+        "Archive old data (cold storage)"
+      ]
+    },
+    "why": {
+      "hi": "Ek machine ki limit cross ho gayi. User ke saare orders ek shard pe rakho taaki common query single shard pe chale.",
+      "en": "One machine's limit is crossed. Keep all of a user's orders on one shard so common queries hit a single shard."
+    },
+    "links": [
+      "04-sharding-consistent-hashing",
+      "03-indexing-replication"
+    ]
+  },
+  {
+    "id": "swiggy-cache-add-node",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Swiggy ke cache cluster me 10 se 12 nodes kiye, aur hash(key) % N ki wajah se almost saari keys miss hone lagi, DB pe load phat gaya.",
+      "en": "Swiggy grew its cache cluster from 10 to 12 nodes, and because of hash(key) % N almost every key started missing and the DB got overloaded."
+    },
+    "patterns": {
+      "hi": [
+        "Consistent hashing",
+        "Virtual nodes",
+        "Gradual cache warm-up"
+      ],
+      "en": [
+        "Consistent hashing",
+        "Virtual nodes",
+        "Gradual cache warm-up"
+      ]
+    },
+    "why": {
+      "hi": "Mod N me node add karne pe sab keys remap hoti hain. Consistent hashing me sirf ~1/N keys move hoti hain.",
+      "en": "With mod N, adding a node remaps every key. With consistent hashing only about 1/N of keys move."
+    },
+    "links": [
+      "04-sharding-consistent-hashing",
+      "05-caching"
+    ]
+  },
+  {
+    "id": "wallet-vs-likes-cap",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Do data centers ke beech network toot gaya. Paytm wallet balance aur reel ke likes, dono ke liye kya karoge?",
+      "en": "The network between two data centers breaks. What do you do for the Paytm wallet balance and for reel likes?"
+    },
+    "patterns": {
+      "hi": [
+        "CP for wallet (reject writes, stay correct)",
+        "AP for likes (eventual consistency)",
+        "Per-feature consistency choice"
+      ],
+      "en": [
+        "CP for wallet (reject writes, stay correct)",
+        "AP for likes (eventual consistency)",
+        "Per-feature consistency choice"
+      ]
+    },
+    "why": {
+      "hi": "Partition me consistency ya availability me se ek chunna padta hai. Paisa galat nahi ho sakta, likes thode late chalenge.",
+      "en": "During a partition you pick consistency or availability. Money cannot be wrong, likes can be a little late."
+    },
+    "links": [
+      "06-cap-consistency",
+      "02-sql-vs-nosql"
+    ]
+  },
+  {
+    "id": "whatsapp-offline-ticks",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "WhatsApp pe message bheja, receiver ka phone off hai. On hote hi message mile aur sender ko double tick dikhe.",
+      "en": "A WhatsApp message is sent while the receiver's phone is off. It must arrive when the phone comes back, and the sender must see double ticks."
+    },
+    "patterns": {
+      "hi": [
+        "WebSocket connection gateway",
+        "Persistent message store + offline inbox",
+        "Ack-based delivery status",
+        "Session registry (user → server)"
+      ],
+      "en": [
+        "WebSocket connection gateway",
+        "Persistent message store + offline inbox",
+        "Ack-based delivery status",
+        "Session registry (user → server)"
+      ]
+    },
+    "why": {
+      "hi": "Pehle store karo, phir deliver. Har tick ek ack event hai jo sender tak wapas push hota hai.",
+      "en": "Store first, then deliver. Each tick is an ack event pushed back to the sender."
+    },
+    "links": [
+      "t1-04-whatsapp-chat",
+      "08-real-time-communication"
+    ]
+  },
+  {
+    "id": "ola-nearby-cabs",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Ola app khulte hi 2 km ke andar ki cabs map pe dikhni chahiye. Drivers har 4 sec me location bhejte hain.",
+      "en": "When the Ola app opens, it should show cabs within 2 km on the map. Drivers send their location every 4 seconds."
+    },
+    "patterns": {
+      "hi": [
+        "Geohash / H3 cells",
+        "In-memory geo index (Redis GEO)",
+        "Ephemeral location data with TTL",
+        "Search neighbouring cells"
+      ],
+      "en": [
+        "Geohash / H3 cells",
+        "In-memory geo index (Redis GEO)",
+        "Ephemeral location data with TTL",
+        "Search neighbouring cells"
+      ]
+    },
+    "why": {
+      "hi": "Lat/long pe normal index kaam nahi karta. Grid cells me bucket karo, purani location ka koi kaam nahi.",
+      "en": "A normal index on lat/long does not work. Bucket into grid cells, and old locations have no value."
+    },
+    "links": [
+      "13-geospatial",
+      "t1-06-uber",
+      "t2-21-nearby-places"
+    ]
+  },
+  {
+    "id": "meesho-product-search",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Meesho pe user \"red kurtee under 500\" search karta hai, typo ke saath bhi sahi results aane chahiye.",
+      "en": "A Meesho user searches \"red kurtee under 500\" and should still get the right results despite the typo."
+    },
+    "patterns": {
+      "hi": [
+        "Inverted index (Elasticsearch)",
+        "Fuzzy matching + filters",
+        "CDC sync from primary DB",
+        "Relevance ranking"
+      ],
+      "en": [
+        "Inverted index (Elasticsearch)",
+        "Fuzzy matching + filters",
+        "CDC sync from primary DB",
+        "Relevance ranking"
+      ]
+    },
+    "why": {
+      "hi": "SQL LIKE se full-text search nahi hota. Alag search index rakho jo DB changes se async update ho.",
+      "en": "SQL LIKE cannot do full-text search. Keep a separate search index updated asynchronously from DB changes."
+    },
+    "links": [
+      "14-search-indexing",
+      "07-message-queues-kafka"
+    ]
+  },
+  {
+    "id": "bbd-order-ids",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Flipkart Big Billion Days pe 3 data centers me orders ban rahe hain. Order ID unique aur time-sortable chahiye, central DB ke bina.",
+      "en": "During Flipkart Big Billion Days orders are created in 3 data centers. Order IDs must be unique and time-sortable without a central DB."
+    },
+    "patterns": {
+      "hi": [
+        "Snowflake ID (timestamp + machine id + sequence)",
+        "Clock skew handling",
+        "No auto-increment across shards"
+      ],
+      "en": [
+        "Snowflake ID (timestamp + machine id + sequence)",
+        "Clock skew handling",
+        "No auto-increment across shards"
+      ]
+    },
+    "why": {
+      "hi": "Har node khud ID bana sake, coordination ke bina. Timestamp aage hone se IDs roughly sorted rehti hain.",
+      "en": "Each node generates IDs on its own without coordination. Putting the timestamp first keeps IDs roughly sorted."
+    },
+    "links": [
+      "17-unique-id-generation"
+    ]
+  },
+  {
+    "id": "bank-sms-short-link",
+    "category": "hld",
+    "level": "easy",
+    "prompt": {
+      "hi": "HDFC ke SMS me lamba URL fit nahi hota. Short link chahiye jo crore baar click ho.",
+      "en": "A long URL does not fit in an HDFC SMS. They need a short link that gets clicked millions of times."
+    },
+    "patterns": {
+      "hi": [
+        "Base62 encoding of unique ID",
+        "Cache for redirects",
+        "301 vs 302 redirect",
+        "Read-heavy KV store"
+      ],
+      "en": [
+        "Base62 encoding of unique ID",
+        "Cache for redirects",
+        "301 vs 302 redirect",
+        "Read-heavy KV store"
+      ]
+    },
+    "why": {
+      "hi": "Write kam, read bahut zyada. ID se short code banao aur redirect cache se serve karo.",
+      "en": "Few writes, very many reads. Derive the short code from an ID and serve redirects from cache."
+    },
+    "links": [
+      "t1-01-url-shortener",
+      "17-unique-id-generation",
+      "05-caching"
+    ]
+  },
+  {
+    "id": "swiggy-order-history-pagination",
+    "category": "hld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Swiggy order history me scroll karte karte page 500 pe API 3 sec le rahi hai, aur naye orders aane se items repeat ho rahe hain.",
+      "en": "Scrolling Swiggy order history, the API takes 3 seconds by page 500, and new orders cause items to repeat."
+    },
+    "patterns": {
+      "hi": [
+        "Cursor (keyset) pagination",
+        "Composite index (user_id, created_at)",
+        "Stable sort order"
+      ],
+      "en": [
+        "Cursor (keyset) pagination",
+        "Composite index (user_id, created_at)",
+        "Stable sort order"
+      ]
+    },
+    "why": {
+      "hi": "OFFSET saari skipped rows padhta hai aur shifting data pe toot jaata hai. Last seen cursor se aage padho.",
+      "en": "OFFSET reads every skipped row and breaks when data shifts. Continue from the last-seen cursor."
+    },
+    "links": [
+      "19-api-design",
+      "03-indexing-replication"
+    ]
+  },
+  {
+    "id": "upi-bank-circuit-breaker",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Ek partner bank ka UPI API 30 sec me respond kar raha hai. Threads atak gaye aur poora checkout down ho gaya.",
+      "en": "One partner bank's UPI API takes 30 seconds to respond. Threads pile up and the whole checkout goes down."
+    },
+    "patterns": {
+      "hi": [
+        "Timeouts",
+        "Circuit breaker",
+        "Bulkhead (separate thread pools)",
+        "Fallback / retry with backoff"
+      ],
+      "en": [
+        "Timeouts",
+        "Circuit breaker",
+        "Bulkhead (separate thread pools)",
+        "Fallback / retry with backoff"
+      ]
+    },
+    "why": {
+      "hi": "Ek slow dependency poore system ko gira deti hai. Fail fast karo aur failure ko isolate karo.",
+      "en": "One slow dependency can take down the whole system. Fail fast and isolate the failure."
+    },
+    "links": [
+      "20-reliability-observability",
+      "10-idempotency-retries"
+    ]
+  },
+  {
+    "id": "hotstar-for-you-row",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "Hotstar home screen pe \"For You\" row har user ke liye alag, 30 crore users, 100ms me load ho.",
+      "en": "The Hotstar home screen \"For You\" row is personalized for each of 300 million users and must load in 100 ms."
+    },
+    "patterns": {
+      "hi": [
+        "Candidate generation + ranking (two-stage)",
+        "Offline precompute + feature store",
+        "Per-user recommendation cache",
+        "Fallback to trending"
+      ],
+      "en": [
+        "Candidate generation + ranking (two-stage)",
+        "Offline precompute + feature store",
+        "Per-user recommendation cache",
+        "Fallback to trending"
+      ]
+    },
+    "why": {
+      "hi": "Lakhs items ko har request pe rank nahi kar sakte. Pehle cheap filter se candidates, phir model se ranking.",
+      "en": "You cannot rank millions of items per request. Use a cheap filter for candidates, then rank them with a model."
+    },
+    "links": [
+      "t2-23-recommendation-system",
+      "05-caching"
+    ]
+  },
+  {
+    "id": "microservice-log-search",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "PhonePe ki 2000 microservices ke logs. On-call engineer ko trace ID se pichhle 15 min ke errors 2 sec me chahiye.",
+      "en": "Logs from PhonePe's 2,000 microservices. The on-call engineer needs errors from the last 15 minutes by trace ID within 2 seconds."
+    },
+    "patterns": {
+      "hi": [
+        "Log agents → Kafka buffer",
+        "Indexed hot storage + cheap cold storage",
+        "Trace ID propagation",
+        "Sampling / retention policy"
+      ],
+      "en": [
+        "Log agents → Kafka buffer",
+        "Indexed hot storage + cheap cold storage",
+        "Trace ID propagation",
+        "Sampling / retention policy"
+      ]
+    },
+    "why": {
+      "hi": "Write volume huge hai aur bursty. Kafka absorb kare, recent data fast index me, purana sasta store.",
+      "en": "Write volume is huge and bursty. Kafka absorbs it, recent data sits in a fast index, old data in cheap storage."
+    },
+    "links": [
+      "t2-26-distributed-logging",
+      "20-reliability-observability",
+      "07-message-queues-kafka"
+    ]
+  },
+  {
+    "id": "last-100-iphones",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "Big Billion Days pe sirf 100 iPhones ₹49,999 me, 10 lakh log ek saath \"Buy\" dabaate hain. Oversell bilkul nahi.",
+      "en": "Only 100 iPhones at ₹49,999 on Big Billion Days, and 1 million people hit \"Buy\" at once. No overselling allowed."
+    },
+    "patterns": {
+      "hi": [
+        "Atomic decrement (Redis Lua / conditional UPDATE)",
+        "Reservation with TTL",
+        "Async order queue",
+        "Rate limiting at the edge"
+      ],
+      "en": [
+        "Atomic decrement (Redis Lua / conditional UPDATE)",
+        "Reservation with TTL",
+        "Async order queue",
+        "Rate limiting at the edge"
+      ]
+    },
+    "why": {
+      "hi": "Ek hi counter pe hot contention. Stock check aur decrement ek atomic step me ho, payment na ho to release karo.",
+      "en": "Hot contention on a single counter. Check and decrement stock in one atomic step, and release it if payment fails."
+    },
+    "links": [
+      "t2-24-ecommerce-inventory",
+      "t2-15-flash-sale",
+      "09-locks-and-contention"
+    ]
+  },
+  {
+    "id": "csk-fan-server",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "CSK fan server ke ek channel me 10 lakh members. Match ke time har second hazaar messages, sab ko real-time dikhne chahiye.",
+      "en": "One channel on a CSK fan server has 1 million members. During matches thousands of messages arrive per second and everyone should see them in real time."
+    },
+    "patterns": {
+      "hi": [
+        "Channel-based pub/sub",
+        "Fan-out only to online members",
+        "Partition messages by channel_id",
+        "Lazy-loaded member list"
+      ],
+      "en": [
+        "Channel-based pub/sub",
+        "Fan-out only to online members",
+        "Partition messages by channel_id",
+        "Lazy-loaded member list"
+      ]
+    },
+    "why": {
+      "hi": "Per-user inbox me copy karna impossible. Message ek baar channel me likho, gateways online subscribers ko push karein.",
+      "en": "Copying into each user's inbox is impossible. Write once to the channel and let gateways push to online subscribers."
+    },
+    "links": [
+      "t2-25-discord",
+      "18-fan-out",
+      "08-real-time-communication"
+    ]
+  },
+  {
+    "id": "llm-chatbot-gpu",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "Ek Bengaluru startup ka AI chatbot: GPUs limited hain, jawab word-by-word aana chahiye, aur peak pe 10x traffic aata hai.",
+      "en": "A Bengaluru startup's AI chatbot: GPUs are limited, replies must stream word by word, and peak traffic is 10x."
+    },
+    "patterns": {
+      "hi": [
+        "Token streaming via SSE",
+        "Request queue + continuous batching",
+        "Per-user token rate limits",
+        "Prompt / KV cache"
+      ],
+      "en": [
+        "Token streaming via SSE",
+        "Request queue + continuous batching",
+        "Per-user token rate limits",
+        "Prompt / KV cache"
+      ]
+    },
+    "why": {
+      "hi": "GPU sabse mehenga resource hai. Batching se utilization badhao, queue aur limits se overload bachao, streaming se latency kam lage.",
+      "en": "The GPU is the most expensive resource. Batch to raise utilization, use queues and limits to avoid overload, and stream so latency feels low."
+    },
+    "links": [
+      "t2-22-llm-chat-app",
+      "08-real-time-communication",
+      "11-rate-limiting"
+    ]
+  },
+  {
+    "id": "collab-doc-editing",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "Company ka shared doc: 10 log ek hi paragraph ek saath edit kar rahe hain, kisi ka change gayab nahi hona chahiye.",
+      "en": "A shared company doc: 10 people edit the same paragraph at once, and nobody's change may be lost."
+    },
+    "patterns": {
+      "hi": [
+        "OT or CRDT",
+        "WebSocket per document session",
+        "Operation log + periodic snapshots"
+      ],
+      "en": [
+        "OT or CRDT",
+        "WebSocket per document session",
+        "Operation log + periodic snapshots"
+      ]
+    },
+    "why": {
+      "hi": "Last-write-wins se edits overwrite hote hain. Operations ko merge karo taaki sab ek hi state pe converge karein.",
+      "en": "Last-write-wins overwrites edits. Merge operations so every client converges to the same state."
+    },
+    "links": [
+      "t2-19-google-docs",
+      "08-real-time-communication"
+    ]
+  },
+  {
+    "id": "ad-click-billing",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "Ad network ko har campaign ke clicks per minute count karke advertiser ko bill karna hai. Double count ya miss dono nahi chalega.",
+      "en": "An ad network must count clicks per minute for each campaign and bill advertisers. Neither double counting nor missed clicks is acceptable."
+    },
+    "patterns": {
+      "hi": [
+        "Stream processing with tumbling windows (Flink)",
+        "Dedupe by click ID",
+        "Kafka as durable log",
+        "Batch reconciliation"
+      ],
+      "en": [
+        "Stream processing with tumbling windows (Flink)",
+        "Dedupe by click ID",
+        "Kafka as durable log",
+        "Batch reconciliation"
+      ]
+    },
+    "why": {
+      "hi": "Paisa juda hai to accuracy chahiye. Stream fast numbers deta hai, raat ka batch job unhe verify karta hai.",
+      "en": "Money is involved, so accuracy matters. The stream gives fast numbers and a nightly batch job verifies them."
+    },
+    "links": [
+      "t2-17-ad-click-aggregator",
+      "15-counting-top-k",
+      "07-message-queues-kafka"
+    ]
+  },
+  {
+    "id": "drive-delta-sync",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Laptop pe 1GB ki Excel file me ek cell badla. Sync me poori file dobara upload nahi honi chahiye.",
+      "en": "One cell changed in a 1 GB Excel file on a laptop. Sync must not re-upload the whole file."
+    },
+    "patterns": {
+      "hi": [
+        "File chunking + content hash",
+        "Delta sync (only changed chunks)",
+        "Metadata DB separate from blob store",
+        "Chunk-level dedup"
+      ],
+      "en": [
+        "File chunking + content hash",
+        "Delta sync (only changed chunks)",
+        "Metadata DB separate from blob store",
+        "Chunk-level dedup"
+      ]
+    },
+    "why": {
+      "hi": "File ko chunks me todo, sirf badle hue chunk bhejo. Metadata aur actual bytes alag store hote hain.",
+      "en": "Split the file into chunks and send only the changed ones. Metadata and raw bytes live in separate stores."
+    },
+    "links": [
+      "t1-08-dropbox",
+      "12-blob-storage-cdn"
+    ]
+  },
+  {
+    "id": "internal-kv-store",
+    "category": "hld",
+    "level": "hard",
+    "prompt": {
+      "hi": "Ola ko apna DynamoDB jaisa KV store banana hai. Koi bhi node kabhi bhi mar sakta hai, phir bhi data available rahe.",
+      "en": "Ola wants to build its own DynamoDB-like KV store. Any node can die at any time and the data must stay available."
+    },
+    "patterns": {
+      "hi": [
+        "Consistent hashing for partitioning",
+        "Replication factor N",
+        "Quorum reads/writes (R + W > N)",
+        "Hinted handoff + read repair"
+      ],
+      "en": [
+        "Consistent hashing for partitioning",
+        "Replication factor N",
+        "Quorum reads/writes (R + W > N)",
+        "Hinted handoff + read repair"
+      ]
+    },
+    "why": {
+      "hi": "Data ko nodes pe baanto aur replicate karo. Quorum se tunable consistency milti hai.",
+      "en": "Partition data across nodes and replicate it. Quorums give you tunable consistency."
+    },
+    "links": [
+      "t2-20-distributed-kv-store",
+      "04-sharding-consistent-hashing",
+      "06-cap-consistency"
+    ]
+  },
+  {
+    "id": "orders-vs-clickstream-db",
+    "category": "hld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Swiggy: orders aur payments ek taraf, doosri taraf har user tap ka clickstream (roz 500 crore events). Dono ke liye kaunsa DB?",
+      "en": "Swiggy: orders and payments on one side, and every user-tap clickstream on the other (5 billion events per day). Which DB for each?"
+    },
+    "patterns": {
+      "hi": [
+        "SQL (Postgres) for orders: transactions + joins",
+        "Wide-column NoSQL (Cassandra) for events",
+        "Polyglot persistence"
+      ],
+      "en": [
+        "SQL (Postgres) for orders: transactions + joins",
+        "Wide-column NoSQL (Cassandra) for events",
+        "Polyglot persistence"
+      ]
+    },
+    "why": {
+      "hi": "Orders ko ACID chahiye, events ko massive write throughput. Ek DB sab ke liye best nahi hota.",
+      "en": "Orders need ACID, events need massive write throughput. No single DB is best for everything."
+    },
+    "links": [
+      "02-sql-vs-nosql",
+      "01-scaling-basics"
+    ]
+  },
+  {
+    "id": "trending-hashtags",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "World Cup ke time India me pichhle 1 ghante ke top 10 trending hashtags har minute update karne hain.",
+      "en": "During the World Cup, update India's top 10 trending hashtags of the last hour every minute."
+    },
+    "patterns": {
+      "hi": [
+        "Sliding window counting",
+        "Count-Min Sketch",
+        "Min-heap for top-K",
+        "Per-region aggregation"
+      ],
+      "en": [
+        "Sliding window counting",
+        "Count-Min Sketch",
+        "Min-heap for top-K",
+        "Per-region aggregation"
+      ]
+    },
+    "why": {
+      "hi": "Har hashtag ka exact count memory me nahi rakh sakte. Approximate count + heap se top-K nikalo.",
+      "en": "You cannot keep exact counts for every hashtag in memory. Use approximate counts plus a heap for top-K."
+    },
+    "links": [
+      "15-counting-top-k",
+      "07-message-queues-kafka"
+    ]
+  },
+  {
+    "id": "swiggy-order-notifications",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Swiggy order status pe push, SMS aur email jaane chahiye, user preferences ke hisaab se. SMS provider down ho to bhi message jaaye.",
+      "en": "Swiggy order status updates must go out as push, SMS and email based on user preferences, even if the SMS provider is down."
+    },
+    "patterns": {
+      "hi": [
+        "Notification service + queue per channel",
+        "Provider fallback",
+        "Retries + DLQ",
+        "Dedupe with idempotency key"
+      ],
+      "en": [
+        "Notification service + queue per channel",
+        "Provider fallback",
+        "Retries + DLQ",
+        "Dedupe with idempotency key"
+      ]
+    },
+    "why": {
+      "hi": "Har channel alag speed aur failure mode. Queue se decouple karo, ek provider fail ho to doosra use karo.",
+      "en": "Each channel has its own speed and failure mode. Decouple with queues and switch providers on failure."
+    },
+    "links": [
+      "t1-09-notification-system",
+      "07-message-queues-kafka",
+      "10-idempotency-retries"
+    ]
+  },
+  {
+    "id": "cron-runs-once",
+    "category": "hld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Zerodha ka end-of-day settlement job 3 servers pe deploy hai. Roz sirf ek hi baar chalna chahiye, teen baar nahi.",
+      "en": "Zerodha's end-of-day settlement job is deployed on 3 servers. It must run exactly once a day, not three times."
+    },
+    "patterns": {
+      "hi": [
+        "Distributed lock with lease (Redis / ZooKeeper)",
+        "Fencing token",
+        "Idempotent job execution"
+      ],
+      "en": [
+        "Distributed lock with lease (Redis / ZooKeeper)",
+        "Fencing token",
+        "Idempotent job execution"
+      ]
+    },
+    "why": {
+      "hi": "Leader/lock se ek hi worker chalega. Lease expire ho jaaye to fencing token purane worker ke writes rok deta hai.",
+      "en": "A leader or lock ensures one worker runs. If the lease expires, a fencing token blocks the stale worker's writes."
+    },
+    "links": [
+      "09-locks-and-contention",
+      "t2-18-job-scheduler",
+      "10-idempotency-retries"
+    ]
+  },
+  {
+    "id": "payment-methods-strategy",
+    "category": "lld",
+    "level": "easy",
+    "prompt": {
+      "hi": "PhonePe checkout me har mahine naya payment method aata hai (UPI Lite, BNPL, card EMI). Har baar if-else chain lambi ho jaati hai.",
+      "en": "PhonePe checkout gets a new payment method every month (UPI Lite, BNPL, card EMI). The if-else chain grows each time."
+    },
+    "patterns": {
+      "hi": [
+        "Strategy pattern",
+        "Open/Closed principle",
+        "Factory to pick strategy"
+      ],
+      "en": [
+        "Strategy pattern",
+        "Open/Closed principle",
+        "Factory to pick strategy"
+      ]
+    },
+    "why": {
+      "hi": "Har method ek alag class jo common interface implement kare. Naya method = nayi class, purana code touch nahi.",
+      "en": "Each method is a separate class implementing a common interface. A new method means a new class, with no edits to old code."
+    },
+    "links": [
+      "05-behavioral",
+      "02-solid"
+    ]
+  },
+  {
+    "id": "vending-machine-state",
+    "category": "lld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Metro station ki vending machine: coin daala, item chuna, dispense hua. Har step pe behaviour alag, galat button pe kuch nahi hona chahiye.",
+      "en": "A metro station vending machine: insert coin, pick item, dispense. Behaviour differs at each step, and a wrong button should do nothing."
+    },
+    "patterns": {
+      "hi": [
+        "State pattern",
+        "State transitions as classes"
+      ],
+      "en": [
+        "State pattern",
+        "State transitions as classes"
+      ]
+    },
+    "why": {
+      "hi": "Har state apna behaviour khud handle kare, bade switch-case ki jagah.",
+      "en": "Each state handles its own behaviour instead of one giant switch-case."
+    },
+    "links": [
+      "05-behavioral"
+    ]
+  },
+  {
+    "id": "editor-undo-redo",
+    "category": "lld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Canva jaisa design editor: har action (move, resize, color) ka Undo/Redo chahiye.",
+      "en": "A Canva-like design editor: every action (move, resize, color) needs Undo/Redo."
+    },
+    "patterns": {
+      "hi": [
+        "Command pattern (execute / undo)",
+        "Memento for state snapshots",
+        "Two stacks: undo + redo"
+      ],
+      "en": [
+        "Command pattern (execute / undo)",
+        "Memento for state snapshots",
+        "Two stacks: undo + redo"
+      ]
+    },
+    "why": {
+      "hi": "Har action ek object bane jo khud ko reverse kar sake, ya state ka snapshot save ho.",
+      "en": "Each action becomes an object that can reverse itself, or a snapshot of state is saved."
+    },
+    "links": [
+      "05-behavioral"
+    ]
+  },
+  {
+    "id": "payment-sdk-adapter",
+    "category": "lld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Meesho Razorpay se Cashfree pe shift kar raha hai. Cashfree SDK ke method names aur params bilkul alag hain, par app code nahi badalna.",
+      "en": "Meesho is moving from Razorpay to Cashfree. Cashfree's SDK has completely different method names and params, but app code must not change."
+    },
+    "patterns": {
+      "hi": [
+        "Adapter pattern",
+        "Dependency Inversion (depend on own interface)"
+      ],
+      "en": [
+        "Adapter pattern",
+        "Dependency Inversion (depend on own interface)"
+      ]
+    },
+    "why": {
+      "hi": "App apne PaymentGateway interface se baat kare. Adapter third-party SDK ko us interface me convert kare.",
+      "en": "The app talks to its own PaymentGateway interface. An adapter translates the third-party SDK to that interface."
+    },
+    "links": [
+      "04-structural",
+      "02-solid"
+    ]
+  },
+  {
+    "id": "live-score-observer",
+    "category": "lld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Cricbuzz me score badalte hi scorecard screen, home widget aur push notification teeno update hon. Kal smartwatch bhi add hoga.",
+      "en": "When the Cricbuzz score changes, the scorecard screen, home widget and push notification all update. A smartwatch will be added tomorrow."
+    },
+    "patterns": {
+      "hi": [
+        "Observer pattern",
+        "Loose coupling (subscribe / unsubscribe)"
+      ],
+      "en": [
+        "Observer pattern",
+        "Loose coupling (subscribe / unsubscribe)"
+      ]
+    },
+    "why": {
+      "hi": "Score source ko pata nahi hona chahiye kaun sun raha hai. Naya listener bas subscribe kare.",
+      "en": "The score source should not know who is listening. A new listener just subscribes."
+    },
+    "links": [
+      "05-behavioral"
+    ]
+  },
+  {
+    "id": "pizza-order-builder",
+    "category": "lld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Domino's order object: size, crust, 10 optional toppings, extra cheese, coupon. Constructor me 14 parameters ho gaye.",
+      "en": "A Domino's order object: size, crust, 10 optional toppings, extra cheese, coupon. The constructor now has 14 parameters."
+    },
+    "patterns": {
+      "hi": [
+        "Builder pattern",
+        "Immutable object after build()",
+        "Validation in build()"
+      ],
+      "en": [
+        "Builder pattern",
+        "Immutable object after build()",
+        "Validation in build()"
+      ]
+    },
+    "why": {
+      "hi": "Bahut saare optional fields wala object step-by-step readable tarike se banao.",
+      "en": "Build an object with many optional fields step by step in a readable way."
+    },
+    "links": [
+      "03-creational"
+    ]
+  },
+  {
+    "id": "logger-levels-chain",
+    "category": "lld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Logger banana hai: DEBUG console pe, ERROR file me bhi, FATAL pe on-call ko alert bhi. Poori app me ek hi logger instance.",
+      "en": "Build a logger: DEBUG goes to console, ERROR also to a file, FATAL also alerts on-call. One logger instance for the whole app."
+    },
+    "patterns": {
+      "hi": [
+        "Chain of Responsibility",
+        "Singleton logger"
+      ],
+      "en": [
+        "Chain of Responsibility",
+        "Singleton logger"
+      ]
+    },
+    "why": {
+      "hi": "Har handler apna level dekhe aur aage pass kare. Naya handler chain me jodo, baaki code same.",
+      "en": "Each handler checks its level and passes the message on. Add a handler to the chain without touching the rest."
+    },
+    "links": [
+      "05-behavioral",
+      "03-creational"
+    ]
+  },
+  {
+    "id": "god-order-service-srp",
+    "category": "lld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Zomato ki OrderService class validate karti hai, DB me save karti hai, invoice PDF banati hai aur email bhi bhejti hai. 2000 lines.",
+      "en": "Zomato's OrderService class validates, saves to the DB, generates the invoice PDF and sends email. 2,000 lines."
+    },
+    "patterns": {
+      "hi": [
+        "Single Responsibility principle violation",
+        "Split into Validator, Repository, InvoiceGenerator, Notifier"
+      ],
+      "en": [
+        "Single Responsibility principle violation",
+        "Split into Validator, Repository, InvoiceGenerator, Notifier"
+      ]
+    },
+    "why": {
+      "hi": "Ek class ke badalne ke 4 alag reasons hain. Har responsibility ki alag class banao.",
+      "en": "The class has 4 separate reasons to change. Give each responsibility its own class."
+    },
+    "links": [
+      "02-solid",
+      "01-oops"
+    ]
+  },
+  {
+    "id": "vehicle-refuel-lsp",
+    "category": "lld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Rapido me Vehicle base class me refuel() hai. ElectricScooter aur Bicycle usse extend karke refuel() me exception throw karte hain.",
+      "en": "In Rapido, the Vehicle base class has refuel(). ElectricScooter and Bicycle extend it and throw an exception from refuel()."
+    },
+    "patterns": {
+      "hi": [
+        "Liskov Substitution violation",
+        "Interface Segregation (Refuelable, Chargeable)",
+        "Composition over inheritance"
+      ],
+      "en": [
+        "Liskov Substitution violation",
+        "Interface Segregation (Refuelable, Chargeable)",
+        "Composition over inheritance"
+      ]
+    },
+    "why": {
+      "hi": "Subclass parent ki jagah use ho to crash nahi hona chahiye. Chhote interfaces banao, sirf jo lagu ho wahi implement karo.",
+      "en": "A subclass used in place of its parent must not crash. Create small interfaces and implement only what applies."
+    },
+    "links": [
+      "02-solid",
+      "01-oops"
+    ]
+  },
+  {
+    "id": "notification-channel-factory",
+    "category": "lld",
+    "level": "easy",
+    "prompt": {
+      "hi": "Config me likha hai \"SMS\", \"EMAIL\" ya \"WHATSAPP\". Code ko us type ka sender object banana hai, bina har jagah new likhe.",
+      "en": "The config says \"SMS\", \"EMAIL\" or \"WHATSAPP\". Code must create the matching sender object without writing new everywhere."
+    },
+    "patterns": {
+      "hi": [
+        "Factory Method / Simple Factory",
+        "Program to an interface"
+      ],
+      "en": [
+        "Factory Method / Simple Factory",
+        "Program to an interface"
+      ]
+    },
+    "why": {
+      "hi": "Object creation ek jagah centralize karo. Caller ko sirf interface dikhe, concrete class nahi.",
+      "en": "Centralize object creation in one place. Callers see only the interface, not the concrete class."
+    },
+    "links": [
+      "03-creational"
+    ]
+  },
+  {
+    "id": "chai-addons-decorator",
+    "category": "lld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Chaayos menu: base chai + adrak, elaichi, extra doodh, kulhad, kisi bhi combination me. Har combo ki alag class nahi banani.",
+      "en": "Chaayos menu: base chai plus ginger, cardamom, extra milk, kulhad, in any combination. No separate class per combo."
+    },
+    "patterns": {
+      "hi": [
+        "Decorator pattern",
+        "Composition over inheritance"
+      ],
+      "en": [
+        "Decorator pattern",
+        "Composition over inheritance"
+      ]
+    },
+    "why": {
+      "hi": "Har add-on base object ko wrap karke price aur description badhata hai. Class explosion se bachte ho.",
+      "en": "Each add-on wraps the base object and adds to price and description. Avoids a class explosion."
+    },
+    "links": [
+      "04-structural"
+    ]
+  },
+  {
+    "id": "place-order-facade",
+    "category": "lld",
+    "level": "medium",
+    "prompt": {
+      "hi": "Zerodha Kite me ek \"Buy\" click ke peeche margin check, risk check, order validation aur exchange gateway call hote hain. UI ko ek simple method chahiye.",
+      "en": "Behind one \"Buy\" click in Zerodha Kite are margin checks, risk checks, order validation and an exchange gateway call. The UI needs one simple method."
+    },
+    "patterns": {
+      "hi": [
+        "Facade pattern",
+        "Encapsulation of subsystems"
+      ],
+      "en": [
+        "Facade pattern",
+        "Encapsulation of subsystems"
+      ]
+    },
+    "why": {
+      "hi": "Facade complex subsystems ko ek simple API ke peeche chhupata hai. Client ka coupling kam hota hai.",
+      "en": "A facade hides complex subsystems behind one simple API. It reduces client coupling."
+    },
+    "links": [
+      "04-structural",
+      "01-oops"
+    ]
+  }
+]

@@ -21,10 +21,13 @@ export const getGeminiSettings = (): GeminiSettings =>
 
 export const saveGeminiSettings = (s: GeminiSettings) => writeLocal(SETTINGS_KEY, s)
 
+// Errors surface in the UI, so they follow the language switch
+const L = (hi: string, en: string) => (readLocal<string>('hld.lang', 'hi') === 'en' ? en : hi)
+
 /** Text models this key can call, newest-looking first */
 export async function listModels(apiKey: string): Promise<string[]> {
   const res = await fetch(`${API}/models?pageSize=1000`, { headers: { 'x-goog-api-key': apiKey } })
-  if (!res.ok) throw new Error(`Model list nahi mili (${res.status}). Key check karo.`)
+  if (!res.ok) throw new Error(L(`Model list nahi mili (${res.status}). Key check karo.`, `Could not load models (${res.status}). Check your key.`))
   const data = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] }
   return (data.models ?? [])
     .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
@@ -61,7 +64,7 @@ export async function streamGemini(
   signal?: AbortSignal,
 ): Promise<string> {
   const { apiKey, model: saved } = getGeminiSettings()
-  if (!apiKey) throw new Error('Gemini API key nahi mili. Settings me apni key daalo.')
+  if (!apiKey) throw new Error(L('Gemini API key nahi mili. Settings me apni key daalo.', 'No Gemini API key found. Add your key in Settings.'))
   let model = saved || DEFAULT_MODEL
 
   let res = await request(model, apiKey, system, history, signal)
@@ -83,9 +86,11 @@ export async function streamGemini(
     } catch {
       /* keep status code */
     }
-    if (res.status === 400 || res.status === 403) throw new Error(`Gemini ne key reject kar di: ${detail}`)
-    if (res.status === 404) throw new Error(`Model "${model}" nahi mila. Settings me "Models dikhao" se koi aur model chuno.`)
-    if (res.status === 429) throw new Error('Gemini rate limit lag gayi. Thodi der baad try karo.')
+    if (res.status === 400 || res.status === 403) throw new Error(L(`Gemini ne key reject kar di: ${detail}`, `Gemini rejected the key: ${detail}`))
+    if (res.status === 404) throw new Error(
+        L(`Model "${model}" nahi mila. Settings me "Models dikhao" se koi aur model chuno.`, `Model "${model}" not found. Pick another one with "Show models" in Settings.`),
+      )
+    if (res.status === 429) throw new Error(L('Gemini rate limit lag gayi. Thodi der baad try karo.', 'Gemini rate limit hit. Try again in a bit.'))
     throw new Error(`Gemini error: ${detail}`)
   }
 
@@ -114,9 +119,14 @@ export async function streamGemini(
   return text
 }
 
-export function tutorPrompt(title: string, body: string): string {
-  return `You are a friendly system design (HLD) interview coach helping an Indian software engineer prepare for interviews in 1 week.
-Reply in simple Hinglish (Roman script Hindi mixed with English tech terms), short and crisp, with bullet points where useful.
+const replyIn = (lang: 'hi' | 'en') =>
+  lang === 'en'
+    ? 'Reply in simple, clear English'
+    : 'Reply in simple Hinglish (Roman script Hindi mixed with English tech terms)'
+
+export function tutorPrompt(title: string, body: string, lang: 'hi' | 'en' = 'hi'): string {
+  return `You are a friendly system design and LLD interview coach helping an Indian software engineer prepare for interviews in 1 week.
+${replyIn(lang)}, short and crisp, with bullet points where useful. For code, use Java unless the user asks for C++.
 Use the study page below as the main context. If the question goes beyond it, answer from general system design knowledge and say so.
 When a diagram helps, use a mermaid code block (flowchart LR or sequenceDiagram, all node labels in double quotes).
 
@@ -124,18 +134,30 @@ When a diagram helps, use a mermaid code block (flowchart LR or sequenceDiagram,
 ${body}`
 }
 
-export function interviewerPrompt(title: string, body: string): string {
+export function interviewerPrompt(title: string, body: string, lang: 'hi' | 'en' = 'hi'): string {
   return `You are a senior engineer at a top tech company running a 45-minute system design (HLD) interview.
-The question is: "${title}". Speak in simple Hinglish (Roman script Hindi + English tech terms), like a real Indian interviewer.
+The question is: "${title}". ${replyIn(lang)}, like a real interviewer at an Indian tech company.
 
 Rules:
 - Start by stating the question in 1-2 lines only. Do NOT give requirements upfront; let the candidate ask clarifying questions and answer them like a real interviewer.
 - Ask ONE thing at a time. Keep each message short (2-5 lines).
 - Push in this order: requirements → estimation (only if useful) → entities/APIs → high-level design → 2-3 deep dives → failures → wrap-up.
-- Probe weak spots with follow-ups ("Agar Redis down ho jaye to?", "Ye DB kyun, wo kyun nahi?").
+- Probe weak spots with follow-ups (e.g. "What if Redis goes down?", "Why this DB and not that one?").
 - Never reveal the full answer. Give small hints only if the candidate is stuck twice.
 - When the candidate says "END" or asks for a score, give a scorecard: Requirements, High-level design, Deep dives, Trade-offs, Communication, each out of 10 with one line why, then 3 concrete things to improve, and a hire/no-hire signal for SDE-2 level.
 
 Hidden reference answer (use it to judge, never paste it):
 ${body}`
+}
+
+/** One-shot call that must return JSON (used to generate quiz questions) */
+export async function generateJson<T>(prompt: string, signal?: AbortSignal): Promise<T> {
+  let raw = ''
+  await streamGemini('Return only valid JSON. No markdown, no code fences, no commentary.', [{ role: 'user', text: prompt }], (t) => (raw = t), signal)
+  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim()
+  try {
+    return JSON.parse(cleaned) as T
+  } catch {
+    throw new Error(L('AI ka jawab samajh nahi aaya. Dobara try karo.', 'Could not read the AI reply. Please try again.'))
+  }
 }

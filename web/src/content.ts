@@ -34,6 +34,13 @@ const lldFiles = import.meta.glob('../../content/03-lld/*.md', {
   eager: true,
 }) as Record<string, string>
 
+// English mirrors live in content-en/ with the same paths; missing files fall back to Hinglish
+const enFiles = import.meta.glob('../../content-en/0*/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
+
 const questionFiles = import.meta.glob('../../content/02-questions/*.md', {
   query: '?raw',
   import: 'default',
@@ -100,6 +107,28 @@ export const questions = build(questionFiles, 'question')
 export const lld = build(lldFiles, 'lld')
 export const allPages = [...topics, ...questions, ...lld]
 export const pageBySlug = new Map(allPages.map((p) => [p.slug, p]))
+
+const enBySlug = new Map(
+  build(enFiles, 'topic').map((p) => [p.slug, p] as const),
+)
+
+/**
+ * Page in the chosen language. Structure (kind, tier, links) and checklist ids always come from
+ * the Hinglish source, so progress is shared; English items map to them by position.
+ */
+export function localize(page: Page, lang: 'hi' | 'en'): Page {
+  if (lang === 'hi') return page
+  const en = enBySlug.get(page.slug)
+  if (!en) return page
+  return {
+    ...page,
+    title: en.title,
+    body: en.body,
+    checklist: page.checklist.map((item, i) => ({ id: item.id, text: en.checklist[i]?.text ?? item.text })),
+  }
+}
+
+export const hasEnglish = (slug: string) => enBySlug.has(slug)
 export const allItems = allPages.flatMap((p) => p.checklist)
 
 export function route(p: Pick<Page, 'kind' | 'slug'>): string {
@@ -117,7 +146,7 @@ export function resolveMdLink(href: string): string | null {
 /** Sections kept in revision mode: the parts worth rereading the night before */
 const REVISION_HEADINGS: Record<Kind, RegExp> = {
   question: /^## (Step 1:|Step 10:|2-minute recap)/,
-  topic: /^## (Interview me bolo|Common galtiyan)/,
+  topic: /^## (Interview me bolo|Common galtiyan|Say this in the interview|Common mistakes)/,
   // LLD: only the starred (most-asked) patterns
   lld: /^## ⭐/,
 }

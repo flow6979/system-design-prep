@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { firebaseEnabled } from '../firebase'
+import { useTr } from '../i18n'
 
 type Status = 'loading' | 'saved' | 'saving' | 'dirty' | 'error'
 
 export function NotesPanel({ slug, onLogin }: { slug: string; onLogin: () => void }) {
   const { user, loadNote, saveNote } = useStore()
+  const tr = useTr()
   const [text, setText] = useState('')
   const [status, setStatus] = useState<Status>('loading')
   const timer = useRef<number | undefined>(undefined)
@@ -37,19 +39,22 @@ export function NotesPanel({ slug, onLogin }: { slug: string; onLogin: () => voi
   }
 
   const label = {
-    loading: 'Load ho raha hai…',
-    dirty: 'Likh rahe ho…',
-    saving: 'Save ho raha hai…',
-    saved: user ? 'Account me saved' : 'Is browser me saved',
-    error: 'Save nahi hua. Internet check karo.',
+    loading: tr('Load ho raha hai…', 'Loading…'),
+    dirty: tr('Likh rahe ho…', 'Typing…'),
+    saving: tr('Save ho raha hai…', 'Saving…'),
+    saved: user ? tr('Account me saved', 'Saved to your account') : tr('Is browser me saved', 'Saved in this browser'),
+    error: tr('Save nahi hua. Internet check karo.', 'Could not save. Check your internet connection.'),
   }[status]
 
   return (
     <div className="panel-body notes">
       <textarea
         id={`notes-${slug}`}
-        aria-label="Is page ke notes"
-        placeholder="Apne shabdon me likho: kya samjha, kya confusing hai, interview me kya bolna hai…"
+        aria-label={tr('Is page ke notes', 'Notes for this page')}
+        placeholder={tr(
+          'Apne shabdon me likho: kya samjha, kya confusing hai, interview me kya bolna hai…',
+          'Write in your own words: what you understood, what is confusing, what to say in the interview…',
+        )}
         value={text}
         disabled={status === 'loading'}
         onChange={(e) => onChange(e.target.value)}
@@ -58,7 +63,7 @@ export function NotesPanel({ slug, onLogin }: { slug: string; onLogin: () => voi
         <span className={status === 'error' ? 'error small' : 'muted small'}>{label}</span>
         {!user && firebaseEnabled && (
           <button className="link small" onClick={onLogin}>
-            Login karke sync karo
+            {tr('Login karke sync karo', 'Log in to sync')}
           </button>
         )}
       </div>

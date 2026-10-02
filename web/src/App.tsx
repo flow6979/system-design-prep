@@ -14,6 +14,8 @@ import { AuthModal } from './components/AuthModal'
 import { SettingsModal } from './components/SettingsModal'
 import { Resizer, useMedia } from './components/Resizer'
 import { CodeLangContext, type CodeLang } from './components/CodeBlock'
+import { LangSwitch, useLang, useTr } from './i18n'
+import { localize } from './content'
 
 const NAV = { min: 200, max: 440, fallback: 270 }
 const PANEL = { min: 300, max: 720, fallback: 380 }
@@ -39,6 +41,8 @@ const systemTheme = (): Theme => (window.matchMedia?.('(prefers-color-scheme: da
 export function App() {
   const { user, authReady, progress, logout } = useStore()
   const { view, slug } = useHashRoute()
+  const { lang } = useLang()
+  const tr = useTr()
   const page = view === 'page' ? pageBySlug.get(slug) : undefined
   const [tab, setTab] = useState<Tab>(() => readLocal('hld.tab', 'notes'))
   const [revision, setRevision] = useState<boolean>(() => readLocal('hld.revision', false))
@@ -81,10 +85,10 @@ export function App() {
   useEffect(() => writeLocal('hld.revision', revision), [revision])
 
   useEffect(() => {
-    document.title = page ? `${page.title} · HLD Prep` : view === 'quiz' ? 'Pattern quiz · HLD Prep' : 'HLD Prep'
+    document.title = page ? `${localize(page, lang).title} · HLD Prep` : view === 'quiz' ? 'Pattern quiz · HLD Prep' : 'HLD Prep'
     document.querySelector('.main')?.scrollTo(0, 0)
     window.scrollTo(0, 0)
-  }, [page, view])
+  }, [page, view, lang])
 
   const done = allItems.filter((i) => progress[i.id]).length
   const overall = pct(done, allItems.length)
@@ -105,8 +109,8 @@ export function App() {
         <button
           className="icon-btn"
           onClick={toggleNav}
-          aria-label={desktop ? (navHidden ? 'Sidebar dikhao' : 'Sidebar chhupao') : 'Menu'}
-          title={desktop ? (navHidden ? 'Sidebar dikhao' : 'Sidebar chhupao') : 'Menu'}
+          aria-label={desktop ? (navHidden ? tr('Sidebar dikhao', 'Show sidebar') : tr('Sidebar chhupao', 'Hide sidebar')) : 'Menu'}
+          title={desktop ? (navHidden ? tr('Sidebar dikhao', 'Show sidebar') : tr('Sidebar chhupao', 'Hide sidebar')) : 'Menu'}
           aria-expanded={desktop ? !navHidden : navOpen}
         >
           ☰
@@ -115,13 +119,14 @@ export function App() {
           HLD Prep
         </a>
         <div className="spacer" />
+        <LangSwitch />
         <div className="overall" title={`${done} / ${allItems.length} checklist points`}>
           <span className="mono small">{overall}%</span>
           <div className="bar small">
             <i style={{ width: `${overall}%` }} />
           </div>
         </div>
-        <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Theme badlo">
+        <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={tr('Theme badlo', 'Toggle theme')}>
           {theme === 'dark' ? '☀' : '☾'}
         </button>
         <button className="btn small" onClick={() => setShowSettings(true)} aria-label="Gemini settings">
@@ -133,14 +138,13 @@ export function App() {
             className={`btn small panel-toggle ${panelVisible ? 'on' : ''}`}
             onClick={togglePanel}
             aria-expanded={panelVisible}
-            title={panelVisible ? 'Notes / Gemini panel chhupao' : 'Notes / Gemini panel dikhao'}
+            title={panelVisible ? tr('Notes / Gemini panel chhupao', 'Hide notes / Gemini panel') : tr('Notes / Gemini panel dikhao', 'Show notes / Gemini panel')}
           >
-            <span className="hide-sm">{panelVisible ? 'Panel chhupao' : 'Notes · Gemini'}</span>
+            <span className="hide-sm">{panelVisible ? tr('Panel chhupao', 'Hide panel') : 'Notes · Gemini'}</span>
             <span className="show-sm">✎</span>
           </button>
         )}
-        {firebaseEnabled &&
-          authReady &&
+        {authReady &&
           (user ? (
             <div className="user-menu">
               <button className="btn small" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen}>
@@ -156,22 +160,27 @@ export function App() {
                       logout()
                     }}
                   >
-                    Logout
+                    {tr('Logout', 'Log out')}
                   </button>
                 </div>
               )}
             </div>
           ) : (
             <button className="btn primary small" onClick={() => setShowAuth(true)}>
-              Login
+              {tr('Login', 'Log in')}
             </button>
           ))}
       </header>
 
       {!firebaseEnabled && !bannerClosed && (
         <div className="banner small">
-          <span>Login abhi setup nahi hua, isliye progress aur notes sirf is browser me save ho rahe hain.</span>
-          <button className="icon-btn" onClick={() => setBannerClosed(true)} aria-label="Banner band karo">
+          <span>
+            {tr(
+              'Login abhi setup nahi hua, isliye progress aur notes sirf is browser me save ho rahe hain.',
+              'Login is not set up yet, so progress and notes are saved only in this browser.',
+            )}
+          </span>
+          <button className="icon-btn" onClick={() => setBannerClosed(true)} aria-label={tr('Banner band karo', 'Dismiss')}>
             ×
           </button>
         </div>
@@ -182,7 +191,7 @@ export function App() {
           <aside className={`nav ${navOpen ? 'open' : ''}`} aria-hidden={!desktop && !navOpen}>
             <Sidebar current={slug} onNavigate={() => setNavOpen(false)} />
             {desktop && (
-              <Resizer side="right" width={navW} {...NAV} onChange={setNavW} label="Sidebar ki width" />
+              <Resizer side="right" width={navW} {...NAV} onChange={setNavW} label={tr('Sidebar ki width', 'Sidebar width')} />
             )}
           </aside>
         )}
@@ -190,11 +199,11 @@ export function App() {
 
         <main className="main">
           {view === 'home' && <Dashboard />}
-          {view === 'quiz' && <Quiz />}
+          {view === 'quiz' && <Quiz hasKey={hasKey} onOpenSettings={() => setShowSettings(true)} />}
           {view === 'page' && !page && (
             <div className="empty-state">
-              <h1>Page nahi mila</h1>
-              <a href="#/">Dashboard pe jao</a>
+              <h1>{tr('Page nahi mila', 'Page not found')}</h1>
+              <a href="#/">{tr('Dashboard pe jao', 'Go to dashboard')}</a>
             </div>
           )}
           {page && (
@@ -210,7 +219,7 @@ export function App() {
 
         {showPanel && page && (
           <aside className={`side-panel ${panelOpen ? 'open' : ''}`}>
-            {desktop && <Resizer side="left" width={panelW} {...PANEL} onChange={setPanelW} label="Panel ki width" />}
+            {desktop && <Resizer side="left" width={panelW} {...PANEL} onChange={setPanelW} label={tr('Panel ki width', 'Panel width')} />}
             <div className="tabs" role="tablist">
               {(['notes', 'ask', ...(page.kind === 'question' ? ['mock'] : [])] as Tab[]).map((t) => (
                 <button key={t} role="tab" aria-selected={effectiveTab === t} className={effectiveTab === t ? 'on' : ''} onClick={() => setTab(t)}>
@@ -220,8 +229,8 @@ export function App() {
               <button
                 className="icon-btn panel-close"
                 onClick={() => (desktop ? setPanelHidden(true) : setPanelOpen(false))}
-                aria-label="Panel band karo"
-                title="Panel band karo"
+                aria-label={tr('Panel band karo', 'Close panel')}
+                title={tr('Panel band karo', 'Close panel')}
               >
                 ×
               </button>

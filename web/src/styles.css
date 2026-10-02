@@ -294,6 +294,24 @@ body.resizing iframe, body.resizing .main { pointer-events: none; }
 .hljs-title.function_ { color: var(--code-fn); }
 .msg .code-block pre { font-size: 0.78rem; }
 
+/* Quiz */
+.quiz-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.quiz-score { font-variant-numeric: tabular-nums; }
+.quiz-input {
+  width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  font: 0.95rem/1.5 var(--f-body); background: var(--bg); color: var(--ink);
+}
+.quiz-card { align-items: stretch; }
+.quiz-card > .row { align-items: center; }
+.quiz-ai { border-top: 1px dashed var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.quiz-mark { border-top: 1px solid var(--line); padding-top: 12px; }
+.btn.ok { border-color: var(--ok); color: var(--ok); }
+.btn.bad { border-color: var(--danger); color: var(--danger); }
+.tag.ai { background: var(--marker); color: var(--ink); }
+.quiz-gen { margin-top: 12px; padding: 18px; border: 1px dashed var(--accent); border-radius: 12px; display: flex; flex-direction: column; gap: 10px; }
+.quiz-gen h2 { margin: 0; font-size: 1.2rem; }
+.lang-switch { flex: none; }
+
 /* Compact (< 1024px): nav is a left drawer, panel a right sheet (full screen on phones) */
 @media (max-width: 1023px) {
   .panel-toggle { display: none; }
