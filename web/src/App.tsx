@@ -2,7 +2,6 @@ import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { allItems, pageBySlug } from './content'
 import { useStore, readLocal, writeLocal } from './store'
-import { firebaseEnabled } from './firebase'
 import { getGeminiSettings } from './gemini'
 import { pct } from './progress'
 import { Sidebar } from './components/Sidebar'
@@ -19,10 +18,11 @@ import { LangSwitch, useLang, useTr } from './i18n'
 import { agentPageFor, localize } from './content'
 import { lazy, Suspense } from 'react'
 import { Checklist } from './components/Checklist'
+import { Icon } from './components/Icon'
 
 const AgentSection = lazy(() => import('./agents/AgentSection').then((m) => ({ default: m.AgentSection })))
 
-const NAV = { min: 200, max: 440, fallback: 270 }
+const NAV = { min: 200, max: 440, fallback: 248 }
 const PANEL = { min: 300, max: 720, fallback: 380 }
 
 type Tab = 'notes' | 'ask' | 'mock'
@@ -66,14 +66,12 @@ export function App() {
   const [codeLang, setCodeLang] = useState<CodeLang>(() => readLocal('hld.codeLang', 'java'))
   useEffect(() => writeLocal('hld.codeLang', codeLang), [codeLang])
   const langCtx = useMemo(() => ({ lang: codeLang, setLang: setCodeLang }), [codeLang])
-  const [bannerClosed, setBannerClosed] = useState<boolean>(() => readLocal('hld.bannerClosed', false))
-  useEffect(() => writeLocal('hld.bannerClosed', bannerClosed), [bannerClosed])
   // Desktop: both side columns can be dragged wider/narrower or hidden. Below 1024px they become overlays.
   const desktop = useMedia('(min-width: 1024px)')
   const [navW, setNavW] = useState<number>(() => readLocal('hld.navW', NAV.fallback))
   const [panelW, setPanelW] = useState<number>(() => readLocal('hld.panelW', PANEL.fallback))
   const [navHidden, setNavHidden] = useState<boolean>(() => readLocal('hld.navHidden', false))
-  const [panelHidden, setPanelHidden] = useState<boolean>(() => readLocal('hld.panelHidden', false))
+  const [panelHidden, setPanelHidden] = useState<boolean>(() => readLocal('hld.panelHidden', true))
 
   useEffect(() => writeLocal('hld.navW', navW), [navW])
   useEffect(() => writeLocal('hld.panelW', panelW), [panelW])
@@ -126,35 +124,39 @@ export function App() {
           title={desktop ? (navHidden ? tr('Sidebar dikhao', 'Show sidebar') : tr('Sidebar chhupao', 'Hide sidebar')) : 'Menu'}
           aria-expanded={desktop ? !navHidden : navOpen}
         >
-          ☰
+          <Icon name="menu" />
         </button>
         <a href="#/" className="logo">
           HLD Prep
         </a>
         <div className="spacer" />
         <LangSwitch />
-        <div className="overall" title={`${done} / ${allItems.length} checklist points`}>
+        <div className="overall" title={`${done} / ${allItems.length}`}>
           <span className="mono small">{overall}%</span>
           <div className="bar small">
             <i style={{ width: `${overall}%` }} />
           </div>
         </div>
         <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={tr('Theme badlo', 'Toggle theme')}>
-          {theme === 'dark' ? '☀' : '☾'}
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
-        <button className="btn small" onClick={() => setShowSettings(true)} aria-label="Gemini settings">
-          <span className="hide-sm">Gemini key</span>
-          <span className="show-sm">AI</span>
+        <button
+          className={`icon-btn ${hasKey ? '' : 'attn'}`}
+          onClick={() => setShowSettings(true)}
+          aria-label={tr('Gemini key', 'Gemini key')}
+          title={hasKey ? 'Gemini' : tr('Gemini key daalo', 'Add Gemini key')}
+        >
+          <Icon name="key" />
         </button>
         {page && (
           <button
-            className={`btn small panel-toggle ${panelVisible ? 'on' : ''}`}
+            className={`icon-btn panel-toggle ${panelVisible ? 'on' : ''}`}
             onClick={togglePanel}
             aria-expanded={panelVisible}
-            title={panelVisible ? tr('Notes / Gemini panel chhupao', 'Hide notes / Gemini panel') : tr('Notes / Gemini panel dikhao', 'Show notes / Gemini panel')}
+            aria-label="Notes · Gemini"
+            title="Notes · Gemini"
           >
-            <span className="hide-sm">{panelVisible ? tr('Panel chhupao', 'Hide panel') : 'Notes · Gemini'}</span>
-            <span className="show-sm">✎</span>
+            <Icon name="panel" />
           </button>
         )}
         {authReady &&
@@ -185,19 +187,6 @@ export function App() {
           ))}
       </header>
 
-      {!firebaseEnabled && !bannerClosed && (
-        <div className="banner small">
-          <span>
-            {tr(
-              'Login abhi setup nahi hua, isliye progress aur notes sirf is browser me save ho rahe hain.',
-              'Login is not set up yet, so progress and notes are saved only in this browser.',
-            )}
-          </span>
-          <button className="icon-btn" onClick={() => setBannerClosed(true)} aria-label={tr('Banner band karo', 'Dismiss')}>
-            ×
-          </button>
-        </div>
-      )}
 
       <div className={`layout ${desktop ? 'desktop' : 'compact'}`} style={gridStyle}>
         {showNav && (

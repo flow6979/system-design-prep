@@ -187,12 +187,6 @@ export function Quiz({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSettin
         Pattern quiz · {items.length ? index + 1 : 0}/{items.length}
       </span>
       <h1>{tr('Kaunse patterns lagenge?', 'Which patterns apply?')}</h1>
-      <p className="muted">
-        {tr(
-          'Problem padho, 30 second me bolo ya likho kaunse patterns lagenge, phir answer dekho. Naya problem pehchanne ki skill isi se aati hai.',
-          'Read the problem, say or write which patterns apply within 30 seconds, then check the answer. This is how you learn to recognise new problems.',
-        )}
-      </p>
 
       <div className="quiz-bar">
         <div className="seg small" role="radiogroup" aria-label={tr('Category', 'Category')}>
@@ -237,7 +231,7 @@ export function Quiz({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSettin
             rows={2}
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            placeholder={tr('Apna answer likho (optional): jaise "Redis lock + TTL, idempotency"…', 'Write your answer (optional): e.g. "Redis lock + TTL, idempotency"…')}
+            placeholder={tr('Aapka answer (optional)', 'Your answer (optional)')}
             aria-label={tr('Aapka answer', 'Your answer')}
           />
 
@@ -304,13 +298,7 @@ export function Quiz({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSettin
       </div>
 
       <section className="quiz-gen">
-        <h2>{tr('Aur sawal chahiye?', 'Want more questions?')}</h2>
-        <p className="muted small">
-          {tr(
-            `Gemini ${filter === 'lld' ? 'LLD' : filter === 'hld' ? 'HLD' : 'HLD/LLD'} ke 3 naye sawal banayega, English aur Hinglish dono me. Ye is browser me save rehte hain.`,
-            `Gemini will write 3 new ${filter === 'lld' ? 'LLD' : filter === 'hld' ? 'HLD' : 'HLD/LLD'} questions in both English and Hinglish. They stay saved in this browser.`,
-          )}
-        </p>
+        <h2>{tr('Aur sawal', 'More questions')}</h2>
         <div className="row wrap">
           <button className="btn primary" onClick={generate} disabled={busy === 'generate'}>
             {busy === 'generate' ? tr('Bana raha hai…', 'Generating…') : hasKey ? tr('AI se 3 naye sawal banao', 'Generate 3 questions with AI') : tr('Gemini key daalo', 'Add Gemini key')}

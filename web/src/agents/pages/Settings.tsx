@@ -113,13 +113,13 @@ export default function Settings() {
                 const p = providerById(id)!
                 return (
                   <ChainRow key={id} name={p.name} spec={app.specFor(id)} badge={`${t.fallbackBadge} ${i + 1}`} hasKey={!!app.keys[id]} noKey={t.noKey}>
-                    <button type="button" className="btn btn-sm icon-btn" aria-label={`${t.up}: ${p.name}`} disabled={i === 0} onClick={() => move(i, -1)}>
+                    <button type="button" className="btn btn-sm al-icon-btn" aria-label={`${t.up}: ${p.name}`} disabled={i === 0} onClick={() => move(i, -1)}>
                       <Icon name="up" size={16} />
                     </button>
-                    <button type="button" className="btn btn-sm icon-btn" aria-label={`${t.down}: ${p.name}`} disabled={i === chain.length - 1} onClick={() => move(i, 1)}>
+                    <button type="button" className="btn btn-sm al-icon-btn" aria-label={`${t.down}: ${p.name}`} disabled={i === chain.length - 1} onClick={() => move(i, 1)}>
                       <Icon name="down" size={16} />
                     </button>
-                    <button type="button" className="btn btn-sm icon-btn" aria-label={`${t.remove}: ${p.name}`} onClick={() => app.setFallback(chain.filter((c) => c !== id))}>
+                    <button type="button" className="btn btn-sm al-icon-btn" aria-label={`${t.remove}: ${p.name}`} onClick={() => app.setFallback(chain.filter((c) => c !== id))}>
                       <Icon name="close" size={16} />
                     </button>
                   </ChainRow>

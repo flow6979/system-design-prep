@@ -43,12 +43,10 @@ function Toolbar() {
       <span className="spacer" />
       {activePage && (
         <>
-          <span className="muted small">
-            {t.guide} {Math.min(progress[activePage.id] ?? 0, activePage.total)}/{activePage.total}
-          </span>
           <button
             type="button"
             className="btn btn-sm"
+            title={`${t.guide} ${Math.min(progress[activePage.id] ?? 0, activePage.total)}/${activePage.total}`}
             onClick={() => {
               setStep(activePage.id, 0)
               showExplain(null)
@@ -95,7 +93,9 @@ function Shell() {
           <Route path="/agents/run/*" element={<Runner />} />
           <Route path="/agents/history" element={<History />} />
           <Route path="/agents/presenter" element={<Presenter />} />
-          <Route path="*" element={<Navigate to="/agents" replace />} />
+          {/* Unknown agent URLs go to Setup; anything outside /agents belongs to HLD Prep, so render nothing */}
+          <Route path="/agents/*" element={<Navigate to="/agents" replace />} />
+          <Route path="*" element={null} />
         </Routes>
       </Suspense>
       </div>

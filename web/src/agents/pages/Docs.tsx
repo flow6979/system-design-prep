@@ -36,7 +36,7 @@ export default function Docs() {
   const params = useParams()
   const [search] = useSearchParams()
   const id = (params['*'] || '').replace(/\/$/, '') || '.'
-  const g = useGuide('docs', ['lang', 'tab'])
+  const g = useGuide('docs', ['tab'])
   const [root, setRoot] = useState<DocNode | null>(null)
   const [open, setOpen] = useState<Set<string>>(() => new Set(ancestors(id)))
   const [doc, setDoc] = useState<{ file: string; text: string; fellBack: boolean } | null>(null)
@@ -129,19 +129,7 @@ export default function Docs() {
             <h1 style={{ fontSize: 28, fontWeight: 700 }}>{title}</h1>
             <span className="mono" style={{ fontSize: 13, color: 'var(--teal)', wordBreak: 'break-all' }}>{doc?.file ? prettyFile(doc.file) : ''}</span>
           </div>
-          <div className="col" style={{ alignItems: 'flex-end', gap: 6 }}>
-            <span className="label" style={{ fontSize: 12 }}>{t.langLabel}</span>
-            <div role="group" aria-label={t.langLabel} className={`row ${g.pulse('lang')}`} style={{ gap: 8, borderRadius: 12 }}>
-              {(['hi', 'en'] as Lang[]).map((l) => (
-                <button key={l} type="button" className="lang-opt" aria-pressed={app.lang === l} onClick={() => setLang(l)}>
-                  <span style={{ fontWeight: 700 }}>{l === 'hi' ? 'Hinglish' : 'English'}</span>
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{l === 'en' ? 'Plain English' : 'Hindi + English mix'}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
-        <Tip show={g.is('lang')} align="end">{t.tipLang}</Tip>
         {available.length > 1 && (
           <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
             <Seg label="Doc files" value={base} onChange={setBase} className={g.pulse('tab')} options={available.map((b) => ({ value: b, label: docLabel(b, app.lang) }))} />

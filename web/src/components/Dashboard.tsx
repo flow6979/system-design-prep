@@ -52,135 +52,85 @@ export function Dashboard() {
   const { progress } = useStore()
   const { lang } = useLang()
   const tr = useTr()
-  const all = groupStats([...topics, ...questions, ...lld, ...agentPages], progress)
-  const next = [...topics, ...questions, ...lld, ...agentPages].find((p) => !pageStats(p, progress).complete)
-  const tiles: [string, ReturnType<typeof groupStats>][] = [
-    ['Topics', groupStats(topics, progress)],
-    ['Tier 1 questions', groupStats(questions.filter((q) => q.tier === 1), progress)],
-    ['Tier 2 questions', groupStats(questions.filter((q) => q.tier !== 1), progress)],
-    ['LLD patterns', groupStats(lld, progress)],
-    ['Agentic AI', groupStats(agentPages, progress)],
+  const everything = [...topics, ...questions, ...lld, ...agentPages]
+  const all = groupStats(everything, progress)
+  const next = everything.find((p) => !pageStats(p, progress).complete)
+  const groups: [string, ReturnType<typeof groupStats>, string][] = [
+    ['Topics', groupStats(topics, progress), route(topics[0])],
+    ['Tier 1', groupStats(questions.filter((q) => q.tier === 1), progress), route(questions[0])],
+    ['Tier 2', groupStats(questions.filter((q) => q.tier !== 1), progress), route(questions.find((q) => q.tier !== 1) ?? questions[0])],
+    ['LLD', groupStats(lld, progress), lld[0] ? route(lld[0]) : '#/'],
+    ['Agentic AI', groupStats(agentPages, progress), '#/agents'],
   ]
+  // The first day that is not finished opens by default
+  const plans = PLAN.map((d) => {
+    const pages = d.slugs.map((s) => pageBySlug.get(s)).filter((p): p is NonNullable<typeof p> => !!p)
+    return { ...d, pages, stats: groupStats(pages, progress) }
+  })
+  const today = plans.findIndex((d) => d.stats.percent < 100)
 
   return (
     <div className="dashboard">
-      <header className="dash-head">
-        <span className="eyebrow">{tr('1 hafte ka HLD plan', '1-week HLD plan')}</span>
-        <h1>{tr('System design, ek din ek block', 'System design, one block a day')}</h1>
-        <p className="muted">
-          {tr(
-            'Topics se patterns samjho, questions se pura interview flow practice karo. Har page ke end ki checklist tick karo. Jo bina dekhe bol sakte ho, wahi tick karna.',
-            'Learn the patterns from topics, then practise the full interview flow with questions. Tick the checklist at the end of each page, but only what you can explain without looking.',
-          )}
-        </p>
-      </header>
-
-      <section className="stats">
-        <div className="stat main">
-          <span className="stat-label">Overall</span>
-          <span className="stat-value mono">{all.percent}%</span>
-          <Bar value={all.percent} />
-          <span className="muted small">
-            {all.done} / {all.total} checklist points
-          </span>
-        </div>
-        {tiles.map(([label, st]) => (
-          <div className="stat" key={label}>
-            <span className="stat-label">{label}</span>
-            <span className="stat-value mono">{st.percent}%</span>
-            <Bar value={st.percent} />
-            <span className="muted small">
-              {st.complete}/{st.pages} {tr('pages complete', 'pages complete')}
-            </span>
-          </div>
-        ))}
-      </section>
-
       {next && (
         <a className="continue" href={route(next)}>
-          <span className="muted small">{tr('Agla padho', 'Read next')}</span>
+          <span className="continue-label">{tr('Agla', 'Next')}</span>
           <span className="continue-title">{localize(next, lang).title}</span>
           <span className="mono small">{next.time} min →</span>
         </a>
       )}
 
-      <section className="plan">
-        <h2>{tr('7 din ka plan', '7-day plan')}</h2>
-        <div className="days">
-          {PLAN.map((d) => {
-            const pages = d.slugs.map((s) => pageBySlug.get(s)).filter((p): p is NonNullable<typeof p> => !!p)
-            const s = groupStats(pages, progress)
-            return (
-              <article className="day" key={d.day}>
-                <div className="day-head">
-                  <span className="eyebrow">{d.day}</span>
-                  <span className="mono small">{s.percent}%</span>
-                </div>
-                <h3>{d.title[lang]}</h3>
-                <Bar value={s.percent} />
-                {d.note && <p className="muted small">{d.note[lang]}</p>}
-                <ul>
-                  {pages.map((p) => (
-                    <li key={p.slug} className={pageStats(p, progress).complete ? 'done' : ''}>
-                      <a href={route(p)}>{shortTitle(localize(p, lang).title)}</a>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            )
-          })}
+      <section className="progress-panel" aria-label="Progress">
+        <div className="progress-total">
+          <span className="stat-value mono">{all.percent}%</span>
+          <span className="muted small mono">
+            {all.done}/{all.total}
+          </span>
         </div>
-      </section>
-
-      {lld.length > 0 && (
-        <section className="plan">
-          <h2>{tr('LLD round ke liye', 'For the LLD round')}</h2>
-          <p className="muted">
-            {tr(
-              'OOP, SOLID aur design patterns, Java aur C++ code ke saath. ⭐ wale sabse zyada pooche jaate hain. Revision ke time "Sirf ⭐ dikhao" on karo.',
-              'OOP, SOLID and design patterns with Java and C++ code. ⭐ ones are asked the most. Turn on "Only ⭐" when revising.',
-            )}
-          </p>
-          <div className="row wrap">
-            {lld.map((p) => (
-              <a key={p.slug} href={route(p)} className="chip">
-                {localize(p, lang).title} · {p.time} min
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="plan">
-        <h2>Agentic AI</h2>
-        <p className="muted">
-          {tr(
-            'AI agents ko chala ke samjho: asli handbook ka Python code browser me chalta hai. Pehle Setup me LLM connect karo, phir labs try karo.',
-            'Learn AI agents by running them: the real handbook Python code runs in your browser. Connect an LLM in Setup first, then try the labs.',
-          )}
-        </p>
-        <div className="row wrap">
-          {agentPages.map((p) => (
-            <a key={p.slug} href={route(p)} className={`chip ${pageStats(p, progress).complete ? 'done' : ''}`}>
-              {localize(p, lang).title} · {p.time} min
+        <div className="progress-rows">
+          {groups.map(([label, st, href]) => (
+            <a className="progress-row" key={label} href={href}>
+              <span>{label}</span>
+              <Bar value={st.percent} />
+              <span className="mono small muted">{st.percent}%</span>
             </a>
           ))}
         </div>
       </section>
 
+      <section className="plan">
+        <h2>{tr('7 din ka plan', '7-day plan')}</h2>
+        <div className="day-list">
+          {plans.map((d, i) => (
+            <details className="day-row" key={d.day} open={i === today}>
+              <summary>
+                <span className="eyebrow">{d.day}</span>
+                <span className="day-title">{d.title[lang]}</span>
+                <Bar value={d.stats.percent} />
+                <span className="mono small muted">
+                  {d.stats.complete}/{d.stats.pages}
+                </span>
+              </summary>
+              {d.note && <p className="muted small">{d.note[lang]}</p>}
+              <div className="row wrap">
+                {d.pages.map((p) => (
+                  <a key={p.slug} href={route(p)} className={`chip ${pageStats(p, progress).complete ? 'done' : ''}`}>
+                    {shortTitle(localize(p, lang).title)}
+                  </a>
+                ))}
+              </div>
+            </details>
+          ))}
+        </div>
+      </section>
+
       <section className="tips">
-        <h2>{tr('Interview me full marks ke liye', 'How to score full marks')}</h2>
+        <h2>{tr('Interview tips', 'Interview tips')}</h2>
         <ul>
-          <li>{tr('Pehle 5 min sirf sawal poochho. Bina requirements ke design shuru mat karo.', 'Spend the first 5 minutes asking questions. Never start designing without requirements.')}</li>
-          <li>
-            {tr(
-              'Har tech choice ke saath "kyun" aur "kya nahi liya, kyun" bolo. Isi pe sabse zyada marks milte hain.',
-              'With every tech choice, say why, and what you did not pick and why. This earns the most marks.',
-            )}
-          </li>
-          <li>{tr('Simple design pehle banao jo kaam kare, phir deep dive karo.', 'Build a simple design that works first, then go deep.')}</li>
-          <li>{tr('End me khud bolo ki kya fail ho sakta hai aur isko aur better kaise karte.', 'At the end, say what can fail and how you would make it better.')}</li>
-          <li>{tr('Interview se ek raat pehle Revision mode me saare 2-minute recaps padho.', 'The night before, read all 2-minute recaps in Revision mode.')}</li>
+          <li>{tr('Pehle 5 min sirf sawal poochho.', 'Spend the first 5 minutes asking questions.')}</li>
+          <li>{tr('Har choice ke saath bolo: kyun, aur kya nahi liya.', 'For every choice, say why and what you did not pick.')}</li>
+          <li>{tr('Pehle simple design, phir deep dive.', 'Simple design first, then go deep.')}</li>
+          <li>{tr('End me failures aur improvements khud bolo.', 'End with failures and improvements.')}</li>
+          <li>{tr('Raat ko Revision mode me saare recaps padho.', 'The night before, read all recaps in Revision mode.')}</li>
         </ul>
       </section>
     </div>

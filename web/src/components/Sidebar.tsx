@@ -13,7 +13,8 @@ function Item({ page, active }: { page: Page; active: boolean }) {
   return (
     <a href={route(page)} className={`side-item ${active ? 'active' : ''} ${s.complete ? 'done' : ''}`} aria-current={active ? 'page' : undefined}>
       <span className="side-title">{shortTitle(localize(page, lang).title)}</span>
-      <span className="side-count mono">{s.complete ? '✓' : `${s.done}/${s.total}`}</span>
+      {/* Count only once started, so untouched pages stay quiet */}
+      {s.complete ? <span className="side-count mono">✓</span> : s.done > 0 ? <span className="side-count mono">{`${s.done}/${s.total}`}</span> : null}
     </a>
   )
 }

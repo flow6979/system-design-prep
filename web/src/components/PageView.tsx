@@ -80,9 +80,7 @@ export function PageView({
             </span>
           ))}
           {page.askedAt.length > 0 && (
-            <span className="muted small">
-              {tr('Kahan pucha gaya', 'Asked at')}: {page.askedAt.join(', ')}
-            </span>
+            <span className="muted small">{page.askedAt.join(' · ')}</span>
           )}
         </div>
       )}

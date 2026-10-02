@@ -40,6 +40,9 @@
   --r-lg: 10px;
   --shadow-card: 0 18px 50px rgba(10, 16, 30, 0.28);
   color: var(--ink);
+  /* agent-lab was designed for 16px text with tighter lines than HLD Prep's reading pages */
+  font-size: 16px;
+  line-height: 1.45;
 }
 /* Breakpoints follow the space the section really gets (sidebar and panel take some), not the viewport.
    The explain card stays outside this box so position: fixed still works. */
@@ -146,7 +149,10 @@
 
 
 /* Shared controls follow HLD Prep's look */
-.agents-root .page { min-height: 0; padding: 0; max-width: 1200px; margin: 0 auto; display: block; }
+/* HLD Prep also has a .page class (flex column, 820px). Agent pages are plain blocks unless they ask for .col */
+.agents-root .page { min-height: 0; padding: 0; max-width: 1200px; margin: 0 auto; gap: 0; }
+.agents-root .page:not(.col):not(.grid):not(.row) { display: block; }
+.agents-root .chip { border: 0; cursor: default; }
 .agents-root .btn { height: auto; min-height: 38px; padding: 8px 14px; border-radius: 6px; font: 600 0.9rem/1.2 var(--f-body); }
 .agents-root .btn-sm { min-height: 32px; padding: 6px 10px; font-size: 0.82rem; }
 .agents-root .btn-lg { min-height: 44px; padding: 10px 20px; font-size: 0.95rem; }

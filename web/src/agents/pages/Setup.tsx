@@ -15,7 +15,7 @@ export default function Setup() {
   const app = useApp()
   const t = useT(setupDict)
   const navigate = useNavigate()
-  const g = useGuide('setup', ['lang', 'pick', 'key', 'test', 'enter'])
+  const g = useGuide('setup', ['pick', 'key', 'test', 'enter'])
   const [showMore, setShowMore] = useState(false)
   const prov = providerById(app.provider)
   const [keyDraft, setKeyDraft] = useState(() => (app.provider ? app.keys[app.provider] ?? '' : ''))
@@ -27,18 +27,12 @@ export default function Setup() {
   const keySaved = isOffline || (!!prov && !!app.keys[prov.id])
   const ready = app.connection === 'ok'
 
-  const chooseLang = (l: Lang) => {
-    app.setLang(l)
-    g.done('lang', setupDict[l].explain[l === 'hi' ? 'lang_hi' : 'lang_en'])
-  }
-
   const choose = (id: ProviderId) => {
     const p = providerById(id)!
     app.setProvider(id)
     setKeyDraft(app.keys[id] ?? '')
     setErr(null)
     setTestInfo('')
-    if (g.current === 'lang') g.done('lang')
     g.done('pick', id === 'offline' ? t.explain.pickOffline : t.explain.pick(p.name, app.specFor(p.id)))
     if (id === 'offline') g.done('key')
   }
@@ -94,21 +88,6 @@ export default function Setup() {
         <WorkerStatus />
       </div>
 
-      <section className="row" style={{ gap: 16, flexWrap: 'wrap' }} aria-labelledby="s0">
-        <div className="row" style={{ gap: 10 }}>
-          <StepBadge n={0} done={(g.step ?? 0) > 0} active={g.current === 'lang'} />
-          <h2 id="s0" style={{ fontSize: 18, fontWeight: 600, fontFamily: 'var(--font-body)', letterSpacing: 0 }}>{t.step0}</h2>
-        </div>
-        <div className="row" style={{ gap: 10 }}>
-          {(['hi', 'en'] as Lang[]).map((l) => (
-            <button key={l} type="button" onClick={() => chooseLang(l)} className={g.pulse('lang')} aria-pressed={app.lang === l} style={optStyle(app.lang === l)}>
-              <span style={{ fontWeight: 700 }}>{l === 'hi' ? 'Hinglish' : 'English'}</span>
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{l === 'hi' ? 'Hindi + English mix' : 'Plain English everywhere'}</span>
-            </button>
-          ))}
-        </div>
-        <Tip show={g.is('lang')}>{t.tipLang}</Tip>
-      </section>
 
       <section className="col" style={{ gap: 10 }} aria-labelledby="s1">
         <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>

@@ -51,10 +51,7 @@ export function NotesPanel({ slug, onLogin }: { slug: string; onLogin: () => voi
       <textarea
         id={`notes-${slug}`}
         aria-label={tr('Is page ke notes', 'Notes for this page')}
-        placeholder={tr(
-          'Apne shabdon me likho: kya samjha, kya confusing hai, interview me kya bolna hai…',
-          'Write in your own words: what you understood, what is confusing, what to say in the interview…',
-        )}
+        placeholder={tr('Apne notes…', 'Your notes…')}
         value={text}
         disabled={status === 'loading'}
         onChange={(e) => onChange(e.target.value)}
