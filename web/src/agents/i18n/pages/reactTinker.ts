@@ -1,0 +1,53 @@
+import type { Explain } from '../../guide/guide'
+
+type E = Explain
+export const reactTinkerDict = {
+  hi: {
+    title: 'Tinker karo: cheezein todo, seekho',
+    sub: 'TESTING.md ke exercises yahan live controls ke saath hain. Kuch badlo, Run dabao, baseline se fark dekho. Yeh asli handbook lab chalata hai.',
+    ex: 'Exercise', changed: 'badla', dflt: 'default',
+    e1t: 'max_steps kam karo', e1d: 'Agent ko sirf 1-2 steps do. Kya woh jawab tak pahunchega, ya guard use rok dega?', stepsLabel: 'max_steps',
+    e2t: 'calculator ka docstring hatao', e2d: 'LLM tool ko sirf naam aur description se pehchanta hai. Description "x" kar do to kya hoga?', e2c: 'calculator ka docstring rakho',
+    e3t: 'Tool mein error daalo', e3d: 'lookup pehli call pe TimeoutError phenke. Agent crash hoga ya sambhal lega?', e3c: 'lookup pehli call pe fail kare',
+    e4t: 'ReAct style ya LLM badlo', e4d: 'Text vs native tool calling. Doosra LLM try karna ho to Settings mein provider badlo: code mein zero change.', modeLabel: 'Style', settings: 'Settings kholo',
+    tipSlider: 'max_steps ko 2 ya usse kam pe le jao.', tipRun: 'Ab "Changes ke saath chalao" dabao.',
+    run: 'Changes ke saath chalao', baselineRun: 'Baseline chalao', reset: 'Sab default karo',
+    compare: 'Baseline vs tumhara run', question: 'Sawaal', baseline: 'Baseline (defaults)', mine: 'Tumhara run',
+    noRun: 'Abhi chala nahi.', runningNote: 'Chal raha hai...',
+    k: { steps: 'steps', calls: 'LLM calls', tokens: 'tokens', stop: 'stopped_reason', answer: 'Jawab' },
+    trace: 'Tumhare run ke steps',
+    offlineNote: 'Offline demo: jawab scripted hain, isliye docstring hatane ka asar nahi dikhega (model ka behaviour asli LLM pe hi badalta hai). max_steps aur tool error offline mein bhi dikhte hain.',
+    sliderExplain: (n: number): E => ({ title: `max_steps ab ${n} hai`, flow: ['slider', 'params.max_steps', 'run_react_text(max_steps)'], lines: [`Agent ab zyada se zyada ${n} LLM rounds chalayega.`, 'Is sawaal ko ~3-4 rounds chahiye, isliye itni kam limit pe guard shayad agent ko rok de.', 'Ab Run dabao aur baseline se compare karo.'], file: 'lab-api/labapi/react_lab.py' }),
+    exp: {
+      limit: (n: number): E => ({ title: 'max_steps guard ne agent roka', flow: ['step 1', `step ${n}`, 'max_steps', 'stop'], lines: [`Agent ko ${n} steps mile, jawab tak pahunchne ke liye kaafi nahi the.`, 'Loop limit pe pahuncha, to jawab ki jagah "could not finish / Stopped" aaya aur stopped_reason = "max_steps" set hua.', 'Yeh bug nahi, safety hai: bina guard ke agent tools chalata rehta aur paise jalte.'], file: 'common/agentkit/agent.py' }),
+      nodoc: { title: 'Tool description = LLM ki samajh', flow: ['@tool docstring', 'ToolSpec.description = "x"', 'LLM'], lines: ['@tool docstring se description banata hai, aur wahi LLM ko dikhta hai.', 'Description "x" hone pe model ko pata nahi chalta calculator kab use kare: woh khud andaaza laga sakta hai ya tool galat use kar sakta hai.', 'Seekh: achha tool naam + docstring = achha tool use.'], file: 'common/agentkit/tools.py' } as E,
+      error: { title: 'Tool error model ne sambhala', flow: ['lookup', 'ERROR: TimeoutError', 'retry', 'answer'], lines: ['Tool ne exception phenka, par loop ne crash ki jagah "ERROR: TimeoutError: ..." text model ko bheja.', 'Model ne error padha aur lookup dobara chalaya: ek extra step, jawab same.', 'Isliye agentkit tool errors raise nahi karta, model ko wapas deta hai (_run_tool / react_textloop.py).'], file: 'common/agentkit/agent.py' } as E,
+      mode: { title: 'Style badli, loop wahi', flow: ['text ReAct', 'native tool_calls'], lines: ['Text ReAct mein model "Action:" likhta hai aur parser padhta hai; native mein provider tool_calls JSON deta hai.', 'Steps, tokens aur calls ka fark comparison panel mein dekho.'], file: '02-agentic-architectures/04-react/react_native.py' } as E,
+      same: { title: 'Kuch nahi badla', flow: ['defaults'], lines: ['Saare controls default pe hain, isliye result baseline jaisa hona chahiye.', 'Koi ek control badlo aur dobara chalao.'], file: '02-agentic-architectures/04-react/TESTING.md' } as E,
+    },
+  },
+  en: {
+    title: 'Tinker: break things, learn',
+    sub: 'The TESTING.md exercises with live controls. Change something, click Run, compare with the baseline. This runs the real handbook lab.',
+    ex: 'Exercise', changed: 'changed', dflt: 'default',
+    e1t: 'Lower max_steps', e1d: 'Give the agent only 1-2 steps. Will it reach the answer, or will the guard stop it?', stepsLabel: 'max_steps',
+    e2t: 'Remove the calculator docstring', e2d: 'The LLM only knows a tool by its name and description. What happens if the description becomes "x"?', e2c: 'Keep the calculator docstring',
+    e3t: 'Inject a tool error', e3d: 'lookup throws TimeoutError on its first call. Will the agent crash or recover?', e3c: 'lookup fails on the first call',
+    e4t: 'Change the ReAct style or LLM', e4d: 'Text vs native tool calling. To try another LLM, change the provider in Settings: zero code changes.', modeLabel: 'Style', settings: 'Open Settings',
+    tipSlider: 'Move max_steps to 2 or lower.', tipRun: 'Now click "Run with changes".',
+    run: 'Run with changes', baselineRun: 'Run baseline', reset: 'Reset to defaults',
+    compare: 'Baseline vs your run', question: 'Question', baseline: 'Baseline (defaults)', mine: 'Your run',
+    noRun: 'Not run yet.', runningNote: 'Running...',
+    k: { steps: 'steps', calls: 'LLM calls', tokens: 'tokens', stop: 'stopped_reason', answer: 'Answer' },
+    trace: 'Steps of your run',
+    offlineNote: 'Offline demo: the answers are scripted, so removing the docstring shows no effect (model behaviour only changes with a real LLM). max_steps and the tool error still show offline.',
+    sliderExplain: (n: number): E => ({ title: `max_steps is now ${n}`, flow: ['slider', 'params.max_steps', 'run_react_text(max_steps)'], lines: [`The agent will now run at most ${n} LLM rounds.`, 'This question needs about 3-4 rounds, so a limit this low will probably stop the agent.', 'Click Run and compare with the baseline.'], file: 'lab-api/labapi/react_lab.py' }),
+    exp: {
+      limit: (n: number): E => ({ title: 'The max_steps guard stopped the agent', flow: ['step 1', `step ${n}`, 'max_steps', 'stop'], lines: [`The agent got ${n} steps, not enough to reach the answer.`, 'The loop hit its limit, so instead of an answer it returned "could not finish / Stopped" with stopped_reason = "max_steps".', 'Not a bug but a safety net: without it the agent would keep calling tools and burning money.'], file: 'common/agentkit/agent.py' }),
+      nodoc: { title: 'The tool description is what the LLM understands', flow: ['@tool docstring', 'ToolSpec.description = "x"', 'LLM'], lines: ['@tool builds the description from the docstring, and that is all the LLM sees.', 'With description "x" the model cannot tell when to use calculator: it may guess the maths itself or misuse the tool.', 'Lesson: good tool names and docstrings mean good tool use.'], file: 'common/agentkit/tools.py' } as E,
+      error: { title: 'The model handled the tool error', flow: ['lookup', 'ERROR: TimeoutError', 'retry', 'answer'], lines: ['The tool raised, but instead of crashing the loop sent "ERROR: TimeoutError: ..." text to the model.', 'The model read the error and called lookup again: one extra step, same answer.', 'That is why agentkit never re-raises tool errors; it hands them back to the model (_run_tool / react_textloop.py).'], file: 'common/agentkit/agent.py' } as E,
+      mode: { title: 'Different style, same loop', flow: ['text ReAct', 'native tool_calls'], lines: ['In text ReAct the model writes "Action:" and the parser reads it; with native calling the provider returns tool_calls JSON.', 'See the difference in steps, tokens and calls in the comparison panel.'], file: '02-agentic-architectures/04-react/react_native.py' } as E,
+      same: { title: 'Nothing changed', flow: ['defaults'], lines: ['All controls are at their defaults, so the result should match the baseline.', 'Change one control and run again.'], file: '02-agentic-architectures/04-react/TESTING.md' } as E,
+    },
+  },
+}

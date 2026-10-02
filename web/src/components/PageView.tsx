@@ -35,7 +35,7 @@ export function PageView({
   const isLld = page.kind === 'lld'
   const body = revision ? revisionBody(page) : page.body
 
-  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns' }[page.kind]
+  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', agent: 'Agentic AI' }[page.kind]
   const revisionNote = {
     question: tr(
       'Revision mode: sirf clarifying sawal, decision table aur 2-minute recap dikh rahe hain.',
@@ -46,6 +46,7 @@ export function PageView({
       'Revision mode: showing only the summary, interview lines and common mistakes.',
     ),
     lld: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) patterns dikh rahe hain.', 'Showing only ⭐ patterns (the most asked ones).'),
+    agent: '',
   }[page.kind]
 
   return (

@@ -1,0 +1,26 @@
+/* Web research lab (src/pages/labs/WebLab.tsx) */
+.web-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.web-top .input { flex: 1 1 320px; }
+.web-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: start; }
+.web-controls input[type='range'] { width: 100%; accent-color: var(--teal); }
+.web-controls .seg button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.web-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.web-plan li {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--line-3); border-radius: var(--r-md); background: var(--panel-soft); font-size: 14px; line-height: 1.4;
+}
+
+.web-feed { max-height: 620px; overflow-y: auto; }
+
+.web-report .markdown { font-size: 14px; }
+.web-report .markdown h1 { font-size: 22px; }
+.web-report .markdown h2 { font-size: 17px; margin-top: 18px; }
+
+.web-sources { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.web-sources li { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.web-sources a { display: inline-flex; gap: 4px; align-items: center; word-break: break-all; border-radius: 4px; }
+
+@container agents (max-width: 720px) {
+  .web-feed { max-height: none; }
+}

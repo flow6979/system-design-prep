@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { lld, localize, questions, route, topics, type Page } from '../content'
+import { agentPages, lld, localize, questions, route, topics, type Page } from '../content'
 import { useStore } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
@@ -62,6 +62,9 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
           LLD · Design patterns
         </a>
       )}
+      <a href="#/agents" className={`side-item home ${current.startsWith('agents') ? 'active' : ''}`}>
+        Agentic AI
+      </a>
       <input
         id="side-filter"
         className="side-filter"
@@ -74,6 +77,20 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
       <Group label="Questions · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} />
       <Group label="LLD · Design patterns" pages={lld} current={current} match={match} />
       <Group label="Questions · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} />
+      <Group label="Agentic AI" pages={agentPages} current={current} match={match} />
+      {!f && (
+        <div className="side-group">
+          <a href="#/agents/docs" className="side-item">
+            {tr('Agentic AI docs', 'Agentic AI docs')}
+          </a>
+          <a href="#/agents/history" className="side-item">
+            {tr('Lab history', 'Lab history')}
+          </a>
+          <a href="#/agents/presenter" className="side-item">
+            Presenter
+          </a>
+        </div>
+      )}
     </nav>
   )
 }

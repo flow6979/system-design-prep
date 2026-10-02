@@ -1,0 +1,10 @@
+/* Multi-agent lab: graph | controls + timeline */
+.multi-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.multi-graph { width: 100%; height: auto; display: block; background: var(--panel-soft); border: 1px solid var(--line-3); border-radius: 12px; }
+.multi-models { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.multi-models .chip { flex-direction: column; align-items: flex-start; gap: 2px; border-radius: 10px; }
+.multi-context { padding: 12px 14px; border-radius: 10px; background: var(--teal-bg); display: flex; flex-direction: column; gap: 6px; }
+.multi-context ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--ink-3); display: flex; flex-direction: column; gap: 4px; }
+.multi-timeline { max-height: 460px; overflow: auto; }
+.multi-answer { font-size: 15px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
+@container agents (max-width: 960px) { .multi-grid { grid-template-columns: minmax(0, 1fr); } }

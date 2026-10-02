@@ -1,3 +1,4 @@
+import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { allItems, pageBySlug } from './content'
 import { useStore, readLocal, writeLocal } from './store'
@@ -15,7 +16,11 @@ import { SettingsModal } from './components/SettingsModal'
 import { Resizer, useMedia } from './components/Resizer'
 import { CodeLangContext, type CodeLang } from './components/CodeBlock'
 import { LangSwitch, useLang, useTr } from './i18n'
-import { localize } from './content'
+import { agentPageFor, localize } from './content'
+import { lazy, Suspense } from 'react'
+import { Checklist } from './components/Checklist'
+
+const AgentSection = lazy(() => import('./agents/AgentSection').then((m) => ({ default: m.AgentSection })))
 
 const NAV = { min: 200, max: 440, fallback: 270 }
 const PANEL = { min: 300, max: 720, fallback: 380 }
@@ -32,6 +37,10 @@ function useHashRoute() {
   }, [])
   const parts = hash.replace(/^#\/?/, '').split('/')
   if (parts[0] === 'quiz') return { view: 'quiz' as const, slug: 'quiz' }
+  if (parts[0] === 'agents') {
+    const path = `/${parts.join('/')}`
+    return { view: 'agents' as const, slug: agentPageFor(path).slug, path }
+  }
   if ((parts[0] === 'topic' || parts[0] === 'q' || parts[0] === 'lld') && parts[1]) return { view: 'page' as const, slug: parts[1] }
   return { view: 'home' as const, slug: '' }
 }
@@ -40,10 +49,11 @@ const systemTheme = (): Theme => (window.matchMedia?.('(prefers-color-scheme: da
 
 export function App() {
   const { user, authReady, progress, logout } = useStore()
-  const { view, slug } = useHashRoute()
+  const route = useHashRoute()
+  const { view, slug } = route
   const { lang } = useLang()
   const tr = useTr()
-  const page = view === 'page' ? pageBySlug.get(slug) : undefined
+  const page = view === 'page' ? pageBySlug.get(slug) : view === 'agents' ? agentPageFor(route.path ?? '/agents') : undefined
   const [tab, setTab] = useState<Tab>(() => readLocal('hld.tab', 'notes'))
   const [revision, setRevision] = useState<boolean>(() => readLocal('hld.revision', false))
   const [theme, setTheme] = useState<Theme>(() => readLocal('hld.theme', systemTheme()))
@@ -96,7 +106,10 @@ export function App() {
   const showNav = desktop ? !navHidden : true
   const showPanel = !!page && (desktop ? !panelHidden : true)
   const gridStyle = desktop
-    ? { gridTemplateColumns: `${showNav ? navW : 0}px minmax(0, 1fr) ${showPanel ? panelW : 0}px` }
+    ? ({
+        gridTemplateColumns: `${showNav ? navW : 0}px minmax(0, 1fr) ${showPanel ? panelW : 0}px`,
+        '--panel-offset': `${showPanel ? panelW : 0}px`,
+      } as React.CSSProperties)
     : undefined
   const toggleNav = () => (desktop ? setNavHidden((h) => !h) : setNavOpen((o) => !o))
   const togglePanel = () => (desktop ? setPanelHidden((h) => !h) : setPanelOpen((o) => !o))
@@ -206,7 +219,17 @@ export function App() {
               <a href="#/">{tr('Dashboard pe jao', 'Go to dashboard')}</a>
             </div>
           )}
-          {page && (
+          {view === 'agents' && (
+            <Suspense fallback={<p className="muted">Loading…</p>}>
+              <AgentSection />
+              {page && page.checklist.length > 0 && (
+                <div className="agent-extra">
+                  <Checklist page={localize(page, lang)} />
+                </div>
+              )}
+            </Suspense>
+          )}
+          {view === 'page' && page && (
             <PageView
               page={page}
               revision={revision}

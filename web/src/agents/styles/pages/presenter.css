@@ -1,0 +1,24 @@
+.presenter-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.presenter-timer { font-size: 26px; font-weight: 500; min-width: 84px; }
+.agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.agenda-item { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line-3); background: var(--panel-soft); color: var(--ink); font-size: 14px; cursor: pointer; }
+.agenda-item.on { background: var(--teal); border-color: var(--teal); color: var(--accent-ink); }
+.agenda-item.done { color: var(--muted); }
+.agenda-n { width: 24px; height: 24px; border-radius: 99px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--seg); color: var(--ink); flex-shrink: 0; }
+.agenda-item.on .agenda-n { background: var(--accent-ink); color: var(--teal); }
+.presenter-switch { width: 20px; height: 20px; accent-color: var(--teal); }
+.stage { background: var(--al-dark); color: #fff; border-radius: var(--r-lg); padding: 28px 32px; gap: 20px; min-height: 560px; }
+.stage-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--explain); }
+.stage-title { font-size: 44px; font-weight: 700; line-height: 1.1; color: #fff; }
+.stage-screen { margin: 0; font-size: 18px; line-height: 1.5; color: var(--on-dark); }
+.stage-notes { margin: 0; padding-left: 24px; display: flex; flex-direction: column; gap: 10px; font-size: 20px; line-height: 1.5; color: #fff; }
+.stage-open { background: transparent; color: #fff; border-color: var(--on-dark-muted); }
+.stage-open:hover { background: var(--dark-2); color: #fff; }
+.stage-btn { height: 56px; padding: 0 28px; font-size: 17px; border-radius: 12px; }
+.stage .btn:not(.btn-primary).stage-btn { background: transparent; color: #fff; border-color: var(--on-dark-muted); }
+@container agents (max-width: 860px) {
+  .presenter-grid { grid-template-columns: minmax(0, 1fr); }
+  .stage { padding: 20px; min-height: 0; }
+  .stage-title { font-size: 30px; }
+  .stage-notes { font-size: 17px; }
+}

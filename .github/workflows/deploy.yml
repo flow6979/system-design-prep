@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # handbook repo can trigger a rebuild; a daily run picks up handbook changes otherwise
+  repository_dispatch:
+    types: [handbook-updated]
+  schedule:
+    - cron: '30 3 * * *'
 
 permissions:
   contents: read
@@ -22,6 +27,14 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+
+      # Agentic AI section: code + docs come from the handbook repo
+      - name: Checkout agentic-ai-handbook
+        uses: actions/checkout@v4
+        with:
+          repository: flow6979/agentic-ai-handbook
+          path: handbook
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -30,6 +43,14 @@ jobs:
       - run: npm ci
       - name: Check mermaid diagrams
         run: npm run check:mermaid
+      - name: Bundle handbook (code + docs) for the Agentic AI labs
+        run: node scripts/sync-handbook.mjs
+        env:
+          HANDBOOK_DIR: ../handbook
+      - name: Smoke test every agent lab offline inside Pyodide
+        run: node scripts/smoke-pyodide.mjs
+      - name: Run every handbook project's main.py offline inside Pyodide
+        run: node scripts/smoke-projects.mjs
       - name: Build
         run: npm run build
         env:

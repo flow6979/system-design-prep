@@ -311,6 +311,9 @@ body.resizing iframe, body.resizing .main { pointer-events: none; }
 .quiz-gen { margin-top: 12px; padding: 18px; border: 1px dashed var(--accent); border-radius: 12px; display: flex; flex-direction: column; gap: 10px; }
 .quiz-gen h2 { margin: 0; font-size: 1.2rem; }
 .lang-switch { flex: none; }
+.chip.done { border-color: var(--ok); color: var(--ok); }
+/* agent explain card sits left of the notes panel */
+.layout.desktop .agents-root .explain-card { right: calc(var(--panel-offset, 0px) + 28px); }
 
 /* Compact (< 1024px): nav is a left drawer, panel a right sheet (full screen on phones) */
 @media (max-width: 1023px) {
@@ -357,6 +360,7 @@ body.resizing iframe, body.resizing .main { pointer-events: none; }
   .tabs button[role='tab'] { padding: 14px 4px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .stat.main { grid-column: span 2; }
+  .stats .stat:last-child:nth-child(even) { grid-column: span 2; }
   .stat { padding: 12px; }
   .stat-value { font-size: 1.5rem; }
   .stat-label { font-size: 0.62rem; }

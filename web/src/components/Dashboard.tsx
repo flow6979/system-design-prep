@@ -1,4 +1,4 @@
-import { lld, localize, pageBySlug, questions, route, topics } from '../content'
+import { agentPages, lld, localize, pageBySlug, questions, route, topics } from '../content'
 import { useStore } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
@@ -52,13 +52,14 @@ export function Dashboard() {
   const { progress } = useStore()
   const { lang } = useLang()
   const tr = useTr()
-  const all = groupStats([...topics, ...questions, ...lld], progress)
-  const next = [...topics, ...questions, ...lld].find((p) => !pageStats(p, progress).complete)
+  const all = groupStats([...topics, ...questions, ...lld, ...agentPages], progress)
+  const next = [...topics, ...questions, ...lld, ...agentPages].find((p) => !pageStats(p, progress).complete)
   const tiles: [string, ReturnType<typeof groupStats>][] = [
     ['Topics', groupStats(topics, progress)],
     ['Tier 1 questions', groupStats(questions.filter((q) => q.tier === 1), progress)],
     ['Tier 2 questions', groupStats(questions.filter((q) => q.tier !== 1), progress)],
     ['LLD patterns', groupStats(lld, progress)],
+    ['Agentic AI', groupStats(agentPages, progress)],
   ]
 
   return (
@@ -149,6 +150,23 @@ export function Dashboard() {
           </div>
         </section>
       )}
+
+      <section className="plan">
+        <h2>Agentic AI</h2>
+        <p className="muted">
+          {tr(
+            'AI agents ko chala ke samjho: asli handbook ka Python code browser me chalta hai. Pehle Setup me LLM connect karo, phir labs try karo.',
+            'Learn AI agents by running them: the real handbook Python code runs in your browser. Connect an LLM in Setup first, then try the labs.',
+          )}
+        </p>
+        <div className="row wrap">
+          {agentPages.map((p) => (
+            <a key={p.slug} href={route(p)} className={`chip ${pageStats(p, progress).complete ? 'done' : ''}`}>
+              {localize(p, lang).title} · {p.time} min
+            </a>
+          ))}
+        </div>
+      </section>
 
       <section className="tips">
         <h2>{tr('Interview me full marks ke liye', 'How to score full marks')}</h2>

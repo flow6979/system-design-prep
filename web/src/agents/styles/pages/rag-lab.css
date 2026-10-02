@@ -1,0 +1,29 @@
+/* RAG lab (src/pages/labs/RagLab.tsx) */
+.rag-pipeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.rag-stage { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); min-height: 74px; transition: all 0.2s; }
+.rag-stage-n { width: 22px; height: 22px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--muted); color: var(--bg); }
+.rag-stage-name { font-weight: 600; font-size: 14px; }
+.rag-stage-detail { font-size: 11px; color: var(--muted); line-height: 1.35; word-break: break-word; }
+.rag-stage-running { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11, 107, 102, 0.15); }
+.rag-stage-running .rag-stage-n { background: var(--al-dark); }
+.rag-stage-done { background: var(--teal-bg); border-color: var(--teal); }
+.rag-stage-done .rag-stage-n { background: var(--teal); }
+
+.rag-chat { display: flex; flex-direction: column; gap: 12px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
+.rag-msg { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+.rag-msg-user { background: var(--chip); align-self: flex-end; max-width: 92%; }
+.rag-msg-agent { background: var(--teal-bg); border: 1px solid var(--teal-soft); }
+.rag-msg-norag { background: var(--amber-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.rag-cite { display: inline-flex; align-items: center; margin: 0 2px; padding: 0 7px; height: 22px; border-radius: 6px; border: 1px solid var(--violet); background: var(--violet-soft); color: var(--violet); font-family: var(--font-mono); font-size: 12px; cursor: pointer; }
+.rag-cite-on { background: var(--violet); color: var(--accent-ink); }
+.rag-toggle { padding: 8px 10px; border-radius: 8px; }
+.rag-file { font-size: 13px; }
+
+.rag-chunk { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line-3); border-radius: 10px; background: var(--panel-soft); }
+.rag-chunk-hi { border-color: var(--violet); background: var(--violet-soft); box-shadow: 0 0 0 3px rgba(59, 51, 120, 0.12); }
+.rag-chunk-below { opacity: 0.6; }
+.rag-bar { height: 6px; border-radius: 999px; background: var(--seg); overflow: hidden; }
+.rag-bar > div { height: 100%; background: var(--teal); }
+
+@container agents (max-width: 860px) { .rag-pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container agents (max-width: 440px) { .rag-pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

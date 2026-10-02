@@ -1,0 +1,168 @@
+/* Agentic AI section inside HLD Prep. Agent-lab ke tokens yahan SD-prep ke tokens pe map hote hain,
+   isliye light/dark theme aur fonts dono apps me same rehte hain. Naye colors SD-prep ke :root me add karo. */
+.agents-root {
+  --ground: var(--bg);
+  --header: var(--surface);
+  --panel: var(--surface);
+  --panel-soft: var(--surface-2);
+  --chip: var(--surface-2);
+  --seg: var(--surface-2);
+  --ink-2: var(--ink);
+  --ink-3: var(--ink);
+  --faint: var(--muted);
+  --line-2: var(--line);
+  --line-3: var(--line);
+  --teal: var(--accent);
+  --teal-dark: var(--accent);
+  --teal-soft: var(--accent-soft);
+  --teal-bg: var(--accent-soft);
+  --amber: var(--warn);
+  --amber-dark: var(--warn);
+  --amber-soft: color-mix(in srgb, var(--warn) 16%, transparent);
+  --violet: var(--code-kw);
+  --violet-soft: color-mix(in srgb, var(--code-kw) 14%, transparent);
+  --green: var(--ok);
+  --yellow: var(--warn);
+  --red: var(--danger);
+  --red-soft: color-mix(in srgb, var(--danger) 12%, transparent);
+  --explain: var(--marker);
+  --mint: var(--accent-soft);
+  /* dark surfaces (code, explain card, presenter stage) stay dark in both themes */
+  --al-dark: #14213d;
+  --dark-2: #1e2a47;
+  --on-dark: #e6ecf8;
+  --on-dark-muted: #9aa8c2;
+  --font-display: var(--f-display);
+  --font-body: var(--f-body);
+  --font-mono: var(--f-mono);
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --shadow-card: 0 18px 50px rgba(10, 16, 30, 0.28);
+  color: var(--ink);
+}
+/* Breakpoints follow the space the section really gets (sidebar and panel take some), not the viewport.
+   The explain card stays outside this box so position: fixed still works. */
+.agents-container { container: agents / inline-size; }
+.agents-root button, .agents-root input, .agents-root select, .agents-root textarea { font-family: inherit; font-size: inherit; color: inherit; }
+.agents-root h1, .agents-root h2, .agents-root h3 { font-family: var(--f-display); margin: 0; }
+.agents-root code, .agents-root pre, .agents-root .mono { font-family: var(--f-mono); }
+
+@keyframes al-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(11, 107, 102, 0.45); }
+  70% { box-shadow: 0 0 0 10px rgba(11, 107, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(11, 107, 102, 0); }
+}
+@keyframes al-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes al-spin { to { transform: rotate(360deg); } }
+.al-pulse { animation: al-pulse 1.6s infinite; }
+.al-in { animation: al-in 0.35s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .al-pulse, .al-in { animation: none; } }
+
+/* ---- shared building blocks ------------------------------------------- */
+.agents-root .page { min-height: calc(100vh - 64px); padding: 28px 32px 40px; max-width: 1480px; margin: 0 auto; }
+.agents-root .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px; }
+.agents-root .muted { color: var(--muted); }
+.agents-root .row { display: flex; align-items: center; gap: 12px; }
+.agents-root .col { display: flex; flex-direction: column; gap: 12px; }
+.agents-root .grid { display: grid; gap: 16px; }
+.agents-root .h1 { font-size: 36px; font-weight: 700; }
+.agents-root .h2 { font-size: 20px; font-weight: 700; }
+.agents-root .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+
+.agents-root .btn {
+  height: 44px; padding: 0 18px; border-radius: var(--r-sm); border: 1px solid var(--line-2);
+  background: var(--panel); color: var(--ink); font-weight: 600; font-size: 14px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;
+}
+.agents-root .btn:hover { background: var(--panel-soft); color: var(--ink); }
+.agents-root .btn:disabled { cursor: not-allowed; opacity: 0.55; }
+.agents-root .btn-primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+.agents-root .btn-primary:hover { background: var(--teal-dark); color: #fff; }
+.agents-root .btn-outline { border-color: var(--teal); color: var(--teal); }
+.agents-root .btn-sm { height: 36px; padding: 0 12px; font-size: 13px; }
+.agents-root .btn-lg { height: 48px; padding: 0 24px; font-size: 15px; border-radius: var(--r-md); }
+
+.agents-root .seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--seg); }
+.agents-root .seg button {
+  height: 32px; padding: 0 12px; border: 0; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600;
+  background: transparent; color: var(--muted);
+}
+.agents-root .seg button[aria-pressed='true'] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+
+.agents-root .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--chip); font-size: 13px; color: var(--ink-3); }
+.agents-root .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.agents-root .badge-teal { background: var(--teal-soft); color: var(--teal-dark); }
+.agents-root .badge-amber { background: var(--amber-soft); color: var(--amber-dark); }
+.agents-root .badge-violet { background: var(--violet-soft); color: var(--violet); }
+.agents-root .badge-gray { background: var(--chip); color: var(--muted); }
+.agents-root .badge-red { background: var(--red-soft); color: var(--red); }
+
+.agents-root .input {
+  height: 44px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--panel); width: 100%;
+}
+.agents-root textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height: 1.5; }
+.agents-root .label { font-size: 13px; color: var(--muted); }
+.agents-root .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: al-spin 0.8s linear infinite; display: inline-block; }
+
+.agents-root .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@container agents (max-width: 860px) {
+  .agents-root .page { padding: 20px 16px 32px; }
+  .agents-root .h1 { font-size: 28px; }
+}
+
+/* ---- "Kya hua?" card ---------------------------------------------------- */
+.agents-root .explain-card {
+  position: fixed; right: 28px; bottom: 28px; z-index: 40; width: 460px; max-width: calc(100vw - 32px); padding: 20px 22px; border-radius: 16px;
+  background: var(--al-dark); color: #fff; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-card);
+}
+
+@container agents (max-width: 1060px) { .agents-root .hide-sm { display: none !important; } }
+@container agents (max-width: 720px) {
+  .agents-root .explain-card { right: 16px; bottom: 16px; }
+}
+
+/* ---- rendered handbook markdown ------------------------------------------ */
+.agents-root .markdown { font-size: 15px; line-height: 1.65; color: var(--ink-2); max-width: 820px; }
+.agents-root .markdown h1 { font-size: 30px; margin: 4px 0 12px; }
+.agents-root .markdown h2 { font-size: 22px; margin: 28px 0 10px; }
+.agents-root .markdown h3 { font-size: 18px; margin: 22px 0 8px; }
+.agents-root .markdown p, .agents-root .markdown ul, .agents-root .markdown ol { margin: 0 0 12px; }
+.agents-root .markdown li { margin: 4px 0; }
+.agents-root .markdown code { font-size: 0.9em; background: var(--chip); padding: 1px 5px; border-radius: 4px; }
+.agents-root .markdown pre { background: var(--al-dark); color: var(--on-dark); padding: 14px 16px; border-radius: 10px; overflow: auto; line-height: 1.5; font-size: 13px; }
+.agents-root .markdown pre code { background: none; padding: 0; color: inherit; }
+.agents-root .markdown table { border-collapse: collapse; margin: 0 0 14px; display: block; overflow-x: auto; font-size: 14px; }
+.agents-root .markdown th, .agents-root .markdown td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+.agents-root .markdown th { background: var(--panel-soft); }
+.agents-root .markdown blockquote { margin: 0 0 12px; padding: 8px 14px; border-radius: 8px; background: var(--teal-bg); color: var(--ink-3); }
+.agents-root .markdown a { word-break: break-word; }
+
+/* ---- lab layout: concept | run | trace ---------------------------------- */
+.agents-root .lab-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr) 420px; gap: 16px; align-items: stretch; }
+@container agents (max-width: 1160px) { .agents-root .lab-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .agents-root .lab-grid > :first-child { grid-column: 1 / -1; } }
+@container agents (max-width: 720px) { .agents-root .lab-grid { grid-template-columns: minmax(0, 1fr); } }
+
+
+/* Shared controls follow HLD Prep's look */
+.agents-root .page { min-height: 0; padding: 0; max-width: 1200px; margin: 0 auto; display: block; }
+.agents-root .btn { height: auto; min-height: 38px; padding: 8px 14px; border-radius: 6px; font: 600 0.9rem/1.2 var(--f-body); }
+.agents-root .btn-sm { min-height: 32px; padding: 6px 10px; font-size: 0.82rem; }
+.agents-root .btn-lg { min-height: 44px; padding: 10px 20px; font-size: 0.95rem; }
+.agents-root .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.agents-root .btn-primary:hover { background: var(--accent); color: var(--accent-ink); filter: brightness(1.08); }
+.agents-root .seg { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0; gap: 0; overflow: hidden; }
+.agents-root .seg button { height: auto; padding: 6px 14px; border-radius: 0; }
+.agents-root .seg button + button { border-left: 1px solid var(--line); }
+.agents-root .seg button[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+.agents-root .eyebrow { font: 600 0.72rem/1 var(--f-mono); letter-spacing: 0.08em; color: var(--accent); }
+.agents-root .input { background: var(--bg); color: var(--ink); }
+.agents-root .markdown { color: var(--ink); }
+
+/* Toolbar shown above every Agentic AI page (replaces agent-lab's header) */
+.agent-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 auto 18px; max-width: 1200px; }
+.agent-toolbar .spacer { flex: 1; }
+.provider-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 0.82rem; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.provider-chip:hover { border-color: var(--accent); color: var(--ink); }
+.agent-extra { max-width: 1200px; margin: 28px auto 0; display: flex; flex-direction: column; gap: 16px; }

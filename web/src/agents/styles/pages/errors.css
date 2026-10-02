@@ -1,0 +1,5 @@
+.errors-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.err-card { gap: 12px; scroll-margin-top: 80px; }
+.err-card.target { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-soft); }
+.err-card:focus { outline: none; }
+@container agents (max-width: 860px) { .errors-grid { grid-template-columns: minmax(0, 1fr); } }

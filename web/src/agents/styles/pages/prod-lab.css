@@ -1,0 +1,30 @@
+/* Production agent lab (/labs/prod). Sirf global.css ke variables use karo. */
+.prod-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
+@container agents (max-width: 960px) { .prod-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.prod-chat { display: flex; flex-direction: column; gap: 16px; max-height: 58vh; min-height: 180px; overflow-y: auto; padding: 4px 2px; }
+.prod-bubble { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; max-width: 86%; }
+.prod-user { align-self: flex-end; background: var(--al-dark); color: #fff; }
+.prod-bot { align-self: flex-start; background: var(--teal-bg); border: 1px solid var(--teal); color: var(--ink); }
+.prod-refused { background: var(--red-soft); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+.prod-wait { align-self: flex-start; flex-direction: row; align-items: center; gap: 8px; background: var(--amber-soft); color: var(--amber-dark); }
+
+.prod-steps { list-style: none; margin: 0; padding: 8px 10px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.prod-steps li { display: flex; gap: 8px; align-items: flex-start; }
+.prod-steps li > span:last-child { word-break: break-word; line-height: 1.45; }
+.prod-steps .badge { flex-shrink: 0; min-width: 72px; justify-content: center; }
+
+.prod-kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 13px; }
+.prod-kv dt { color: var(--muted); }
+.prod-kv dd { margin: 0; word-break: break-all; }
+.prod-chain, .prod-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.prod-chain li { display: flex; align-items: center; gap: 8px; }
+.prod-log li { display: flex; gap: 8px; line-height: 1.45; word-break: break-word; }
+
+.prod-overlay { position: fixed; inset: 0; z-index: 30; background: rgba(28, 26, 23, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.prod-dialog { width: 520px; max-width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; background: var(--panel); border-radius: var(--r-lg); padding: 22px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-card); }
+
+@container agents (max-width: 560px) {
+  .prod-bubble { max-width: 100%; }
+  .prod-steps .badge { min-width: 0; }
+}
