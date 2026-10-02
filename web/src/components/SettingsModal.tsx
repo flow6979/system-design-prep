@@ -1,11 +1,28 @@
 import { useState } from 'react'
-import { DEFAULT_MODEL, getGeminiSettings, saveGeminiSettings } from '../gemini'
+import { DEFAULT_MODEL, getGeminiSettings, listModels, saveGeminiSettings } from '../gemini'
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const initial = getGeminiSettings()
   const [apiKey, setApiKey] = useState(initial.apiKey)
   const [model, setModel] = useState(initial.model || DEFAULT_MODEL)
   const [show, setShow] = useState(false)
+  const [models, setModels] = useState<string[]>([])
+  const [modelMsg, setModelMsg] = useState('')
+
+  async function loadModels() {
+    if (!apiKey.trim()) {
+      setModelMsg('Pehle key daalo.')
+      return
+    }
+    setModelMsg('Models load ho rahe hain…')
+    try {
+      const list = await listModels(apiKey.trim())
+      setModels(list)
+      setModelMsg(list.length ? `${list.length} models mile. Neeche list se chuno.` : 'Is key pe koi text model nahi mila.')
+    } catch (e) {
+      setModelMsg((e as Error).message)
+    }
+  }
 
   function save() {
     saveGeminiSettings({ apiKey: apiKey.trim(), model: model.trim() || DEFAULT_MODEL })
@@ -44,8 +61,30 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             se milegi.
           </p>
           <label htmlFor="gemini-model">Model</label>
-          <input id="gemini-model" value={model} onChange={(e) => setModel(e.target.value)} />
-          <p className="muted small">Default: {DEFAULT_MODEL}. Koi naya model use karna ho to uska naam yahan likho.</p>
+          <div className="row">
+            <input id="gemini-model" list="gemini-models" value={model} onChange={(e) => setModel(e.target.value)} />
+            <button className="btn" type="button" onClick={loadModels}>
+              Models dikhao
+            </button>
+          </div>
+          <datalist id="gemini-models">
+            {[DEFAULT_MODEL, ...models.filter((m) => m !== DEFAULT_MODEL)].map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          {models.length > 0 && (
+            <div className="model-list">
+              {[DEFAULT_MODEL, ...models.filter((m) => m !== DEFAULT_MODEL)].map((m) => (
+                <button key={m} type="button" className={`chip ${m === model ? 'on' : ''}`} onClick={() => setModel(m)}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="muted small">
+            {modelMsg ||
+              `Default: ${DEFAULT_MODEL}. Ye hamesha Google ke latest Flash model pe chalta hai. Model na mile to site khud koi available model chun leti hai.`}
+          </p>
           <div className="row end">
             {apiKey && (
               <button className="btn" type="button" onClick={() => setApiKey('')}>

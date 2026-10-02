@@ -274,3 +274,5 @@ a { color: var(--accent); }
 }
 .days { align-items: start; }
 .md hr + h2 { border-top: 0; padding-top: 0; }
+.model-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 160px; overflow-y: auto; }
+.chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
