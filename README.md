@@ -3,8 +3,9 @@
 System design (high-level design) interview ki taiyari ke liye Hinglish notes, step-by-step interview walkthroughs, aur ek study website.
 
 - **`content/01-topics/`**: 23 chhote topic files (caching, sharding, locks, Kafka, geospatial…). Har file 5–8 min ki hai aur batati hai ki ye kin systems me lagta hai.
-- **`content/02-questions/`**: 22 sabse zyada pooche jaane wale questions. Har ek me ye sab hai: interviewer se kya confirm karna hai, requirements, estimation, HLD + flow diagrams, deep dives, decision table (kyun chuna, kya nahi chuna aur kyun), failures, "isko aur better kaise karein", follow-up sawal, aur 2-minute recap.
-- **`web/`**: website jo saara content ek jagah render karti hai. Isme checklist progress %, login ke saath notes, Ask Gemini, Mock interview mode, Revision mode aur Pattern quiz hain.
+- **`content/02-questions/`**: 26 sabse zyada pooche jaane wale questions. Har ek me ye sab hai: interviewer se kya confirm karna hai, requirements, estimation, HLD + flow diagrams, deep dives, decision table (kyun chuna, kya nahi chuna aur kyun), failures, "isko aur better kaise karein", follow-up sawal, aur 2-minute recap.
+- **`content/03-lld/`**: LLD round ke liye OOP, SOLID aur Creational / Structural / Behavioral design patterns. Har pattern ka Java aur C++ code hai, aur sabse important patterns pe ⭐ laga hai.
+- **`web/`**: website jo saara content ek jagah render karti hai. Isme checklist progress %, login ke saath notes, Ask Gemini, Mock interview mode, Revision mode, Pattern quiz, aur LLD tab (Java/C++ toggle + "Sirf ⭐ dikhao") hain.
 
 Markdown files GitHub pe bhi seedha padh sakte ho. Diagrams GitHub khud render kar deta hai.
 
@@ -19,6 +20,7 @@ Markdown files GitHub pe bhi seedha padh sakte ho. Diagrams GitHub khud render k
 | Day 5 | Notifications, Typeahead, Payments, Web Crawler |
 | Day 6 | Website ke Mock interview mode me 2–3 full rounds |
 | Day 7 | Tier 2 questions (Revision mode me) + red flags (22) |
+| LLD round | `03-lld` ke 5 pages. Revision ke time sirf ⭐ wale padho |
 
 ## Website local chalana
 

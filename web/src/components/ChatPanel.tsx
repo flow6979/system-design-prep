@@ -14,6 +14,11 @@ const QUICK: Record<Page['kind'], string[]> = {
     'Mujhe 3 interview sawal poochho, ek-ek karke',
     'Main explain karta hoon, tum grade karna',
   ],
+  lld: [
+    'Is pattern ka ek aur real-life example do',
+    'Ek chhota LLD problem do jisme ye pattern lage',
+    'Mera code review karo (main paste karta hoon)',
+  ],
   question: [
     'Is design ka sabse weak point kya hai?',
     'Interviewer is design pe kaunse 5 follow-up poochega?',
@@ -167,10 +172,10 @@ export function ChatPanel({
           .filter((m, i) => !(mode === 'mock' && i === 0))
           .map((m, i) => (
             <div key={i} className={`msg ${m.role}`}>
-              {m.role === 'model' ? <Markdown text={m.text} /> : m.text}
+              {m.role === 'model' ? <Markdown text={m.text} showAllCode /> : m.text}
             </div>
           ))}
-        {busy && <div className="msg model">{streaming ? <Markdown text={streaming} /> : <span className="muted">soch raha hai…</span>}</div>}
+        {busy && <div className="msg model">{streaming ? <Markdown text={streaming} showAllCode /> : <span className="muted">soch raha hai…</span>}</div>}
         {error && (
           <div className="error small">
             {error}{' '}

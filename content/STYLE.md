@@ -92,3 +92,35 @@ Topics (`01-topics/`):
 
 Questions (`02-questions/`):
 t1-01-url-shortener, t1-02-rate-limiter, t1-03-news-feed, t1-04-whatsapp-chat, t1-05-bookmyshow, t1-06-uber, t1-07-youtube, t1-08-dropbox, t1-09-notification-system, t1-10-typeahead, t1-11-payment-system, t1-12-web-crawler, t2-13-instagram, t2-14-food-delivery, t2-15-flash-sale, t2-16-leaderboard, t2-17-ad-click-aggregator, t2-18-job-scheduler, t2-19-google-docs, t2-20-distributed-kv-store, t2-21-nearby-places, t2-22-llm-chat-app
+
+## New questions (added later)
+t2-23-recommendation-system, t2-24-ecommerce-inventory, t2-25-discord, t2-26-distributed-logging
+
+## LLD / Design patterns files (`03-lld/`)
+
+Files: `01-oops.md`, `02-solid.md`, `03-creational.md`, `04-structural.md`, `05-behavioral.md`
+
+Frontmatter:
+```yaml
+---
+title: Creational Patterns
+order: 3
+time: 15
+---
+```
+
+Rules:
+- Har concept/pattern ek `## ` section hai. Important / most-used wale ke heading me star: `## ⭐ Singleton`. Baaki bina star: `## Prototype`.
+- `## ` sirf pattern/concept sections ke liye use karo (aur last me `## Checklist`). Andar subheadings `### ` ya bold text se.
+- Har section ka format:
+  1. **Ek line me:** kya problem solve karta hai
+  2. **Real example:** roz ki zindagi / Indian app example (1–2 lines)
+  3. **Kab use karo / kab nahi:** 2–3 bullets
+  4. Code: pehle ```java block, uske turant baad ```cpp block. Dono same cheez dikhayein. Chhota (15–40 lines), runnable-ish, `main` ke saath usage. Website ek time pe sirf ek language dikhati hai (user toggle karta hai), isliye dono hamesha do.
+  5. **LLD problems me kahan:** (Parking Lot, Elevator, Splitwise, BookMyShow, Vending Machine, Logger, Chess, Snake & Ladder, Rate limiter…)
+  6. **Interview me bolo:** ek ready line
+  7. **Common galti:** 1–2 bullets
+- Mermaid class diagram optional (sirf jahan bahut help kare), `classDiagram` syntax.
+- File ke end me `## Checklist` with 5–8 `- [ ]` items.
+- C++: C++17, `#include`s ke saath, smart pointers (`std::unique_ptr`/`shared_ptr`) prefer karo, raw `new` avoid.
+- Java: Java 17, single-file style (ek public class + nested/static classes ya extra non-public classes).

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { questions, route, topics, type Page } from '../content'
+import { lld, questions, route, topics, type Page } from '../content'
 import { useStore } from '../store'
 import { groupStats, pageStats } from '../progress'
 
@@ -24,6 +24,7 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
   const q2 = questions.filter((q) => q.tier !== 1)
   const qs1 = groupStats(q1, progress)
   const qs2 = groupStats(q2, progress)
+  const ls = groupStats(lld, progress)
 
   return (
     <nav className="sidebar" onClick={(e) => (e.target as HTMLElement).closest('a') && onNavigate()}>
@@ -33,6 +34,11 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
       <a href="#/quiz" className={`side-item home ${current === 'quiz' ? 'active' : ''}`}>
         Pattern quiz
       </a>
+      {lld[0] && (
+        <a href={route(lld[0])} className={`side-item home ${lld.some((p) => p.slug === current) ? 'active' : ''}`}>
+          LLD · Design patterns
+        </a>
+      )}
       <input
         id="side-filter"
         className="side-filter"
@@ -63,6 +69,19 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
           <Item key={p.slug} page={p} active={current === p.slug} />
         ))}
       </div>
+      {lld.length > 0 && (
+        <div className="side-group">
+          <div className="side-label">
+            <span>LLD · Design patterns</span>
+            <span className="mono">
+              {ls.complete}/{ls.pages}
+            </span>
+          </div>
+          {lld.filter(match).map((p) => (
+            <Item key={p.slug} page={p} active={current === p.slug} />
+          ))}
+        </div>
+      )}
       <div className="side-group">
         <div className="side-label">
           <span>Questions · Tier 2</span>

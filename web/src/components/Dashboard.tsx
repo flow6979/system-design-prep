@@ -1,4 +1,4 @@
-import { pageBySlug, questions, route, topics } from '../content'
+import { lld, pageBySlug, questions, route, topics } from '../content'
 import { useStore } from '../store'
 import { groupStats, pageStats } from '../progress'
 
@@ -40,7 +40,8 @@ function Bar({ value }: { value: number }) {
 
 export function Dashboard() {
   const { progress } = useStore()
-  const all = groupStats([...topics, ...questions], progress)
+  const all = groupStats([...topics, ...questions, ...lld], progress)
+  const l = groupStats(lld, progress)
   const t = groupStats(topics, progress)
   const q1 = groupStats(questions.filter((q) => q.tier === 1), progress)
   const q2 = groupStats(questions.filter((q) => q.tier !== 1), progress)
@@ -70,6 +71,7 @@ export function Dashboard() {
           ['Topics', t],
           ['Tier 1 questions', q1],
           ['Tier 2 questions', q2],
+          ['LLD patterns', l],
         ].map(([label, s]) => {
           const st = s as ReturnType<typeof groupStats>
           return (
@@ -120,6 +122,23 @@ export function Dashboard() {
           })}
         </div>
       </section>
+
+      {lld.length > 0 && (
+        <section className="plan">
+          <h2>LLD round ke liye</h2>
+          <p className="muted">
+            OOP, SOLID aur design patterns, Java aur C++ code ke saath. ⭐ wale sabse zyada pooche jaate hain. Revision ke time "Sirf ⭐ dikhao" on
+            karo.
+          </p>
+          <div className="row wrap">
+            {lld.map((p) => (
+              <a key={p.slug} href={route(p)} className="chip">
+                {p.title} · {p.time} min
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="tips">
         <h2>Interview me full marks ke liye</h2>

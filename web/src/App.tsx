@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { allItems, pageBySlug } from './content'
 import { useStore, readLocal, writeLocal } from './store'
 import { firebaseEnabled } from './firebase'
@@ -13,6 +13,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { AuthModal } from './components/AuthModal'
 import { SettingsModal } from './components/SettingsModal'
 import { Resizer, useMedia } from './components/Resizer'
+import { CodeLangContext, type CodeLang } from './components/CodeBlock'
 
 const NAV = { min: 200, max: 440, fallback: 270 }
 const PANEL = { min: 300, max: 720, fallback: 380 }
@@ -29,7 +30,7 @@ function useHashRoute() {
   }, [])
   const parts = hash.replace(/^#\/?/, '').split('/')
   if (parts[0] === 'quiz') return { view: 'quiz' as const, slug: 'quiz' }
-  if ((parts[0] === 'topic' || parts[0] === 'q') && parts[1]) return { view: 'page' as const, slug: parts[1] }
+  if ((parts[0] === 'topic' || parts[0] === 'q' || parts[0] === 'lld') && parts[1]) return { view: 'page' as const, slug: parts[1] }
   return { view: 'home' as const, slug: '' }
 }
 
@@ -48,6 +49,9 @@ export function App() {
   const [navOpen, setNavOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [codeLang, setCodeLang] = useState<CodeLang>(() => readLocal('hld.codeLang', 'java'))
+  useEffect(() => writeLocal('hld.codeLang', codeLang), [codeLang])
+  const langCtx = useMemo(() => ({ lang: codeLang, setLang: setCodeLang }), [codeLang])
   const [bannerClosed, setBannerClosed] = useState<boolean>(() => readLocal('hld.bannerClosed', false))
   useEffect(() => writeLocal('hld.bannerClosed', bannerClosed), [bannerClosed])
   // Desktop: both side columns can be dragged wider/narrower or hidden. Below 1024px they become overlays.
@@ -95,6 +99,7 @@ export function App() {
   const panelVisible = desktop ? showPanel : panelOpen
 
   return (
+    <CodeLangContext.Provider value={langCtx}>
     <div className="app">
       <header className="topbar">
         <button
@@ -192,7 +197,15 @@ export function App() {
               <a href="#/">Dashboard pe jao</a>
             </div>
           )}
-          {page && <PageView page={page} revision={revision} onToggleRevision={() => setRevision((r) => !r)} />}
+          {page && (
+            <PageView
+              page={page}
+              revision={revision}
+              onToggleRevision={() => setRevision((r) => !r)}
+              codeLang={codeLang}
+              onCodeLang={setCodeLang}
+            />
+          )}
         </main>
 
         {showPanel && page && (
@@ -237,5 +250,6 @@ export function App() {
         />
       )}
     </div>
+    </CodeLangContext.Provider>
   )
 }

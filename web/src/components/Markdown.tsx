@@ -1,30 +1,33 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Mermaid } from './Mermaid'
+import { CodeBlock, ShowAllCodeContext, useVisibleCode } from './CodeBlock'
 import { resolveMdLink } from '../content'
 
-export function Markdown({ text }: { text: string }) {
+export function Markdown({ text, showAllCode = false }: { text: string; showAllCode?: boolean }) {
   return (
+    <ShowAllCodeContext.Provider value={showAllCode}>
     <div className="md">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          // Fenced blocks are handled in `pre`; this only sees inline code
           code({ className, children, ...rest }) {
-            const lang = /language-(\w+)/.exec(className ?? '')?.[1]
-            const code = String(children).replace(/\n$/, '')
-            if (lang === 'mermaid') return <Mermaid code={code} />
             return (
               <code className={className} {...rest}>
                 {children}
               </code>
             )
           },
-          pre({ children, node }) {
-            // Mermaid blocks render their own container; skip the <pre> wrapper for them
+          pre({ node }) {
             const first = node?.children?.[0]
             const cls = first && 'properties' in first ? (first.properties?.className as string[] | undefined) : undefined
-            if (cls?.includes('language-mermaid')) return <>{children}</>
-            return <pre>{children}</pre>
+            const lang = cls?.find((c) => c.startsWith('language-'))?.slice('language-'.length)
+            const text =
+              first && 'children' in first
+                ? first.children.map((c) => ('value' in c ? String(c.value) : '')).join('').replace(/\n$/, '')
+                : ''
+            return <Fenced lang={lang} code={text} />
           },
           a({ href = '', children }) {
             const internal = resolveMdLink(href)
@@ -47,5 +50,13 @@ export function Markdown({ text }: { text: string }) {
         {text}
       </ReactMarkdown>
     </div>
+    </ShowAllCodeContext.Provider>
   )
+}
+
+function Fenced({ lang, code }: { lang?: string; code: string }) {
+  const visible = useVisibleCode(lang)
+  if (lang === 'mermaid') return <Mermaid code={code} />
+  if (!visible) return null
+  return <CodeBlock lang={lang} code={code} />
 }

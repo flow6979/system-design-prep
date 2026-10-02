@@ -1,6 +1,6 @@
 import { parse as parseYaml } from 'yaml'
 
-export type Kind = 'topic' | 'question'
+export type Kind = 'topic' | 'question' | 'lld'
 
 export interface ChecklistItem {
   id: string
@@ -23,6 +23,12 @@ export interface Page {
 }
 
 const topicFiles = import.meta.glob('../../content/01-topics/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
+
+const lldFiles = import.meta.glob('../../content/03-lld/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -91,12 +97,13 @@ function build(files: Record<string, string>, kind: Kind): Page[] {
 
 export const topics = build(topicFiles, 'topic')
 export const questions = build(questionFiles, 'question')
-export const allPages = [...topics, ...questions]
+export const lld = build(lldFiles, 'lld')
+export const allPages = [...topics, ...questions, ...lld]
 export const pageBySlug = new Map(allPages.map((p) => [p.slug, p]))
 export const allItems = allPages.flatMap((p) => p.checklist)
 
 export function route(p: Pick<Page, 'kind' | 'slug'>): string {
-  return `#/${p.kind === 'topic' ? 'topic' : 'q'}/${p.slug}`
+  return `#/${{ topic: 'topic', question: 'q', lld: 'lld' }[p.kind]}/${p.slug}`
 }
 
 /** Map a relative .md link inside content to an in-app hash route */
@@ -111,6 +118,8 @@ export function resolveMdLink(href: string): string | null {
 const REVISION_HEADINGS: Record<Kind, RegExp> = {
   question: /^## (Step 1:|Step 10:|2-minute recap)/,
   topic: /^## (Interview me bolo|Common galtiyan)/,
+  // LLD: only the starred (most-asked) patterns
+  lld: /^## ⭐/,
 }
 
 export function revisionBody(page: Page): string {

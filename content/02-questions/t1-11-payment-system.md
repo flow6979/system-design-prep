@@ -198,6 +198,32 @@ Order Service (Swiggy) aur Payment alag services hain, ek DB transaction possibl
 - Vault encrypt (HSM keys) karke `tok_abc` deta hai. Payment Service sirf token use karta hai. PCI audit sirf vault ka.
 - Network tokenization (Visa/Mastercard tokens) aur RBI card-on-file rules ke liye bhi yahi layer.
 
+### 9.7 Multiple payment gateways: routing (Juspay jaisa)
+Bade merchants (Swiggy, Flipkart) ek PSP pe depend nahi karte. Unke upar ek **payment orchestration layer** hoti hai jo Razorpay, PayU, Cashfree aur bank direct integrations ke beech har payment ke liye best route chunti hai.
+
+- **Routing rules:** har attempt ke liye inputs: method (card/UPI/netbanking), issuer bank, card network, UPI app (PhonePe/GPay), amount. Score = **success rate** (sabse bada weight) + **cost** (MDR fee) + **health** (latency, error rate). Merchant rules bhi: "HDFC credit cards → PayU", "₹1 lakh+ → bank direct".
+- **Real-time success rate:** har `(psp, bank, method)` ke liye **sliding window** (last 5–15 min) me success/total counts, Redis me time-bucketed counters (har minute ka bucket). Bahut kam traffic wale combos pe global average fallback. Thoda traffic (~5%) exploration ke liye dusre PSPs pe bhi bhejo, taaki unka data fresh rahe.
+- **Automatic failover (circuit breaker):** PSP ka success rate threshold se neeche gire ya timeouts badhein → circuit **OPEN**, naya traffic dusre PSP pe. Kuch der baad **HALF_OPEN**: thoda traffic bhejke check, theek ho to CLOSED.
+- **Retry on another PSP sirf jab safe ho:**
+  - Safe: PSP ne clear **FAILED** diya (decline, connection refused, request PSP tak pahuncha hi nahi). Naya `PaymentAttempt` banao, naya attempt_id, dusre PSP pe bhejo.
+  - Unsafe: **timeout / UNKNOWN**. Pehle PSP pe charge ho chuka ho sakta hai. Yahan dusre PSP pe retry = **double debit**. Pehle status poll/resolve karo.
+  - Ek intent pe sirf ek attempt `PROCESSING` ho sakta hai (DB constraint), aur intent ek hi baar SUCCEEDED hoga. Galti se do success aaye to doosre ka auto refund.
+- **Tokenization vault:** card PSP ke vault me save hua to sirf usi PSP pe chalega. Isliye card **apne vault** me (ya network tokens Visa/Mastercard ke), aur routing ke time chosen PSP ko token/card bhejo. Isse card saved rehte hue bhi koi bhi PSP chuna ja sakta hai.
+
+```mermaid
+flowchart LR
+  P["Payment Service"] --> R["Router: rules + success rate"]
+  SR[("Redis sliding window stats")] --> R
+  R --> CB{"Circuit breaker healthy?"}
+  CB -- "yes" --> A1["Razorpay"]
+  CB -- "no, failover" --> A2["PayU"]
+  R --> A3["Cashfree or bank direct"]
+  A1 -- "result" --> SR
+  A2 -- "result" --> SR
+```
+
+> **Bolo:** "Router success rate, cost aur health dekh ke PSP chunta hai. Retry dusre PSP pe sirf definite failure pe hota hai, timeout pe nahi, kyunki wahan double debit ka risk hai."
+
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
@@ -209,6 +235,7 @@ Order Service (Swiggy) aur Payment alag services hain, ek DB transaction possibl
 | **Async PSP + webhooks + poller** | PSP slow ho to bhi threads block nahi | **Synchronous wait 30 sec:** threads aur connections khatam, timeouts pe state unclear |
 | **Token vault** | PCI scope sirf ek chhoti service | **Card data main DB me:** poora system PCI scope me, breach ka bada risk |
 | **Explicit UNKNOWN state** | Timeout pe galat assumption nahi | **Timeout = FAILED maan lena:** customer retry kare aur double charge ho jaye |
+| **Multi-PSP orchestration + success-rate routing** | Ek PSP down/degrade ho to failover, success rate aur cost dono better | **Single PSP:** uska outage = hamara outage, aur kisi bank pe kharab success rate pe koi option nahi |
 
 ## Step 11: Failures & bottlenecks
 
@@ -231,6 +258,7 @@ Order Service (Swiggy) aur Payment alag services hain, ek DB transaction possibl
 - **Settlement + payouts service:** T+1 merchant payouts, batch bank transfers, apni reconciliation ke saath.
 - **Ledger ko dedicated immutable store** (jaise TigerBeetle ya QLDB style) jab scale bade.
 - **Observability:** per-PSP success rate, UNKNOWN count, recon mismatch count dashboards + alerts.
+- **ML-based routing:** sliding-window rules ke upar bandit/ML model jo har payment ke liye PSP ka success probability predict kare, aur per-merchant cost vs success trade-off tune kare.
 
 ## Step 13: Interviewer ke likely follow-up sawal
 
