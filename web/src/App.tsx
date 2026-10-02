@@ -12,6 +12,10 @@ import { NotesPanel } from './components/NotesPanel'
 import { ChatPanel } from './components/ChatPanel'
 import { AuthModal } from './components/AuthModal'
 import { SettingsModal } from './components/SettingsModal'
+import { Resizer, useMedia } from './components/Resizer'
+
+const NAV = { min: 200, max: 440, fallback: 270 }
+const PANEL = { min: 300, max: 720, fallback: 380 }
 
 type Tab = 'notes' | 'ask' | 'mock'
 type Theme = 'light' | 'dark'
@@ -44,6 +48,25 @@ export function App() {
   const [navOpen, setNavOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [bannerClosed, setBannerClosed] = useState<boolean>(() => readLocal('hld.bannerClosed', false))
+  useEffect(() => writeLocal('hld.bannerClosed', bannerClosed), [bannerClosed])
+  // Desktop: both side columns can be dragged wider/narrower or hidden. Below 1024px they become overlays.
+  const desktop = useMedia('(min-width: 1024px)')
+  const [navW, setNavW] = useState<number>(() => readLocal('hld.navW', NAV.fallback))
+  const [panelW, setPanelW] = useState<number>(() => readLocal('hld.panelW', PANEL.fallback))
+  const [navHidden, setNavHidden] = useState<boolean>(() => readLocal('hld.navHidden', false))
+  const [panelHidden, setPanelHidden] = useState<boolean>(() => readLocal('hld.panelHidden', false))
+
+  useEffect(() => writeLocal('hld.navW', navW), [navW])
+  useEffect(() => writeLocal('hld.panelW', panelW), [panelW])
+  useEffect(() => writeLocal('hld.navHidden', navHidden), [navHidden])
+  useEffect(() => writeLocal('hld.panelHidden', panelHidden), [panelHidden])
+  useEffect(() => {
+    if (desktop) {
+      setNavOpen(false)
+      setPanelOpen(false)
+    }
+  }, [desktop])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -62,11 +85,25 @@ export function App() {
   const done = allItems.filter((i) => progress[i.id]).length
   const overall = pct(done, allItems.length)
   const effectiveTab: Tab = tab === 'mock' && page?.kind !== 'question' ? 'ask' : tab
+  const showNav = desktop ? !navHidden : true
+  const showPanel = !!page && (desktop ? !panelHidden : true)
+  const gridStyle = desktop
+    ? { gridTemplateColumns: `${showNav ? navW : 0}px minmax(0, 1fr) ${showPanel ? panelW : 0}px` }
+    : undefined
+  const toggleNav = () => (desktop ? setNavHidden((h) => !h) : setNavOpen((o) => !o))
+  const togglePanel = () => (desktop ? setPanelHidden((h) => !h) : setPanelOpen((o) => !o))
+  const panelVisible = desktop ? showPanel : panelOpen
 
   return (
     <div className="app">
       <header className="topbar">
-        <button className="icon-btn nav-toggle" onClick={() => setNavOpen((o) => !o)} aria-label="Menu" aria-expanded={navOpen}>
+        <button
+          className="icon-btn"
+          onClick={toggleNav}
+          aria-label={desktop ? (navHidden ? 'Sidebar dikhao' : 'Sidebar chhupao') : 'Menu'}
+          title={desktop ? (navHidden ? 'Sidebar dikhao' : 'Sidebar chhupao') : 'Menu'}
+          aria-expanded={desktop ? !navHidden : navOpen}
+        >
           ☰
         </button>
         <a href="#/" className="logo">
@@ -82,9 +119,21 @@ export function App() {
         <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Theme badlo">
           {theme === 'dark' ? '☀' : '☾'}
         </button>
-        <button className="btn small" onClick={() => setShowSettings(true)}>
-          Gemini key
+        <button className="btn small" onClick={() => setShowSettings(true)} aria-label="Gemini settings">
+          <span className="hide-sm">Gemini key</span>
+          <span className="show-sm">AI</span>
         </button>
+        {page && (
+          <button
+            className={`btn small panel-toggle ${panelVisible ? 'on' : ''}`}
+            onClick={togglePanel}
+            aria-expanded={panelVisible}
+            title={panelVisible ? 'Notes / Gemini panel chhupao' : 'Notes / Gemini panel dikhao'}
+          >
+            <span className="hide-sm">{panelVisible ? 'Panel chhupao' : 'Notes · Gemini'}</span>
+            <span className="show-sm">✎</span>
+          </button>
+        )}
         {firebaseEnabled &&
           authReady &&
           (user ? (
@@ -114,16 +163,24 @@ export function App() {
           ))}
       </header>
 
-      {!firebaseEnabled && (
+      {!firebaseEnabled && !bannerClosed && (
         <div className="banner small">
-          Login abhi setup nahi hua, isliye progress aur notes sirf is browser me save ho rahe hain. Setup ke steps README me hain.
+          <span>Login abhi setup nahi hua, isliye progress aur notes sirf is browser me save ho rahe hain.</span>
+          <button className="icon-btn" onClick={() => setBannerClosed(true)} aria-label="Banner band karo">
+            ×
+          </button>
         </div>
       )}
 
-      <div className={`layout ${page ? 'with-panel' : ''}`}>
-        <aside className={`nav ${navOpen ? 'open' : ''}`}>
-          <Sidebar current={slug} onNavigate={() => setNavOpen(false)} />
-        </aside>
+      <div className={`layout ${desktop ? 'desktop' : 'compact'}`} style={gridStyle}>
+        {showNav && (
+          <aside className={`nav ${navOpen ? 'open' : ''}`} aria-hidden={!desktop && !navOpen}>
+            <Sidebar current={slug} onNavigate={() => setNavOpen(false)} />
+            {desktop && (
+              <Resizer side="right" width={navW} {...NAV} onChange={setNavW} label="Sidebar ki width" />
+            )}
+          </aside>
+        )}
         {navOpen && <div className="scrim" onClick={() => setNavOpen(false)} />}
 
         <main className="main">
@@ -138,15 +195,21 @@ export function App() {
           {page && <PageView page={page} revision={revision} onToggleRevision={() => setRevision((r) => !r)} />}
         </main>
 
-        {page && (
+        {showPanel && page && (
           <aside className={`side-panel ${panelOpen ? 'open' : ''}`}>
+            {desktop && <Resizer side="left" width={panelW} {...PANEL} onChange={setPanelW} label="Panel ki width" />}
             <div className="tabs" role="tablist">
               {(['notes', 'ask', ...(page.kind === 'question' ? ['mock'] : [])] as Tab[]).map((t) => (
                 <button key={t} role="tab" aria-selected={effectiveTab === t} className={effectiveTab === t ? 'on' : ''} onClick={() => setTab(t)}>
-                  {{ notes: 'Notes', ask: 'Ask Gemini', mock: 'Mock interview' }[t]}
+                  {{ notes: 'Notes', ask: 'Ask Gemini', mock: 'Mock' }[t]}
                 </button>
               ))}
-              <button className="icon-btn panel-close" onClick={() => setPanelOpen(false)} aria-label="Panel band karo">
+              <button
+                className="icon-btn panel-close"
+                onClick={() => (desktop ? setPanelHidden(true) : setPanelOpen(false))}
+                aria-label="Panel band karo"
+                title="Panel band karo"
+              >
                 ×
               </button>
             </div>
@@ -158,7 +221,7 @@ export function App() {
         )}
       </div>
 
-      {page && !panelOpen && (
+      {page && !desktop && !panelOpen && (
         <button className="fab" onClick={() => setPanelOpen(true)}>
           Notes · Gemini
         </button>
