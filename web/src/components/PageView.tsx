@@ -77,10 +77,16 @@ export function PageView({
         </span>
         <div className="row wrap">
           {isLld && <LangToggle value={codeLang} onChange={onCodeLang} />}
-          <label className="toggle">
-            <input type="checkbox" checked={revision} onChange={onToggleRevision} />
-            <span>{starFilter ? tr('Sirf ⭐ dikhao', 'Only ⭐') : 'Revision mode'}</span>
-          </label>
+          <button
+            type="button"
+            className={`revise-btn ${revision ? 'on' : ''}`}
+            aria-pressed={revision}
+            onClick={onToggleRevision}
+            title={starFilter ? tr('Sirf ⭐ wale points dikhao', 'Show only ⭐ points') : tr('Sirf recap aur interview lines dikhao', 'Show only the recap and interview lines')}
+          >
+            <span aria-hidden="true">{starFilter ? '⭐' : '⚡'}</span>
+            <span>{revision ? tr('Revision on', 'Revision on') : starFilter ? tr('Quick revision: sirf ⭐', 'Quick revision: only ⭐') : tr('Quick revision', 'Quick revision')}</span>
+          </button>
         </div>
       </div>
       {page.patterns.length > 0 && (

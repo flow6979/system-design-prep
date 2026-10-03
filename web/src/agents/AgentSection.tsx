@@ -1,7 +1,7 @@
 // Agentic AI section of Viewinter (formerly the standalone Agent Lab site).
-// Lives under #/agents/...; the rest of Viewinter keeps its own hash routes.
+// Lives under /agents/...; the rest of Viewinter routes on the same URL path.
 import { lazy, Suspense, useEffect } from 'react'
-import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
 import { ExplainCard, GuideProvider, useGuideCtx } from './guide/guide'
 import { useT } from './i18n'
 import { common } from './i18n/common'
@@ -109,9 +109,9 @@ export function AgentSection() {
     <div className="agents-root">
       <AppProvider>
         <GuideProvider>
-          <HashRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Shell />
-          </HashRouter>
+          </BrowserRouter>
         </GuideProvider>
       </AppProvider>
     </div>

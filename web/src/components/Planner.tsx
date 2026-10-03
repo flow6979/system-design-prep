@@ -1,3 +1,4 @@
+import { href } from '../router'
 import { useMemo, useState } from 'react'
 import { localize, route } from '../content'
 import { useStore } from '../store'
@@ -130,11 +131,11 @@ export function Planner() {
                   )}
                 </p>
                 <div className="row wrap">
-                  <a className="chip" href="#/quiz">
+                  <a className="chip" href={href('quiz')}>
                     ⭐ Quiz
                   </a>
                   {input.tracks.includes('hld') && (
-                    <a className="chip" href="#/q/t1-05-bookmyshow">
+                    <a className="chip" href={href('q/t1-05-bookmyshow')}>
                       Mock: BookMyShow
                     </a>
                   )}

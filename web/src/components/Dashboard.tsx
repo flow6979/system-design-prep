@@ -1,3 +1,4 @@
+import { href } from '../router'
 import { agentPages, behavioral, cs, db, java, lld, lldProblems, localize, questions, route, topics } from '../content'
 import { useStore } from '../store'
 import { useLang, useTr } from '../i18n'
@@ -23,12 +24,12 @@ export function Dashboard() {
   const all = groupStats(everything, progress)
   const groups: [string, ReturnType<typeof groupStats>, string][] = [
     ['HLD', groupStats([...topics, ...questions], progress), route(topics[0])],
-    ['LLD', groupStats([...lld, ...lldProblems], progress), lld[0] ? route(lld[0]) : '#/'],
-    ['Java', groupStats(java, progress), java[0] ? route(java[0]) : '#/'],
-    ['Databases', groupStats(db, progress), db[0] ? route(db[0]) : '#/'],
-    ['CS', groupStats(cs, progress), cs[0] ? route(cs[0]) : '#/'],
-    ['Behavioral', groupStats(behavioral, progress), behavioral[0] ? route(behavioral[0]) : '#/'],
-    ['Agentic AI', groupStats(agentPages, progress), '#/agents'],
+    ['LLD', groupStats([...lld, ...lldProblems], progress), lld[0] ? route(lld[0]) : href('')],
+    ['Java', groupStats(java, progress), java[0] ? route(java[0]) : href('')],
+    ['Databases', groupStats(db, progress), db[0] ? route(db[0]) : href('')],
+    ['CS', groupStats(cs, progress), cs[0] ? route(cs[0]) : href('')],
+    ['Behavioral', groupStats(behavioral, progress), behavioral[0] ? route(behavioral[0]) : href('')],
+    ['Agentic AI', groupStats(agentPages, progress), href('agents')],
   ]
   // Today's slice of the personal plan (defaults until the user sets one in the Plan tab)
   const input: PlanInput = profile.plan ?? { tracks: ['hld'], hours: 2, level: 'mid', days: 14 }
@@ -49,7 +50,7 @@ export function Dashboard() {
       <section className="today">
         <div className="today-head">
           <h2>{tr('Aaj', 'Today')}</h2>
-          <a href="#/plan" className="small">
+          <a href={href('plan')} className="small">
             {profile.plan ? tr('Poora plan →', 'Full plan →') : tr('Apna plan banao →', 'Make your plan →')}
           </a>
         </div>

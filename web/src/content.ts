@@ -1,4 +1,5 @@
 import { parse as parseYaml } from 'yaml'
+import { href } from './router'
 
 export type Kind = 'topic' | 'question' | 'lld' | 'lldp' | 'java' | 'db' | 'cs' | 'beh' | 'agent'
 
@@ -20,7 +21,7 @@ export interface Page {
   /** Markdown body without frontmatter and without the Checklist section */
   body: string
   checklist: ChecklistItem[]
-  /** Agentic AI pages live at their own app route instead of #/kind/slug */
+  /** Agentic AI pages live at their own app route instead of /kind/slug */
   path?: string
 }
 
@@ -315,9 +316,9 @@ export const hasEnglish = (slug: string) => enBySlug.has(slug)
 export const allItems = allPages.flatMap((p) => p.checklist)
 
 export function route(p: Pick<Page, 'kind' | 'slug' | 'path'>): string {
-  if (p.kind === 'agent') return `#${p.path ?? '/agents'}`
+  if (p.kind === 'agent') return href(p.path ?? '/agents')
   const prefix: Record<Exclude<Kind, 'agent'>, string> = { topic: 'topic', question: 'q', lld: 'lld', lldp: 'lldp', java: 'java', db: 'db', cs: 'cs', beh: 'behavioral' }
-  return `#/${prefix[p.kind as Exclude<Kind, 'agent'>]}/${p.slug}`
+  return href(`${prefix[p.kind as Exclude<Kind, 'agent'>]}/${p.slug}`)
 }
 
 /** Map a relative .md link inside content to an in-app hash route */

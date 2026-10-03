@@ -20,6 +20,7 @@ import { agentPageFor, localize } from './content'
 import { lazy, Suspense } from 'react'
 import { Checklist } from './components/Checklist'
 import { Icon } from './components/Icon'
+import { href, usePath } from './router'
 import { Avatar, ProfileModal } from './components/ProfileModal'
 
 const AgentSection = lazy(() => import('./agents/AgentSection').then((m) => ({ default: m.AgentSection })))
@@ -30,19 +31,14 @@ const PANEL = { min: 300, max: 720, fallback: 380 }
 type Tab = 'notes' | 'ask' | 'mock'
 type Theme = 'light' | 'dark'
 
-function useHashRoute() {
-  const [hash, setHash] = useState(() => window.location.hash)
-  useEffect(() => {
-    const on = () => setHash(window.location.hash)
-    window.addEventListener('hashchange', on)
-    return () => window.removeEventListener('hashchange', on)
-  }, [])
-  const parts = hash.replace(/^#\/?/, '').split('/')
+function useRoute() {
+  const path = usePath()
+  const parts = path.split('/')
   if (parts[0] === 'quiz') return { view: 'quiz' as const, slug: 'quiz' }
   if (parts[0] === 'plan') return { view: 'plan' as const, slug: 'plan' }
   if (parts[0] === 'agents') {
-    const path = `/${parts.join('/')}`
-    return { view: 'agents' as const, slug: agentPageFor(path).slug, path }
+    const p = `/${parts.join('/')}`
+    return { view: 'agents' as const, slug: agentPageFor(p).slug, path: p }
   }
   if (['topic', 'q', 'lld', 'lldp', 'java', 'db', 'cs', 'behavioral'].includes(parts[0]) && parts[1]) return { view: 'page' as const, slug: parts[1] }
   return { view: 'home' as const, slug: '' }
@@ -52,7 +48,7 @@ const systemTheme = (): Theme => (window.matchMedia?.('(prefers-color-scheme: da
 
 export function App() {
   const { user, authReady, progress } = useStore()
-  const route = useHashRoute()
+  const route = useRoute()
   const { view, slug } = route
   const { lang } = useLang()
   const tr = useTr()
@@ -137,7 +133,7 @@ export function App() {
         >
           <Icon name="menu" />
         </button>
-        <a href="#/" className="logo" aria-label="Viewinter">
+        <a href={href('')} className="logo" aria-label="Viewinter">
           <svg className="logo-mark" viewBox="0 0 24 24" aria-hidden="true">
             <rect x="2" y="2" width="20" height="20" rx="5" />
             <path d="M7 8l5 9 5-9" />
@@ -199,7 +195,7 @@ export function App() {
           {view === 'page' && !page && (
             <div className="empty-state">
               <h1>{tr('Page nahi mila', 'Page not found')}</h1>
-              <a href="#/">{tr('Dashboard pe jao', 'Go to dashboard')}</a>
+              <a href={href('')}>{tr('Dashboard pe jao', 'Go to dashboard')}</a>
             </div>
           )}
           {view === 'agents' && (

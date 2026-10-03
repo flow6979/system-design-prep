@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { href } from '../router'
+import { useEffect, useState } from 'react'
 import { agentPages, behavioral, cs, db, java, lld, lldProblems, localize, questions, route, topics, type Page } from '../content'
 import { readLocal, useStore, writeLocal } from '../store'
 import { useLang, useTr } from '../i18n'
@@ -72,8 +73,12 @@ function SubGroup({ sub, sectionId, current, filtering, single }: { sub: Sub; se
   const { lang } = useLang()
   const key = `hld.side2.${sectionId}.${sub.label?.en ?? ''}`
   const hasCurrent = sub.pages.some((p) => p.slug === current)
-  const [userOpen, setUserOpen] = useState<boolean>(() => readLocal(key, false))
-  const open = single || !sub.label || filtering || hasCurrent || userOpen
+  const [userOpen, setUserOpen] = useState<boolean>(() => hasCurrent || readLocal(key, false))
+  // Opening a page reveals its group once; after that the reader can still collapse it
+  useEffect(() => {
+    if (hasCurrent) setUserOpen(true)
+  }, [current, hasCurrent])
+  const open = single || !sub.label || filtering || userOpen
   return (
     <div className="side-sub">
       {sub.label && (
@@ -100,11 +105,14 @@ function SectionGroup({ section, current, match, filtering }: { section: Section
   const { progress } = useStore()
   const all = section.subs.flatMap((s) => s.pages)
   const key = `hld.side2.${section.id}`
-  const [closed, setClosed] = useState<boolean>(() => readLocal(key, true))
   const hasCurrent = all.some((p) => p.slug === current) || (section.id === 'agents' && current.startsWith('agents'))
+  const [closed, setClosed] = useState<boolean>(() => !hasCurrent && readLocal(key, true))
+  useEffect(() => {
+    if (hasCurrent) setClosed(false)
+  }, [current, hasCurrent])
   const shown = section.subs.map((s) => ({ ...s, pages: s.pages.filter(match) })).filter((s) => s.pages.length)
   if (!all.length || (filtering && !shown.length)) return null
-  const open = filtering || !closed || hasCurrent
+  const open = filtering || !closed
   const st = groupStats(all, progress)
   return (
     <div className={`side-section ${hasCurrent ? 'current' : ''}`}>
@@ -147,15 +155,15 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
 
   return (
     <nav className="sidebar" onClick={(e) => (e.target as HTMLElement).closest('a') && onNavigate()}>
-      <a href="#/" className={`side-item home ${current === '' ? 'active' : ''}`}>
+      <a href={href('')} className={`side-item home ${current === '' ? 'active' : ''}`}>
         <Icon name="home" size={17} />
         Dashboard
       </a>
-      <a href="#/plan" className={`side-item home ${current === 'plan' ? 'active' : ''}`}>
+      <a href={href('plan')} className={`side-item home ${current === 'plan' ? 'active' : ''}`}>
         <Icon name="plan" size={17} />
         {tr('Mera plan', 'My plan')}
       </a>
-      <a href="#/quiz" className={`side-item home ${current === 'quiz' ? 'active' : ''}`}>
+      <a href={href('quiz')} className={`side-item home ${current === 'quiz' ? 'active' : ''}`}>
         <Icon name="quiz" size={17} />
         Quiz
       </a>

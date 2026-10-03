@@ -158,6 +158,10 @@ body.resizing iframe, body.resizing .main { pointer-events: none; }
 .toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; }
 .tags { gap: 6px; }
 .revision-note { background: var(--marker); padding: 6px 10px; border-radius: 4px; margin: 0; }
+.revise-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.1s; }
+.revise-btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.revise-btn:active { transform: scale(0.97); }
+.revise-btn.on { background: var(--accent); color: var(--accent-ink, #fff); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 
 .md { min-width: 0; }
 .md h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin: 0.2em 0 0.4em; }
