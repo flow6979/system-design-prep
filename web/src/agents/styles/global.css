@@ -176,3 +176,6 @@
 
 .agents-root .provider-chip { font-size: 0.82rem; cursor: pointer; }
 .agents-root .map-grid { align-items: start; }
+.agent-links { display: flex; gap: 2px; flex-wrap: wrap; }
+.agent-links a { padding: 5px 10px; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+.agent-links a:hover { color: var(--ink); background: var(--surface-2); }

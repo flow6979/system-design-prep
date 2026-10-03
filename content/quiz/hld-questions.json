@@ -1,0 +1,1510 @@
+[
+  {
+    "id": "hld-t1-01-url-shortener-01",
+    "section": "hld",
+    "topic": "t1-01-url-shortener",
+    "level": "easy",
+    "q": {
+      "hi": "URL shortener me 301 ki jagah 302 redirect kyun chuna?",
+      "en": "Why does the URL shortener use a 302 redirect instead of 301?"
+    },
+    "options": {
+      "hi": [
+        "302 browser me cache hota hai, isliye server load kam hota hai",
+        "Har click server pe aata hai, isliye analytics aur expiry/delete turant kaam karte hain",
+        "301 ko search engines index nahi karte, isliye SEO kharab hota hai",
+        "302 ka response chhota hota hai, isliye redirect latency kam hoti hai"
+      ],
+      "en": [
+        "302 is cached by the browser, so server load drops",
+        "Every click reaches the server, so analytics and expiry/delete work immediately",
+        "Search engines do not index 301s, so SEO suffers",
+        "A 302 response is smaller, so redirect latency is lower"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "301 browser cache kar leta hai, next click server tak aata hi nahi, to analytics miss aur delete ka asar nahi. Load cache + CDN sambhalte hain.",
+      "en": "301 is cached by the browser, so later clicks never reach the server: analytics are lost and deletes do not apply. Cache + CDN handle the load instead."
+    }
+  },
+  {
+    "id": "hld-t1-01-url-shortener-02",
+    "section": "hld",
+    "topic": "t1-01-url-shortener",
+    "level": "medium",
+    "q": {
+      "hi": "Short code generate karne ke liye chosen approach kya hai?",
+      "en": "Which short-code generation approach is chosen?"
+    },
+    "options": {
+      "hi": [
+        "MD5(longUrl) ke first 7 chars, kyunki hash deterministic hai to collision check nahi chahiye",
+        "Har write pe Redis INCR global counter, kyunki ye sabse simple aur bottleneck-free hai",
+        "Random 7-char string generate karo aur DB me exist check karo, retries kabhi nahi aate",
+        "Range allocation: KGS har server ko 1000 ids ka block deta hai, server local counter + Base62 chalata hai"
+      ],
+      "en": [
+        "First 7 chars of MD5(longUrl), since the hash is deterministic and needs no collision check",
+        "A global Redis INCR counter on every write, since it is simplest and has no bottleneck",
+        "Generate a random 7-char string and check the DB; retries never happen",
+        "Range allocation: a KGS hands each server a block of 1000 ids, and the server runs a local counter + Base62"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Hash me collision + retry, single counter bottleneck/SPOF. Range allocation collision-free hai aur coordination sirf har 1000 writes me ek baar.",
+      "en": "Hashing needs collision checks and retries; a single counter is a bottleneck/SPOF. Range allocation is collision-free and coordinates only once per 1000 writes."
+    }
+  },
+  {
+    "id": "hld-t1-02-rate-limiter-01",
+    "section": "hld",
+    "topic": "t1-02-rate-limiter",
+    "level": "easy",
+    "q": {
+      "hi": "Rate limiter ke liye kaunsa algorithm chuna aur kyun?",
+      "en": "Which rate-limiting algorithm is chosen and why?"
+    },
+    "options": {
+      "hi": [
+        "Token bucket: burst allow karta hai, average rate control me, state sirf 2 fields",
+        "Fixed window counter: exact hai aur window boundary pe koi burst problem nahi",
+        "Sliding window log: sabse kam memory leta hai kyunki sirf count store hota hai",
+        "Leaky bucket: burst ko turant allow karta hai bina queue ke"
+      ],
+      "en": [
+        "Token bucket: allows bursts, keeps the average rate in check, and needs only 2 fields of state",
+        "Fixed window counter: exact, with no burst problem at window boundaries",
+        "Sliding window log: uses the least memory because it only stores a count",
+        "Leaky bucket: lets bursts through immediately with no queueing"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Fixed window boundary pe 2x burst deta hai, sliding log har request store karta hai. Token bucket burst + smooth average dono deta hai (Stripe, AWS bhi).",
+      "en": "Fixed window allows a 2x burst at boundaries and sliding log stores every request. Token bucket gives bursts plus a smooth average (used by Stripe, AWS)."
+    }
+  },
+  {
+    "id": "hld-t1-02-rate-limiter-02",
+    "section": "hld",
+    "topic": "t1-02-rate-limiter",
+    "level": "medium",
+    "q": {
+      "hi": "Do gateways ek saath `tokens = 1` padhte hain aur dono allow kar dete hain. Fix kya hai?",
+      "en": "Two gateways read `tokens = 1` at the same time and both allow the request. What is the fix?"
+    },
+    "options": {
+      "hi": [
+        "Gateways ke clocks NTP se sync karo taaki dono same time dekhein",
+        "Redis read replicas badhao taaki reads alag nodes pe spread ho",
+        "Refill + check + decrement poora ek Redis Lua script me, jo atomically chalti hai",
+        "Har gateway apna local counter rakhe, central state ki zarurat nahi"
+      ],
+      "en": [
+        "Sync gateway clocks with NTP so both see the same time",
+        "Add Redis read replicas so reads spread across nodes",
+        "Do refill + check + decrement in one Redis Lua script, which runs atomically",
+        "Let each gateway keep its own local counter; no central state needed"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Redis single-threaded hai, Lua script beech me koi aur command nahi aane deti. `now` bhi Redis `TIME` se lo, gateway clock se nahi.",
+      "en": "Redis is single-threaded, so a Lua script runs without interleaving. Also take `now` from Redis `TIME`, not gateway clocks."
+    }
+  },
+  {
+    "id": "hld-t1-03-news-feed-01",
+    "section": "hld",
+    "topic": "t1-03-news-feed",
+    "level": "medium",
+    "q": {
+      "hi": "100M followers wala celebrity post karta hai. Feed design kaise handle karega?",
+      "en": "A celebrity with 100M followers posts. How does the feed design handle it?"
+    },
+    "options": {
+      "hi": [
+        "Pure push, bas Kafka fan-out workers 100x scale kar do",
+        "Hybrid: normal users ke liye push, celebrity ki post sirf `user_posts` me, feed read pe merge (pull)",
+        "Sabke liye pure pull, kyunki read time merge hamesha sasta hota hai",
+        "Celebrity posts feed me na dikhao, sirf push notification bhejo"
+      ],
+      "en": [
+        "Pure push, just scale Kafka fan-out workers 100x",
+        "Hybrid: push for normal users; celebrity posts stay in `user_posts` and are merged at read time (pull)",
+        "Pure pull for everyone, since read-time merge is always cheap",
+        "Do not show celebrity posts in feeds; only send a push notification"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Pure push = 100M writes aur minutes ka lag. Pure pull = har feed open pe 200 queries. User kuch dozen celebrities hi follow karta hai, isliye read pe merge sasta.",
+      "en": "Pure push means 100M writes and minutes of lag; pure pull means ~200 queries per feed open. Users follow only a few dozen celebrities, so merging them at read time is cheap."
+    }
+  },
+  {
+    "id": "hld-t1-03-news-feed-02",
+    "section": "hld",
+    "topic": "t1-03-news-feed",
+    "level": "easy",
+    "q": {
+      "hi": "Redis feed cache me har post ke liye kya store karte hain?",
+      "en": "What is stored per post in the Redis feed cache?"
+    },
+    "options": {
+      "hi": [
+        "Poora post JSON, taaki hydration ki zarurat na pade",
+        "post_id + like/comment counts, taaki counts hamesha fresh rahein",
+        "Kuch nahi; har feed read Cassandra se query hota hai",
+        "Sirf post_id; poora post hydration ke time post cache se aata hai"
+      ],
+      "en": [
+        "The full post JSON, so no hydration is needed",
+        "post_id + like/comment counts, so counts are always fresh",
+        "Nothing; every feed read queries Cassandra",
+        "Only the post_id; the full post is hydrated from the post cache"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Full post rakhne se 500x duplicate data aur edit/delete pe har feed update karni padti. post_ids chhote hain aur edit ek jagah hota hai.",
+      "en": "Storing full posts duplicates data ~500x and forces every feed to update on edit/delete. post_ids are small and edits happen in one place."
+    }
+  },
+  {
+    "id": "hld-t1-04-whatsapp-chat-01",
+    "section": "hld",
+    "topic": "t1-04-whatsapp-chat",
+    "level": "medium",
+    "q": {
+      "hi": "Bob ka connection server push ke time crash ho gaya. Message kaise nahi khota?",
+      "en": "Bob's connection server crashes during a push. Why is the message not lost?"
+    },
+    "options": {
+      "hi": [
+        "Message pehle DB me persist hota hai; reconnect pe client last seq ke baad ke messages (`afterSeq`) pull kar leta hai",
+        "Redis Pub/Sub delivery guarantee deta hai aur subscriber wapas aane pe redeliver karta hai",
+        "Message Service memory me message rakh ke tab tak retry karta hai jab tak push success na ho",
+        "Alice ka phone message dobara bhejta hai jab tak blue tick na aaye"
+      ],
+      "en": [
+        "The message is persisted to the DB first; on reconnect the client pulls messages after its last seq (`afterSeq`)",
+        "Redis Pub/Sub guarantees delivery and redelivers when the subscriber returns",
+        "The Message Service holds the message in memory and retries until the push succeeds",
+        "Alice's phone resends the message until it sees a blue tick"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Routing best-effort hai, durability DB se aati hai. Pub/Sub fire-and-forget hai, isliye usse pehle persist zaroori hai.",
+      "en": "Routing is best-effort; durability comes from the DB. Pub/Sub is fire-and-forget, so persisting first is mandatory."
+    }
+  },
+  {
+    "id": "hld-t1-04-whatsapp-chat-02",
+    "section": "hld",
+    "topic": "t1-04-whatsapp-chat",
+    "level": "hard",
+    "q": {
+      "hi": "Chat me message ordering kaise guarantee karoge?",
+      "en": "How do you guarantee message ordering in a chat?"
+    },
+    "options": {
+      "hi": [
+        "Client timestamps se sort karo, sab phones NTP se sync rehte hain",
+        "Poore system ka ek global sequence, taaki har message ka total order ho",
+        "Har chat ka apna monotonic seq_no (jaise Redis `INCR seq:{chat_id}`); gap dikhe to receiver missing seq fetch kare",
+        "Server arrival time se sort karo, Cassandra clustering key me"
+      ],
+      "en": [
+        "Sort by client timestamps, since all phones stay NTP-synced",
+        "One global sequence for the whole system, so every message is totally ordered",
+        "A per-chat monotonic seq_no (e.g. Redis `INCR seq:{chat_id}`); on a gap the receiver fetches the missing seq",
+        "Sort by server arrival time as the Cassandra clustering key"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Ordering sirf per chat chahiye. Client clocks skew karte hain, global sequence bottleneck hai. Per-chat seq se gap detection bhi milti hai.",
+      "en": "Ordering is only needed per chat. Client clocks skew and a global sequence is a bottleneck. A per-chat seq also enables gap detection."
+    }
+  },
+  {
+    "id": "hld-t1-05-bookmyshow-01",
+    "section": "hld",
+    "topic": "t1-05-bookmyshow",
+    "level": "easy",
+    "q": {
+      "hi": "BookMyShow me double booking ki last line of defense kya hai?",
+      "en": "In BookMyShow, what is the last line of defense against double booking?"
+    },
+    "options": {
+      "hi": [
+        "Redis `SET NX PX` seat hold",
+        "DB unique constraint on (show, seat) bookings",
+        "Payment window tak `SELECT FOR UPDATE` lock",
+        "Virtual waiting queue jo ek time pe 5,000 users andar aane deti hai"
+      ],
+      "en": [
+        "The Redis `SET NX PX` seat hold",
+        "A DB unique constraint on (show, seat) bookings",
+        "A `SELECT FOR UPDATE` lock held through the payment window",
+        "The virtual waiting queue that admits 5,000 users at a time"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Redis hold fast aur temporary hai, par Redis crash ya hold expire ke baad late payment pe bhi DB constraint do bookings nahi hone deta. Insert fail ho to auto refund.",
+      "en": "The Redis hold is fast but temporary; even if Redis crashes or a late payment arrives after expiry, the DB constraint blocks a second booking. If the insert fails, auto refund."
+    }
+  },
+  {
+    "id": "hld-t1-05-bookmyshow-02",
+    "section": "hld",
+    "topic": "t1-05-bookmyshow",
+    "level": "medium",
+    "q": {
+      "hi": "Avengers launch: 1 minute me 1 lakh log booking pe aaye. Kya karoge?",
+      "en": "Avengers launch: 100K users hit booking in one minute. What do you do?"
+    },
+    "options": {
+      "hi": [
+        "Sirf autoscaling, booking service ke pods 100x kar do",
+        "Seat hold TTL 10 min se 30 min kar do taaki users ko time mile",
+        "Har seat select pe DB row lock lo taaki race na ho",
+        "Virtual waiting room: Redis sorted set me line, ek baar me ~5,000 users andar, baaki ko position dikhao"
+      ],
+      "en": [
+        "Just autoscale; run 100x booking pods",
+        "Raise the seat hold TTL from 10 to 30 minutes so users get more time",
+        "Take a DB row lock on every seat select to avoid races",
+        "A virtual waiting room: queue users in a Redis sorted set, admit ~5,000 at a time, show others their position"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Autoscaling itna fast nahi hota aur DB/locks phir bhi bottleneck rahenge. Waiting room load control karta hai aur fair FIFO deta hai.",
+      "en": "Autoscaling is not fast enough and DB/locks stay the bottleneck. A waiting room controls load and keeps it fair (FIFO)."
+    }
+  },
+  {
+    "id": "hld-t1-06-uber-01",
+    "section": "hld",
+    "topic": "t1-06-uber",
+    "level": "easy",
+    "q": {
+      "hi": "Geohash se nearby drivers dhoondhte waqt apne cell ke saath 8 neighbour cells kyun query karte ho?",
+      "en": "When finding nearby drivers with geohash, why query the 8 neighbour cells along with your own?"
+    },
+    "options": {
+      "hi": [
+        "Rider cell ke kinare pe ho to paas wala driver padosi cell me ho sakta hai",
+        "Ek cell me hamesha 10 se kam drivers hote hain, isliye zyada cells chahiye",
+        "Geohash prefix galat ho sakta hai, neighbours error correct karte hain",
+        "Surge pricing ke liye demand/supply 9 cells pe calculate hoti hai"
+      ],
+      "en": [
+        "If the rider is near a cell edge, a close driver may sit in a neighbouring cell",
+        "A cell always has fewer than 10 drivers, so more cells are needed",
+        "The geohash prefix can be wrong; neighbours correct the error",
+        "Surge pricing computes demand/supply over 9 cells"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Same prefix = paas paas, par ulta hamesha sach nahi. Boundary pe 10 m door wala driver alag cell me ho sakta hai. Phir candidates ko road ETA se rank karo.",
+      "en": "Same prefix means close, but not the reverse: a driver 10 m away can be in another cell. Then rank candidates by road ETA."
+    }
+  },
+  {
+    "id": "hld-t1-06-uber-02",
+    "section": "hld",
+    "topic": "t1-06-uber",
+    "level": "hard",
+    "q": {
+      "hi": "Matching Service ke do instances same driver d1 ko do riders ke liye pick kar lete hain. Kaise rokoge?",
+      "en": "Two Matching Service instances pick the same driver d1 for two riders. How do you prevent it?"
+    },
+    "options": {
+      "hi": [
+        "Driver ke jawab tak `SELECT FOR UPDATE` row lock pakdo",
+        "Driver app khud dusra offer reject kar degi, server pe kuch nahi chahiye",
+        "Redis lock `SET lock:driver:d1 NX PX 15000` + assign pe DB `UPDATE ... WHERE status='AVAILABLE'` (0 rows = fail)",
+        "Redis lock bina TTL ke lo taaki lock kabhi galti se na chhoote"
+      ],
+      "en": [
+        "Hold a `SELECT FOR UPDATE` row lock until the driver responds",
+        "The driver app rejects the second offer itself; nothing is needed on the server",
+        "A Redis lock `SET lock:driver:d1 NX PX 15000` + on assign a DB `UPDATE ... WHERE status='AVAILABLE'` (0 rows = fail)",
+        "Take a Redis lock without TTL so it never releases by accident"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Lock fast hai aur TTL se crash pe khud chhootta hai. DB conditional update final safety hai. 15 sec DB lock connections block kar dega.",
+      "en": "The lock is fast and its TTL frees it on crash; the DB conditional update is the final safety net. A 15-second DB lock would exhaust connections."
+    }
+  },
+  {
+    "id": "hld-t1-07-youtube-01",
+    "section": "hld",
+    "topic": "t1-07-youtube",
+    "level": "easy",
+    "q": {
+      "hi": "Creator 10 GB video upload kar raha hai. Upload path kya hona chahiye?",
+      "en": "A creator uploads a 10 GB video. What should the upload path be?"
+    },
+    "options": {
+      "hi": [
+        "App server ke through stream karo taaki validation wahin ho jaye",
+        "Pre-signed URL se seedha S3 pe multipart (5–10 MB parts), resumable upload",
+        "Ek single PUT request, simple rehta hai",
+        "WebSocket pe chunks bhejo taaki connection khula rahe"
+      ],
+      "en": [
+        "Stream it through the app server so validation happens there",
+        "Direct multipart upload to S3 via pre-signed URLs (5–10 MB parts), resumable",
+        "A single PUT request, since it stays simple",
+        "Send chunks over a WebSocket to keep the connection open"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "App server pe 10 GB file bandwidth/memory choke karegi. Single PUT ki 5 GB limit hai aur fail pe poora dobara. Multipart me sirf failed part retry.",
+      "en": "A 10 GB file would choke app server bandwidth/memory. A single PUT has a 5 GB limit and restarts fully on failure. Multipart retries only the failed part."
+    }
+  },
+  {
+    "id": "hld-t1-07-youtube-02",
+    "section": "hld",
+    "topic": "t1-07-youtube",
+    "level": "medium",
+    "q": {
+      "hi": "1 ghante ki video ko minutes me transcode kaise karoge?",
+      "en": "How do you transcode a 1-hour video in minutes?"
+    },
+    "options": {
+      "hi": [
+        "Ek powerful GPU worker poori video ek saath transcode kare",
+        "Upload request ke andar hi synchronously transcode karo",
+        "Transcode tabhi karo jab koi pehli baar video dekhe",
+        "Video ko ~10 sec chunks me split karo; har chunk × resolution ek alag idempotent task, DAG orchestrator ke saath parallel workers"
+      ],
+      "en": [
+        "One powerful GPU worker transcodes the whole video in one go",
+        "Transcode synchronously inside the upload request",
+        "Transcode only when someone first watches the video",
+        "Split the video into ~10 s chunks; each chunk × resolution is a separate idempotent task run by parallel workers under a DAG orchestrator"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Chunk-level parallelism se hazaron workers ek saath kaam karte hain. Idempotent output key se worker crash pe retry safe hai. Sync transcode me request timeout.",
+      "en": "Chunk-level parallelism lets thousands of workers run at once; idempotent output keys make retries safe on crash. Sync transcoding would time out the request."
+    }
+  },
+  {
+    "id": "hld-t1-08-dropbox-01",
+    "section": "hld",
+    "topic": "t1-08-dropbox",
+    "level": "hard",
+    "q": {
+      "hi": "Fixed 4 MB chunking me file ke shuru me 1 byte insert kiya. Kya problem hoti hai aur fix?",
+      "en": "With fixed 4 MB chunking, 1 byte is inserted at the start of a file. What breaks and what is the fix?"
+    },
+    "options": {
+      "hi": [
+        "Saare chunk boundaries shift ho jaate hain, sab chunks naye lagte hain; fix content-defined chunking (rolling hash / Rabin)",
+        "Sirf pehla chunk badalta hai, koi problem nahi",
+        "SHA-256 collision ho jaata hai; fix MD5 pe switch karna",
+        "Chunk size 64 MB kar do taaki shift ka asar kam ho"
+      ],
+      "en": [
+        "All chunk boundaries shift so every chunk looks new; fix with content-defined chunking (rolling hash / Rabin)",
+        "Only the first chunk changes, so there is no problem",
+        "SHA-256 collides; fix by switching to MD5",
+        "Raise the chunk size to 64 MB so the shift matters less"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Fixed boundaries offset se tay hote hain, isliye ek byte sab kuch shift kar deta hai. Content-defined chunking boundaries content se decide karta hai, to sirf aas-paas ka chunk badalta hai.",
+      "en": "Fixed boundaries depend on offsets, so one byte shifts everything. Content-defined chunking picks boundaries from content, so only nearby chunks change."
+    }
+  },
+  {
+    "id": "hld-t1-08-dropbox-02",
+    "section": "hld",
+    "topic": "t1-08-dropbox",
+    "level": "medium",
+    "q": {
+      "hi": "Laptop aur phone dono ne v4 pe edit kiya aur commit kiya. Dropbox kya karta hai?",
+      "en": "Both laptop and phone edited v4 and committed. What does Dropbox do?"
+    },
+    "options": {
+      "hi": [
+        "Last-write-wins: jo baad me aaya wahi v5, pehla overwrite",
+        "Edit shuru hote hi file pe lock, doosra device edit hi nahi kar sakta",
+        "Optimistic concurrency: pehla commit v5 banta hai, doosre ko 409 aur uski file \"conflicted copy\" ke naam se save hoti hai",
+        "Server OT se dono edits auto-merge kar deta hai"
+      ],
+      "en": [
+        "Last-write-wins: the later one becomes v5 and overwrites the first",
+        "Lock the file when editing starts, so the other device cannot edit",
+        "Optimistic concurrency: the first commit becomes v5; the second gets 409 and is saved as a \"conflicted copy\"",
+        "The server auto-merges both edits using OT"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Commit `WHERE latest_version=4` check karta hai, 0 rows = conflict. Data kabhi lose nahi hota. LWW chupchaap kaam delete karta hai, lock offline device pe atak jaata hai.",
+      "en": "The commit checks `WHERE latest_version=4`; 0 rows means conflict and no data is lost. LWW silently drops work, and locks get stuck on offline devices."
+    }
+  },
+  {
+    "id": "hld-t1-09-notification-system-01",
+    "section": "hld",
+    "topic": "t1-09-notification-system",
+    "level": "easy",
+    "q": {
+      "hi": "10M users ka marketing campaign chal raha hai aur OTP 20 min late aa rahe hain. Design fix?",
+      "en": "A 10M-user marketing campaign is running and OTPs arrive 20 minutes late. Design fix?"
+    },
+    "options": {
+      "hi": [
+        "Ek hi common queue rakho, bas partitions badha do",
+        "Priority ke hisaab se alag topics (high/medium/low) aur OTP ke liye dedicated, always-on workers",
+        "OTP pe per-user rate limit laga do taaki campaign ko jagah mile",
+        "Campaign ko synchronous API calls se bhejo taaki queue khaali rahe"
+      ],
+      "en": [
+        "Keep one common queue and just add partitions",
+        "Separate topics by priority (high/medium/low) with dedicated, always-on workers for OTP",
+        "Rate-limit OTPs per user so the campaign gets room",
+        "Send the campaign via synchronous API calls to keep the queue empty"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Common queue me head-of-line blocking hota hai. Alag topics + consumer groups se OTP marketing ke peeche nahi fasta, aur low priority throttle hoti hai.",
+      "en": "A common queue causes head-of-line blocking. Separate topics and consumer groups keep OTPs from waiting behind marketing, and low priority is throttled."
+    }
+  },
+  {
+    "id": "hld-t1-09-notification-system-02",
+    "section": "hld",
+    "topic": "t1-09-notification-system",
+    "level": "hard",
+    "q": {
+      "hi": "Worker ne SMS bhej diya par Kafka offset commit se pehle crash ho gaya. Duplicate kaise rokoge?",
+      "en": "A worker sends the SMS but crashes before committing the Kafka offset. How do you avoid a duplicate?"
+    },
+    "options": {
+      "hi": [
+        "Kafka exactly-once transactions on karo, Twilio call bhi usme cover ho jaayegi",
+        "Retries band kar do taaki duplicate kabhi na jaaye",
+        "Retry topic me 1 min delay laga do, duplicate apne aap ignore ho jaayega",
+        "Send se pehle `sent:{notificationId}:{channel}` dedup key check + provider ko idempotency key pass karo (effectively once)"
+      ],
+      "en": [
+        "Enable Kafka exactly-once transactions; the Twilio call is covered too",
+        "Disable retries so duplicates never go out",
+        "Add a 1-minute delay retry topic and duplicates will be ignored",
+        "Check a `sent:{notificationId}:{channel}` dedup key before sending and pass an idempotency key to the provider (effectively once)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Third-party call Kafka transaction ka hissa nahi hota, isliye exactly-once impossible. Target user ke liye effectively once hai, dedup key + provider idempotency se.",
+      "en": "A third-party call is not part of a Kafka transaction, so exactly-once is impossible. The goal is effectively-once for the user via dedup keys + provider idempotency."
+    }
+  },
+  {
+    "id": "hld-t1-10-typeahead-01",
+    "section": "hld",
+    "topic": "t1-10-typeahead",
+    "level": "medium",
+    "q": {
+      "hi": "Typeahead suggestions ke liye serving data structure kya chuna?",
+      "en": "Which serving data structure is chosen for typeahead suggestions?"
+    },
+    "options": {
+      "hi": [
+        "Precomputed prefix → top-K in Redis/KV (flattened trie): O(1) lookup, easy sharding aur CDN caching",
+        "App memory me live trie jo har search pe update ho",
+        "DB query `LIKE 'ipl%' ORDER BY count LIMIT 10` har keystroke pe",
+        "Har keystroke pe Elasticsearch fuzzy completion suggester"
+      ],
+      "en": [
+        "Precomputed prefix → top-K in Redis/KV (a flattened trie): O(1) lookup, easy sharding and CDN caching",
+        "A live trie in app memory updated on every search",
+        "A DB query `LIKE 'ipl%' ORDER BY count LIMIT 10` on every keystroke",
+        "An Elasticsearch fuzzy completion suggester on every keystroke"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Live trie ~300 GB ek box me nahi aata aur distribute karna mushkil. LIKE scan + sort 100ms me impossible. KV me trie flatten karke sharding/replication free.",
+      "en": "A live trie (~300 GB) does not fit one box and is hard to distribute; LIKE scan + sort cannot meet 100 ms. Flattening into KV gives sharding/replication for free."
+    }
+  },
+  {
+    "id": "hld-t1-10-typeahead-02",
+    "section": "hld",
+    "topic": "t1-10-typeahead",
+    "level": "easy",
+    "q": {
+      "hi": "Har keystroke pe server call se QPS 3–4x ho jaata hai. Sabse pehla sasta fix?",
+      "en": "A server call on every keystroke inflates QPS 3–4x. What is the first cheap fix?"
+    },
+    "options": {
+      "hi": [
+        "Redis cluster ka size 4x kar do",
+        "Har user ke liye WebSocket khol do taaki HTTP overhead na ho",
+        "Client pe ~150ms debounce + local LRU cache, aur short prefixes CDN se cache",
+        "Prefix length limit 3 chars kar do"
+      ],
+      "en": [
+        "Make the Redis cluster 4x larger",
+        "Open a WebSocket per user to avoid HTTP overhead",
+        "Client-side ~150 ms debounce + local LRU cache, with short prefixes cached on the CDN",
+        "Limit prefix length to 3 chars"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Debounce + CDN se 60–80% requests origin tak aati hi nahi. 1–3 char prefixes sabse hot hain aur `max-age=300` se edge pe serve ho jaate hain.",
+      "en": "Debounce + CDN keep 60–80% of requests from reaching origin. 1–3 char prefixes are the hottest and are served at the edge with `max-age=300`."
+    }
+  },
+  {
+    "id": "hld-t1-11-payment-system-01",
+    "section": "hld",
+    "topic": "t1-11-payment-system",
+    "level": "hard",
+    "q": {
+      "hi": "PSP call timeout ho gaya. Payment attempt ke saath kya karoge?",
+      "en": "A PSP call times out. What do you do with the payment attempt?"
+    },
+    "options": {
+      "hi": [
+        "FAILED mark karo aur customer ko dobara pay karne do",
+        "UNKNOWN state me rakho, poll/reconciliation se resolve karo; tab tak dusre PSP pe retry nahi",
+        "Turant dusre PSP pe retry karo, router ka yahi kaam hai",
+        "SUCCEEDED maan lo, webhook aane pe correct kar lenge"
+      ],
+      "en": [
+        "Mark it FAILED and let the customer pay again",
+        "Mark it UNKNOWN and resolve it via polling/reconciliation; do not retry on another PSP meanwhile",
+        "Immediately retry on another PSP; that is what the router is for",
+        "Assume SUCCEEDED and correct it when the webhook arrives"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Timeout pe pehle PSP pe charge ho chuka ho sakta hai. FAILED maan ke retry ya dusre PSP pe bhejna = double debit. Dusre PSP pe retry sirf definite FAILED pe.",
+      "en": "On timeout the first PSP may already have charged. Treating it as FAILED or retrying elsewhere risks a double debit. Cross-PSP retry is only for a definite FAILED."
+    }
+  },
+  {
+    "id": "hld-t1-11-payment-system-02",
+    "section": "hld",
+    "topic": "t1-11-payment-system",
+    "level": "medium",
+    "q": {
+      "hi": "Same `Idempotency-Key` dobara aayi aur pehli request `DONE` ho chuki hai. Server kya kare?",
+      "en": "The same `Idempotency-Key` arrives again and the first request is already `DONE`. What should the server do?"
+    },
+    "options": {
+      "hi": [
+        "409 \"retry later\" return kare",
+        "Dobara process kare, PSP khud duplicate pakad lega",
+        "422 return kare kyunki key reuse hui hai",
+        "Pehle save kiya hua response wapas return kare, dobara process na kare"
+      ],
+      "en": [
+        "Return 409 \"retry later\"",
+        "Process again, since the PSP will catch the duplicate",
+        "Return 422 because the key was reused",
+        "Return the saved response from the first request without processing again"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "409 tab hai jab pehli request abhi `IN_PROGRESS` ho, 422 tab jab body hash alag ho. DONE pe saved response = retry pe same result, double charge nahi.",
+      "en": "409 is for a request still `IN_PROGRESS`, 422 for a different body hash. For DONE, returning the saved response gives the same result with no double charge."
+    }
+  },
+  {
+    "id": "hld-t1-12-web-crawler-01",
+    "section": "hld",
+    "topic": "t1-12-web-crawler",
+    "level": "medium",
+    "q": {
+      "hi": "URL frontier ko kaise shard karoge taaki politeness bina distributed lock ke enforce ho?",
+      "en": "How do you shard the URL frontier so politeness is enforced without a distributed lock?"
+    },
+    "options": {
+      "hi": [
+        "Domain ke hash se: ek domain hamesha ek node pe, wahan per-domain queue + min-heap `next_allowed_time`",
+        "URL ke hash se, taaki load sabse even ho",
+        "Priority score ke hisaab se, high priority ek node pe",
+        "Round robin, har fetcher koi bhi URL uthaye"
+      ],
+      "en": [
+        "By domain hash: a domain always lives on one node, with a per-domain queue + min-heap of `next_allowed_time`",
+        "By URL hash, so load is most even",
+        "By priority score, with high priority on one node",
+        "Round robin; any fetcher takes any URL"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "URL hash se ek domain ke URLs sab nodes pe bikhrenge aur politeness ke liye distributed rate limit chahiye. Domain hash se ye local ho jaata hai.",
+      "en": "URL hashing spreads one domain across all nodes and needs a distributed rate limit for politeness. Domain hashing keeps it local."
+    }
+  },
+  {
+    "id": "hld-t1-12-web-crawler-02",
+    "section": "hld",
+    "topic": "t1-12-web-crawler",
+    "level": "easy",
+    "q": {
+      "hi": "URL-seen check ke Bloom filter me false positive aaye to crawler pe kya asar?",
+      "en": "What happens to the crawler when the URL-seen Bloom filter gives a false positive?"
+    },
+    "options": {
+      "hi": [
+        "Same URL do baar crawl ho jaata hai",
+        "Crawler infinite loop me phas jaata hai",
+        "Kuch naye URLs galti se \"seen\" maan ke skip ho jaate hain (~1%), jo crawler ke liye acceptable hai",
+        "Bloom filter corrupt ho jaata hai aur rebuild karna padta hai"
+      ],
+      "en": [
+        "The same URL gets crawled twice",
+        "The crawler gets stuck in an infinite loop",
+        "Some new URLs are wrongly treated as seen and skipped (~1%), which is acceptable for a crawler",
+        "The Bloom filter becomes corrupt and must be rebuilt"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Bloom filter me false negative kabhi nahi hota, isliye seen URL dobara nahi jaata. False positive sirf kuch naye URLs miss karata hai. 10B URLs ~12 GB me.",
+      "en": "A Bloom filter never gives false negatives, so seen URLs are never re-crawled; false positives only miss a few new URLs. 10B URLs fit in ~12 GB."
+    }
+  },
+  {
+    "id": "hld-t2-13-instagram-01",
+    "section": "hld",
+    "topic": "t2-13-instagram",
+    "level": "easy",
+    "q": {
+      "hi": "Virat Kohli ki post pe 1 lakh likes/min aa rahe hain. Like count kaise maintain karoge?",
+      "en": "Virat Kohli's post gets 100K likes per minute. How do you maintain the like count?"
+    },
+    "options": {
+      "hi": [
+        "Har like pe `UPDATE posts SET count = count + 1`",
+        "Redis `INCR` counter + background job periodic flush to Cassandra; bahut hot posts pe sharded counter",
+        "Har post view pe `COUNT(*)` on likes table",
+        "Har like pe Postgres transaction me count aur like row dono likho"
+      ],
+      "en": [
+        "`UPDATE posts SET count = count + 1` on every like",
+        "Redis `INCR` counter + periodic background flush to Cassandra; sharded counters for very hot posts",
+        "`COUNT(*)` on the likes table on every post view",
+        "Write both the count and the like row in a Postgres transaction per like"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Ek row pe count+1 hot row contention aur lock waits deta hai. UI \"1.2M likes\" dikhata hai, isliye exact real-time count ki zarurat nahi.",
+      "en": "count+1 on one row causes hot-row contention and lock waits. The UI shows \"1.2M likes\", so an exact real-time count is not needed."
+    }
+  },
+  {
+    "id": "hld-t2-13-instagram-02",
+    "section": "hld",
+    "topic": "t2-13-instagram",
+    "level": "easy",
+    "q": {
+      "hi": "Stories 24 ghante baad apne aap kaise gayab hoti hain?",
+      "en": "How do stories disappear automatically after 24 hours?"
+    },
+    "options": {
+      "hi": [
+        "Har ghante cron job purani stories delete karta hai",
+        "Client app 24 hr ke baad story ko hide kar deti hai, server pe rehti hai",
+        "Har din ek nayi table banti hai aur purani drop hoti hai",
+        "Metadata pe TTL 24 hr (Cassandra TTL / Redis sorted set), aur media pe S3 lifecycle rule"
+      ],
+      "en": [
+        "An hourly cron job deletes old stories",
+        "The client app hides the story after 24 h; it stays on the server",
+        "A new table is created daily and the old one dropped",
+        "A 24-hour TTL on metadata (Cassandra TTL / Redis sorted set) plus an S3 lifecycle rule for media"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "TTL se auto expiry, cleanup job nahi. Cron late chale to stories 24 hr ke baad bhi dikhengi aur DB pe extra load.",
+      "en": "TTL gives automatic expiry with no cleanup job. A late cron would show stories past 24 h and add DB load."
+    }
+  },
+  {
+    "id": "hld-t2-14-food-delivery-01",
+    "section": "hld",
+    "topic": "t2-14-food-delivery",
+    "level": "medium",
+    "q": {
+      "hi": "Do assigner instances same partner p7 ko alag orders de rahe hain. Final guarantee kahan se aati hai?",
+      "en": "Two assigner instances give partner p7 different orders. Where does the final guarantee come from?"
+    },
+    "options": {
+      "hi": [
+        "DB conditional update `UPDATE orders SET partner_id=p7 WHERE id=? AND partner_id IS NULL`, saath me Redis lock offer control ke liye",
+        "Sirf Redis lock `NX PX 30000`, uska TTL kaafi hai",
+        "30 sec offer window tak `SELECT FOR UPDATE`",
+        "Partner app dusra offer khud reject kar degi"
+      ],
+      "en": [
+        "A DB conditional update `UPDATE orders SET partner_id=p7 WHERE id=? AND partner_id IS NULL`, with a Redis lock for offer control",
+        "Only the Redis lock `NX PX 30000`; its TTL is enough",
+        "`SELECT FOR UPDATE` for the 30-second offer window",
+        "The partner app will reject the second offer itself"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Redis lock fast offer control deta hai par final truth DB hai: do assigners race karein to bhi conditional update me ek hi jeetega.",
+      "en": "The Redis lock controls offers quickly, but the DB is the final truth: even if two assigners race, only one conditional update wins."
+    }
+  },
+  {
+    "id": "hld-t2-14-food-delivery-02",
+    "section": "hld",
+    "topic": "t2-14-food-delivery",
+    "level": "easy",
+    "q": {
+      "hi": "Order status DB me update hua par Kafka publish fail ho gaya. Ise rokne ka pattern?",
+      "en": "The order status is updated in the DB but the Kafka publish fails. Which pattern prevents this?"
+    },
+    "options": {
+      "hi": [
+        "2PC across Postgres aur Kafka",
+        "Pehle Kafka publish karo, phir DB commit",
+        "Outbox pattern: same DB transaction me outbox row, relay baad me Kafka pe publish kare",
+        "Publish fail ho to app memory me retry list rakho"
+      ],
+      "en": [
+        "2PC across Postgres and Kafka",
+        "Publish to Kafka first, then commit the DB",
+        "Outbox pattern: write an outbox row in the same DB transaction; a relay publishes it to Kafka",
+        "Keep an in-memory retry list in the app when publish fails"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Dual write me DB commit aur publish alag hote hain, crash pe event kho jaata hai. Outbox dono ko atomic bana deta hai.",
+      "en": "With dual writes the DB commit and publish are separate, so a crash loses the event. The outbox makes them atomic."
+    }
+  },
+  {
+    "id": "hld-t2-15-flash-sale-01",
+    "section": "hld",
+    "topic": "t2-15-flash-sale",
+    "level": "medium",
+    "q": {
+      "hi": "Flash sale me 2 lakh QPS pe stock atomically kaise ghataoge?",
+      "en": "How do you decrement stock atomically at 200K QPS during a flash sale?"
+    },
+    "options": {
+      "hi": [
+        "DB `UPDATE products SET stock = stock - 1 WHERE stock > 0`",
+        "Redis Lua script: already-bought check + stock check + `DECR` + `SADD` user, sab ek atomic step me",
+        "Optimistic locking with version column aur retry",
+        "App server `GET stock`, check, phir `SET stock-1`"
+      ],
+      "en": [
+        "DB `UPDATE products SET stock = stock - 1 WHERE stock > 0`",
+        "A Redis Lua script: already-bought check + stock check + `DECR` + `SADD` user, all in one atomic step",
+        "Optimistic locking with a version column and retries",
+        "App server does `GET stock`, checks, then `SET stock-1`"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Ek DB row pe lakhs lock waits DB gira denge. Optimistic locking me almost har request conflict = retry storm. Lua single-threaded atomic hai aur user dedup bhi saath.",
+      "en": "Lakhs of lock waits on one DB row would kill the DB; optimistic locking makes nearly every request conflict (retry storm). Lua is atomic and dedups users too."
+    }
+  },
+  {
+    "id": "hld-t2-15-flash-sale-02",
+    "section": "hld",
+    "topic": "t2-15-flash-sale",
+    "level": "hard",
+    "q": {
+      "hi": "Reservation ka 10 min TTL expire ho raha hai aur usi waqt payment success aaya. Race kaise resolve hogi?",
+      "en": "A reservation's 10-minute TTL is expiring just as payment succeeds. How is the race resolved?"
+    },
+    "options": {
+      "hi": [
+        "Payment hamesha jeetegi, expired unit wapas le lo chahe kisi aur ko mil gayi ho",
+        "Reservation row pe 10 min tak DB lock pakdo",
+        "Expiry worker payment service ko call karke payment cancel kare",
+        "`UPDATE reservations SET status='PAID' WHERE id=? AND status='RESERVED'`; expiry pehle jeeti to payment ka auto refund"
+      ],
+      "en": [
+        "Payment always wins; take the unit back even if someone else got it",
+        "Hold a DB lock on the reservation row for 10 minutes",
+        "The expiry worker calls the payment service to cancel the payment",
+        "`UPDATE reservations SET status='PAID' WHERE id=? AND status='RESERVED'`; if expiry won first, auto-refund the payment"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Conditional update me jo pehle state badle wahi jeetta hai. Expiry jeeti to unit release ho chuki, isliye late payment ka refund.",
+      "en": "With a conditional update, whoever changes the state first wins. If expiry won, the unit is already released, so the late payment is refunded."
+    }
+  },
+  {
+    "id": "hld-t2-16-leaderboard-01",
+    "section": "hld",
+    "topic": "t2-16-leaderboard",
+    "level": "easy",
+    "q": {
+      "hi": "Leaderboard rank ke liye SQL ki jagah Redis sorted set kyun?",
+      "en": "Why use a Redis sorted set instead of SQL for leaderboard rank?"
+    },
+    "options": {
+      "hi": [
+        "ZSET (skip list + hash) me `ZINCRBY` aur `ZREVRANK` dono O(log N); SQL me har rank query crores rows ka `COUNT(*)` scan",
+        "ZSET me rank lookup O(1) hai",
+        "SQL integer scores ko sort nahi kar sakta",
+        "Redis durable hai, isliye DB ki zarurat hi nahi"
+      ],
+      "en": [
+        "A ZSET (skip list + hash) does `ZINCRBY` and `ZREVRANK` in O(log N); SQL scans crores of rows with `COUNT(*)` per rank query",
+        "Rank lookup in a ZSET is O(1)",
+        "SQL cannot sort integer scores",
+        "Redis is durable, so no DB is needed"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "2 lakh QPS pe `COUNT(*) WHERE score > x` DB khatam kar dega. ZSET me rank O(log N). DB phir bhi durable copy ke liye rehta hai.",
+      "en": "At 200K QPS, `COUNT(*) WHERE score > x` would kill the DB; ZSET rank is O(log N). The DB still stays as the durable copy."
+    }
+  },
+  {
+    "id": "hld-t2-16-leaderboard-02",
+    "section": "hld",
+    "topic": "t2-16-leaderboard",
+    "level": "hard",
+    "q": {
+      "hi": "Same score pe \"jo pehle pahuncha wo upar\" chahiye. ZSET score kaise banaoge?",
+      "en": "On a tie, \"whoever got there first ranks higher\". How do you build the ZSET score?"
+    },
+    "options": {
+      "hi": [
+        "Composite score = `score * 10^10 + ts`",
+        "Member ko timestamp se prefix karo, Redis lexicographic order lagayega",
+        "Composite score = `score * 10^10 + (MAX_TS - ts)`",
+        "Same score pe Redis apne aap insertion order rakhta hai"
+      ],
+      "en": [
+        "Composite score = `score * 10^10 + ts`",
+        "Prefix the member with the timestamp; Redis applies lexicographic order",
+        "Composite score = `score * 10^10 + (MAX_TS - ts)`",
+        "Redis keeps insertion order automatically for equal scores"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "`+ ts` me baad wale ka score bada hoga aur wo upar chala jayega. `MAX_TS - ts` se pehle wale ko bada tie-break milta hai. Double 2^53 tak exact, range ka dhyaan rakho.",
+      "en": "With `+ ts`, the later player gets a bigger score and ranks higher. `MAX_TS - ts` gives the earlier player the larger tie-break. Doubles are exact up to 2^53, so mind the range."
+    }
+  },
+  {
+    "id": "hld-t2-17-ad-click-aggregator-01",
+    "section": "hld",
+    "topic": "t2-17-ad-click-aggregator",
+    "level": "medium",
+    "q": {
+      "hi": "Kafka lag ke time clicks galat minute me count na hon, iske liye kya use karoge?",
+      "en": "What do you use so clicks are not counted in the wrong minute when Kafka lags?"
+    },
+    "options": {
+      "hi": [
+        "Processing-time windows, kyunki ye simple aur fast hain",
+        "Event-time tumbling 1-min windows + watermark; late events `allowedLateness` tak upsert, usse late side output → S3",
+        "Sliding windows taaki har click kai windows me count ho",
+        "Redis `INCR` per minute key, arrival time ke hisaab se"
+      ],
+      "en": [
+        "Processing-time windows, since they are simple and fast",
+        "Event-time 1-minute tumbling windows + watermarks; late events upsert within `allowedLateness`, later ones go to a side output → S3",
+        "Sliding windows so each click counts in several windows",
+        "Redis `INCR` per-minute keys based on arrival time"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Processing time pe lag ke dauraan clicks galat window me jaate hain. Event time (click ka ts) + watermark se window sahi time pe close hoti hai.",
+      "en": "With processing time, clicks land in the wrong window during lag. Event time (the click ts) + watermarks close windows correctly."
+    }
+  },
+  {
+    "id": "hld-t2-17-ad-click-aggregator-02",
+    "section": "hld",
+    "topic": "t2-17-ad-click-aggregator",
+    "level": "hard",
+    "q": {
+      "hi": "IPL ke viral ad pe 20K QPS se ek Kafka partition aur ek Flink task overload hai. Fix?",
+      "en": "A viral IPL ad at 20K QPS overloads one Kafka partition and one Flink task. Fix?"
+    },
+    "options": {
+      "hi": [
+        "Topic ke total partitions badha do, load apne aap bant jayega",
+        "Har ad pe salting laga do taaki koi hot na ho",
+        "Us Flink task ko bada machine de do",
+        "Sirf hot ads pe key salting `ad_id + random(0..N-1)`, partial counts, phir doosri stage me `ad_id` pe sum"
+      ],
+      "en": [
+        "Add more partitions to the topic; the load will spread on its own",
+        "Salt every ad so none can get hot",
+        "Give that Flink task a bigger machine",
+        "Salt only hot ads' keys as `ad_id + random(0..N-1)`, compute partial counts, then sum by `ad_id` in a second stage"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Same key hamesha same partition pe jaati hai, partitions badhane se kuch nahi hota. Salting har ad pe lagane se do-stage overhead bekaar me.",
+      "en": "The same key always maps to the same partition, so adding partitions does nothing. Salting every ad adds pointless two-stage overhead."
+    }
+  },
+  {
+    "id": "hld-t2-18-job-scheduler-01",
+    "section": "hld",
+    "topic": "t2-18-job-scheduler",
+    "level": "hard",
+    "q": {
+      "hi": "Network partition ke baad purana (zombie) worker job complete likhne aaya, jabki lease kisi aur ko mil chuki. Kaise rokoge?",
+      "en": "After a network partition, an old (zombie) worker tries to mark a job complete though the lease moved on. How do you stop it?"
+    },
+    "options": {
+      "hi": [
+        "Fencing token: complete pe `WHERE lease_owner = me AND attempt = n`; purana attempt reject",
+        "Lease TTL chhota kar do, zombie apne aap ruk jayega",
+        "Heartbeat interval 20 sec se 5 sec kar do",
+        "Workers me bhi leader election lagao"
+      ],
+      "en": [
+        "Fencing token: on complete use `WHERE lease_owner = me AND attempt = n`; the old attempt is rejected",
+        "Shorten the lease TTL; the zombie stops on its own",
+        "Reduce the heartbeat interval from 20 s to 5 s",
+        "Add leader election among workers too"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Sirf lease TTL kaafi nahi: GC pause ke baad purana worker galat status likh sakta hai. Attempt number fencing token hai, stale write reject hota hai.",
+      "en": "Lease TTL alone is not enough: after a GC pause the old worker can still write a stale status. The attempt number acts as a fencing token and rejects it."
+    }
+  },
+  {
+    "id": "hld-t2-18-job-scheduler-02",
+    "section": "hld",
+    "topic": "t2-18-job-scheduler",
+    "level": "easy",
+    "q": {
+      "hi": "Job scheduler kaunsi delivery guarantee deta hai aur duplicate ka kya?",
+      "en": "Which delivery guarantee does the job scheduler give, and what about duplicates?"
+    },
+    "options": {
+      "hi": [
+        "Exactly-once, 2PC se scheduler aur worker ke beech",
+        "At-most-once, taaki duplicate kabhi na ho",
+        "At-least-once; har run ko `exec_id` idempotency key milti hai jisse handler dedup kare",
+        "Exactly-once, kyunki SQS visibility timeout duplicate rokta hai"
+      ],
+      "en": [
+        "Exactly-once, using 2PC between scheduler and worker",
+        "At-most-once, so duplicates never happen",
+        "At-least-once; each run gets an `exec_id` idempotency key the handler uses to dedup",
+        "Exactly-once, because the SQS visibility timeout prevents duplicates"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Crash/timeout pe job dobara chal sakti hai, exactly-once guarantee nahi kar sakte (2PC mehenga). Practical: at-least-once + idempotent jobs.",
+      "en": "A job may rerun after a crash/timeout, so exactly-once cannot be guaranteed (2PC is expensive). The practical choice is at-least-once + idempotent jobs."
+    }
+  },
+  {
+    "id": "hld-t2-19-google-docs-01",
+    "section": "hld",
+    "topic": "t2-19-google-docs",
+    "level": "medium",
+    "q": {
+      "hi": "Google Docs design me OT kyun chuna, CRDT kyun nahi?",
+      "en": "Why does the Google Docs design choose OT over CRDT?"
+    },
+    "options": {
+      "hi": [
+        "OT ko central server ki zarurat nahi, peer-to-peer chalta hai",
+        "Har doc ka central owner server ordering de deta hai, aur OT ka data chhota hai; CRDT me har char pe ID + tombstones",
+        "CRDT concurrent edits ko merge hi nahi kar sakta",
+        "OT offline-first apps ke liye CRDT se better hai"
+      ],
+      "en": [
+        "OT needs no central server and runs peer-to-peer",
+        "Each doc's central owner server provides ordering and OT data stays small; CRDT needs per-char IDs + tombstones",
+        "CRDT cannot merge concurrent edits at all",
+        "OT is better than CRDT for offline-first apps"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Central server hone se OT ka hard part simple ho jaata hai (sirf client-server transform). CRDT ka main fayda (no coordinator) yahan chahiye hi nahi, aur memory 2–10x.",
+      "en": "With a central server, OT's hard part becomes simple (client-server transforms only). CRDT's main benefit (no coordinator) is not needed here, and it costs 2–10x memory."
+    }
+  },
+  {
+    "id": "hld-t2-19-google-docs-02",
+    "section": "hld",
+    "topic": "t2-19-google-docs",
+    "level": "easy",
+    "q": {
+      "hi": "Collaborators ke live cursors kahan se jaate hain?",
+      "en": "How are collaborators' live cursors sent?"
+    },
+    "options": {
+      "hi": [
+        "Op log me, taaki version history me cursors bhi replay ho sakein",
+        "Cassandra me persist karke, taaki crash pe cursor na khoye",
+        "Alag HTTP polling har 5 sec",
+        "Same WebSocket pe ~50ms throttle ke saath, op log me nahi; presence Redis me TTL ke saath"
+      ],
+      "en": [
+        "In the op log, so cursors replay in version history",
+        "Persisted to Cassandra so cursors survive crashes",
+        "Separate HTTP polling every 5 seconds",
+        "Over the same WebSocket, throttled to ~50 ms, not in the op log; presence lives in Redis with a TTL"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Cursor updates bahut zyada aur temporary hain. Op log me daaloge to log bekaar bharega aur history gandi hogi.",
+      "en": "Cursor updates are frequent and ephemeral. Putting them in the op log would bloat it and pollute history."
+    }
+  },
+  {
+    "id": "hld-t2-20-distributed-kv-store-01",
+    "section": "hld",
+    "topic": "t2-20-distributed-kv-store",
+    "level": "medium",
+    "q": {
+      "hi": "N=3 replicas me normal case me latest value read karne ke liye kaunsa quorum setting?",
+      "en": "With N=3 replicas, which quorum setting gives the latest read in the normal case?"
+    },
+    "options": {
+      "hi": [
+        "W=2, R=2 (R+W > N)",
+        "W=1, R=1",
+        "W=2, R=1",
+        "W=1, R=2"
+      ],
+      "en": [
+        "W=2, R=2 (R+W > N)",
+        "W=1, R=1",
+        "W=2, R=1",
+        "W=1, R=2"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "R+W > N hone pe read aur write sets overlap karte hain, to kam se kam ek replica latest hoga. W=2,R=1 me R+W = N, overlap guarantee nahi.",
+      "en": "When R+W > N, read and write sets overlap, so at least one replica has the latest value. W=2,R=1 gives R+W = N, so no overlap guarantee."
+    }
+  },
+  {
+    "id": "hld-t2-20-distributed-kv-store-02",
+    "section": "hld",
+    "topic": "t2-20-distributed-kv-store",
+    "level": "hard",
+    "q": {
+      "hi": "KV store me delete pe turant data hatane ki jagah tombstone kyun likhte hain?",
+      "en": "Why write a tombstone on delete instead of removing the data immediately?"
+    },
+    "options": {
+      "hi": [
+        "Tombstone se disk space turant free hota hai",
+        "LWW me timestamp tie todne ke liye",
+        "Warna read repair / anti-entropy ke time kisi stale replica ki purani value wapas \"zinda\" ho jaayegi",
+        "Vnode rebalancing ke time keys track karne ke liye"
+      ],
+      "en": [
+        "A tombstone frees disk space immediately",
+        "To break timestamp ties in LWW",
+        "Otherwise read repair / anti-entropy would resurrect the old value from a stale replica",
+        "To track keys during vnode rebalancing"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Delete hui key ek replica pe na pahunche to repair use \"missing\" maan ke purani value copy kar dega. Tombstone `gc_grace` (~10 din) ke baad compaction me hatta hai.",
+      "en": "If the delete misses a replica, repair treats the key as missing and copies the old value back. Tombstones are removed by compaction after `gc_grace` (~10 days)."
+    }
+  },
+  {
+    "id": "hld-t2-21-nearby-places-01",
+    "section": "hld",
+    "topic": "t2-21-nearby-places",
+    "level": "easy",
+    "q": {
+      "hi": "Gaon me 2 km radius me sirf 3 cafe mile, jabki 20 results chahiye. Kya karoge?",
+      "en": "In a village only 3 cafes fall within 2 km but you need 20 results. What do you do?"
+    },
+    "options": {
+      "hi": [
+        "Precision ek badha do taaki zyada cells milein",
+        "Radius expand: geohash precision ek kam karo (bada cell) aur dobara query, jab tak min results ya max radius",
+        "Turant Quadtree pe switch karo",
+        "Wahi 3 results return karo, radius fixed hai"
+      ],
+      "en": [
+        "Raise precision by one to get more cells",
+        "Expand the radius: lower geohash precision by one (bigger cell) and re-query until min results or max radius",
+        "Switch to a Quadtree immediately",
+        "Return the same 3 results since the radius is fixed"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Precision badhane se cell chhota hota hai, results aur kam. Precision kam = bada cell. Last me exact haversine distance se filter karo.",
+      "en": "Higher precision means smaller cells and even fewer results; lower precision means bigger cells. Finally filter by exact haversine distance."
+    }
+  },
+  {
+    "id": "hld-t2-21-nearby-places-02",
+    "section": "hld",
+    "topic": "t2-21-nearby-places",
+    "level": "easy",
+    "q": {
+      "hi": "Geo index (~6 GB) ko scale kaise karoge?",
+      "en": "How do you scale the geo index (~6 GB)?"
+    },
+    "options": {
+      "hi": [
+        "Geohash prefix se shard karo, har city alag shard",
+        "business_id se shard karo aur har search scatter-gather",
+        "Sirf Postgres me rakho, har search DB pe",
+        "Pura memory me rakho aur replicas badhao; shard mat karo"
+      ],
+      "en": [
+        "Shard by geohash prefix, one shard per city",
+        "Shard by business_id and scatter-gather every search",
+        "Keep it only in Postgres and hit the DB on every search",
+        "Keep it fully in memory and add replicas; do not shard it"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Itne chhote data ko shard karna extra complexity aur cross-shard queries hai. Replicas se reads linearly scale aur latency < 10ms. Prefix sharding me hot cities skew karti hain.",
+      "en": "Sharding data this small adds complexity and cross-shard queries. Replicas scale reads linearly with < 10 ms latency; prefix sharding skews on hot cities."
+    }
+  },
+  {
+    "id": "hld-t2-22-llm-chat-app-01",
+    "section": "hld",
+    "topic": "t2-22-llm-chat-app",
+    "level": "easy",
+    "q": {
+      "hi": "LLM tokens stream karne ke liye SSE kyun chuna, WebSocket kyun nahi?",
+      "en": "Why stream LLM tokens over SSE instead of WebSocket?"
+    },
+    "options": {
+      "hi": [
+        "Stream sirf server → client hai; SSE simple HTTP, proxy-friendly aur auto-reconnect built-in",
+        "WebSocket browser me support nahi hota",
+        "SSE bi-directional hai, isliye stop button bhi usi pe jaata hai",
+        "SSE binary frames bhejta hai, isliye tokens chhote hote hain"
+      ],
+      "en": [
+        "The stream is server → client only; SSE is plain HTTP, proxy-friendly, with built-in auto-reconnect",
+        "Browsers do not support WebSocket",
+        "SSE is bi-directional, so the stop button goes over it too",
+        "SSE sends binary frames, so tokens are smaller"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Bi-directional chahiye hi nahi, WebSocket se LB/infra complexity badhti hai. Stop ek alag API call hai jo inference cancel karke GPU slot free karta hai.",
+      "en": "Bi-directional is not needed, and WebSocket adds LB/infra complexity. Stop is a separate API call that cancels inference and frees the GPU slot."
+    }
+  },
+  {
+    "id": "hld-t2-22-llm-chat-app-02",
+    "section": "hld",
+    "topic": "t2-22-llm-chat-app",
+    "level": "hard",
+    "q": {
+      "hi": "Same conversation ki har turn ko same GPU node pe sticky route kyun karte ho?",
+      "en": "Why sticky-route every turn of a conversation to the same GPU node?"
+    },
+    "options": {
+      "hi": [
+        "Conversation history sirf GPU memory me hoti hai, DB me nahi",
+        "Alag nodes pe alag model weights hote hain, answer badal jaata",
+        "Prefix (KV) cache reuse: system prompt + purani turns ka compute bachta hai, sirf naye tokens compute, TTFT aur cost kam",
+        "Per-user rate limit us node pe hi count hota hai"
+      ],
+      "en": [
+        "Conversation history lives only in GPU memory, not in the DB",
+        "Different nodes have different weights, so answers would change",
+        "Prefix (KV) cache reuse: the system prompt + earlier turns are not recomputed, only new tokens are, cutting TTFT and cost",
+        "Per-user rate limits are counted only on that node"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Random load balancing pe har turn pe poora prefix dobara compute hota hai. History DB (DynamoDB/Cassandra) me safe hai; stickiness sirf performance ke liye hai.",
+      "en": "With random load balancing, every turn recomputes the whole prefix. History is safe in the DB (DynamoDB/Cassandra); stickiness is purely for performance."
+    }
+  },
+  {
+    "id": "hld-t2-23-recommendation-system-01",
+    "section": "hld",
+    "topic": "t2-23-recommendation-system",
+    "level": "easy",
+    "q": {
+      "hi": "Recommendation me two-stage (candidate generation → ranking) kyun?",
+      "en": "Why use two stages (candidate generation → ranking) in recommendations?"
+    },
+    "options": {
+      "hi": [
+        "Ranking model pehle chalta hai, phir retrieval filter karta hai",
+        "10M items pe heavy model chalana impossible; sasta retrieval ~500 candidates (recall) deta hai, heavy ranker unhe order karta hai (precision)",
+        "Do stages se A/B testing possible hoti hai, warna nahi",
+        "Retrieval aur ranking same model hain, sirf alag servers pe"
+      ],
+      "en": [
+        "The ranking model runs first, then retrieval filters",
+        "Running a heavy model on 10M items is impossible; cheap retrieval gives ~500 candidates (recall) and a heavy ranker orders them (precision)",
+        "Two stages are what make A/B testing possible",
+        "Retrieval and ranking are the same model on different servers"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Dono ka cost profile alag hai: retrieval ka kaam achhe items miss na hon, ranking ka sahi order. Single model sab pe = latency aur cost out of control.",
+      "en": "The cost profiles differ: retrieval must not miss good items, ranking must order them right. One model over everything blows up latency and cost."
+    }
+  },
+  {
+    "id": "hld-t2-23-recommendation-system-02",
+    "section": "hld",
+    "topic": "t2-23-recommendation-system",
+    "level": "medium",
+    "q": {
+      "hi": "Naya item aaya, koi interaction nahi. Usse recommend kaise karoge?",
+      "en": "A new item has no interactions yet. How do you recommend it?"
+    },
+    "options": {
+      "hi": [
+        "Collaborative filtering se, wo similar users dhoondh lega",
+        "Jab tak organically popular na ho, recommend mat karo",
+        "Raat ke batch precompute me add kar do, kaafi hai",
+        "Content-based embedding (title, tags, audio/video features) + exploration slot (5–10% feed) taaki usse data mile"
+      ],
+      "en": [
+        "Collaborative filtering will find similar users for it",
+        "Do not recommend it until it becomes popular organically",
+        "Add it to the nightly batch precompute; that is enough",
+        "Content-based embedding (title, tags, audio/video features) + an exploration slot (5–10% of the feed) so it gathers data"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "CF ko interactions chahiye, naye item pe kaam nahi karta. Pure exploitation me naya content kabhi upar nahi aata, isliye exploration slot.",
+      "en": "CF needs interactions and fails on new items. Pure exploitation never surfaces new content, hence the exploration slot."
+    }
+  },
+  {
+    "id": "hld-t2-24-ecommerce-inventory-01",
+    "section": "hld",
+    "topic": "t2-24-ecommerce-inventory",
+    "level": "medium",
+    "q": {
+      "hi": "Checkout pe oversell rokne ke liye chosen approach?",
+      "en": "What approach is chosen at checkout to prevent overselling?"
+    },
+    "options": {
+      "hi": [
+        "Conditional UPDATE: `SET reserved = reserved + :qty WHERE ... AND total - reserved >= :qty`; 0 rows = out of stock",
+        "App me pehle stock read karo, phir check karke update",
+        "Har checkout pe `SELECT FOR UPDATE`, hot SKU pe bhi",
+        "Payment ke baad stock check karo, kam pada to refund"
+      ],
+      "en": [
+        "Conditional UPDATE: `SET reserved = reserved + :qty WHERE ... AND total - reserved >= :qty`; 0 rows = out of stock",
+        "Read stock in the app first, then check and update",
+        "`SELECT FOR UPDATE` on every checkout, even for hot SKUs",
+        "Check stock after payment and refund if short"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Ek statement me check + decrement, lock sirf milliseconds. Read-then-write me race, `SELECT FOR UPDATE` hot SKU pe lock queue, payment ke baad check = oversell + refunds.",
+      "en": "Check and decrement happen in one statement with a millisecond lock. Read-then-write races, `SELECT FOR UPDATE` queues on hot SKUs, and post-payment checks cause oversell + refunds."
+    }
+  },
+  {
+    "id": "hld-t2-24-ecommerce-inventory-02",
+    "section": "hld",
+    "topic": "t2-24-ecommerce-inventory",
+    "level": "medium",
+    "q": {
+      "hi": "Product page \"In stock\" dikha raha tha par checkout pe reserve fail ho gaya. Design ke hisaab se ye kya hai?",
+      "en": "The product page showed \"In stock\" but the reserve failed at checkout. What does the design say about this?"
+    },
+    "options": {
+      "hi": [
+        "Bug hai: badge har page view pe DB se synchronously aana chahiye",
+        "Product view pe hi stock reserve kar lena chahiye tha",
+        "Expected: badge ES/cache se eventual hai, final truth Inventory DB ka conditional update; user ko \"out of stock ho gaya\" dikhao",
+        "ES ko har unit change pe update karna chahiye taaki ye kabhi na ho"
+      ],
+      "en": [
+        "A bug: the badge should come synchronously from the DB on every view",
+        "Stock should have been reserved on product view",
+        "Expected: the badge is eventually consistent from ES/cache, the final truth is the Inventory DB conditional update; show \"just went out of stock\"",
+        "ES should update on every unit change so this never happens"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "CQRS jaisa: write model strong, read model eventual. ES sirf threshold cross pe update hota hai warna write storm. Badge galat ho to nuksan chhota.",
+      "en": "CQRS-like: the write model is strong, the read model eventual. ES updates only on threshold crossings to avoid a write storm; a stale badge costs little."
+    }
+  },
+  {
+    "id": "hld-t2-25-discord-01",
+    "section": "hld",
+    "topic": "t2-25-discord",
+    "level": "easy",
+    "q": {
+      "hi": "Discord channel me 1 lakh+ members hain. WhatsApp jaisa per-user inbox kyun nahi?",
+      "en": "A Discord channel has 100K+ members. Why not a WhatsApp-style per-user inbox?"
+    },
+    "options": {
+      "hi": [
+        "Per-user inbox me ordering possible nahi hai",
+        "Har message ki 1 lakh copies = storage explosion; message ek baar channel me store, sirf online subscribed sessions ko push, offline users history pull karein",
+        "Discord me offline users ko messages dikhte hi nahi",
+        "Inbox ke liye WebSocket nahi chal sakta"
+      ],
+      "en": [
+        "Per-user inboxes cannot preserve ordering",
+        "100K copies per message is a storage explosion; store once per channel, push only to online subscribed sessions, offline users pull history",
+        "Offline users never see messages in Discord",
+        "Inboxes cannot work over WebSocket"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "WhatsApp group max ~1K hai, wahan fan-out on write theek. Bade channels me store once, push to online, aur offline `before/after` se history padhta hai.",
+      "en": "WhatsApp groups max out at ~1K, so fan-out on write works there. For big channels: store once, push to online, offline users read history via `before/after`."
+    }
+  },
+  {
+    "id": "hld-t2-25-discord-02",
+    "section": "hld",
+    "topic": "t2-25-discord",
+    "level": "hard",
+    "q": {
+      "hi": "Messages table ka partition key sirf `channel_id` kyun nahi, `(channel_id, bucket)` kyun?",
+      "en": "Why partition messages by `(channel_id, bucket)` instead of just `channel_id`?"
+    },
+    "options": {
+      "hi": [
+        "Bucket se cross-channel joins possible hote hain",
+        "ScyllaDB me single-column partition key allowed nahi",
+        "Bucket se messages ka global order milta hai",
+        "Sirf channel_id pe purane, active channels ki partition unbounded aur hot ho jaati hai; time bucket partition size bounded rakhta hai"
+      ],
+      "en": [
+        "The bucket enables cross-channel joins",
+        "ScyllaDB does not allow single-column partition keys",
+        "The bucket provides a global message order",
+        "With only channel_id, busy long-lived channels get unbounded, hot partitions; a time bucket keeps partition size bounded"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Bounded partitions se range scan fast rehta hai aur ek node pe saara load nahi aata. Snowflake ids se bucket aur pagination dono simple.",
+      "en": "Bounded partitions keep range scans fast and avoid piling load on one node. Snowflake ids make bucketing and pagination simple."
+    }
+  },
+  {
+    "id": "hld-t2-26-distributed-logging-01",
+    "section": "hld",
+    "topic": "t2-26-distributed-logging",
+    "level": "easy",
+    "q": {
+      "hi": "Elasticsearch slow ho gaya. Logging pipeline me kya hota hai?",
+      "en": "Elasticsearch slows down. What happens in the logging pipeline?"
+    },
+    "options": {
+      "hi": [
+        "Kafka consumer lag badhta hai par data Kafka me safe hai; logs sirf search me late dikhenge",
+        "Agents app ko block kar dete hain jab tak ES theek na ho",
+        "Saare logs turant drop ho jaate hain",
+        "ES apne aap autoscale hoke lag khatam kar deta hai"
+      ],
+      "en": [
+        "Kafka consumer lag grows but data is safe in Kafka; logs just show up late in search",
+        "Agents block the app until ES recovers",
+        "All logs are dropped immediately",
+        "ES autoscales itself and removes the lag"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Har layer pe buffer hai: agent disk, Kafka, processor retry + backoff. App kabhi block nahi hoti. Bahut lambi outage pe pehle debug/info drop, error/audit last tak.",
+      "en": "Every layer buffers: agent disk, Kafka, processor retry + backoff. The app never blocks. In a very long outage, debug/info drop first and error/audit last."
+    }
+  },
+  {
+    "id": "hld-t2-26-distributed-logging-02",
+    "section": "hld",
+    "topic": "t2-26-distributed-logging",
+    "level": "medium",
+    "q": {
+      "hi": "Ek team ne metric tags me `user_id` daal diya. Kya fail hoga?",
+      "en": "A team adds `user_id` as a metric tag. What breaks?"
+    },
+    "options": {
+      "hi": [
+        "Kuch nahi, TSDB tags ko compress kar leta hai",
+        "Sirf dashboards slow honge, ingestion pe asar nahi",
+        "Har user_id ek nayi time series banata hai, TSDB memory blast (high cardinality); unbounded IDs logs/traces me rakho",
+        "ES mapping explosion hoga kyunki metrics ES me jaate hain"
+      ],
+      "en": [
+        "Nothing; the TSDB compresses tags",
+        "Only dashboards slow down; ingestion is unaffected",
+        "Every user_id creates a new time series, blowing up TSDB memory (high cardinality); keep unbounded IDs in logs/traces",
+        "An ES mapping explosion, since metrics go to ES"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Metric tags me sirf bounded values (service, region, status_code). Gateway pe per-tenant series limit aur naye tags pe alert.",
+      "en": "Metric tags must be bounded (service, region, status_code). Enforce per-tenant series limits at the gateway and alert on new tags."
+    }
+  }
+]

@@ -124,3 +124,31 @@ Rules:
 - File ke end me `## Checklist` with 5–8 `- [ ]` items.
 - C++: C++17, `#include`s ke saath, smart pointers (`std::unique_ptr`/`shared_ptr`) prefer karo, raw `new` avoid.
 - Java: Java 17, single-file style (ek public class + nested/static classes ya extra non-public classes).
+
+## Java files (`04-java/`, English mirror in `content-en/04-java/`)
+
+Files (slug → title):
+01-basics (Java Basics: primitives & types), 02-strings (Strings), 03-arrays (Arrays), 04-oops (OOP in Java), 05-collections-overview (Collections Framework), 06-lists (ArrayList & LinkedList), 07-maps-sets (HashMap, TreeMap & Sets), 08-queues (Queue, Deque & PriorityQueue), 09-generics (Generics), 10-exceptions (Exceptions), 11-jvm-memory (JVM & Memory), 12-streams-lambdas (Lambdas & Streams), 13-modern-java (Modern Java 8–21), 14-concurrency (Concurrency), 15-interview-qa (Java Interview Rapid-fire)
+
+Frontmatter:
+```yaml
+---
+title: Strings
+order: 2
+time: 20
+---
+```
+
+Rules:
+- Same as LLD: each concept is a `## ` section; must-know ones get `## ⭐ …` (website "Only ⭐" filter uses this).
+- Section format (adapt when a part does not fit):
+  1. **Ek line me:** / **In one line:**
+  2. Short explanation (with a mermaid diagram only where it really helps, e.g. HashMap buckets, JVM memory areas, collections hierarchy, thread states)
+  3. ```java code example (runnable style, `main` where useful, 10–40 lines, comments in the file's language)
+  4. **Important methods** table where relevant: `| Method | Kya karta hai / What it does | Time complexity |`
+  5. **Interview tip:** (Hinglish file) / **Interview tip:** (English file) — what interviewers ask and the crisp answer
+  6. **Common galti:** / **Common mistake:**
+- Only Java code (no C++). Java 17+ syntax unless the section is about a specific newer feature (say which version).
+- Cover depth expected at SDE-1/SDE-2 interviews: internals (e.g. HashMap resize/treeify, String pool, ArrayList growth, GC generations), time complexities, pitfalls (== vs equals, Integer cache, ConcurrentModificationException, autoboxing NPE).
+- End with `## Checklist` (6–10 items) — same count and order in both languages.
+- Hinglish file in `content/04-java/`, English file with the same name in `content-en/04-java/`. English uses headings/labels in English; keep ⭐ in the same headings; same code (comments translated).

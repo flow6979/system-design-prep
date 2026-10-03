@@ -1,0 +1,1742 @@
+[
+  {
+    "id": "java-01-basics-01",
+    "section": "java",
+    "topic": "01-basics",
+    "level": "easy",
+    "q": {
+      "hi": "Output kya hoga? `System.out.println(7 / 2);`",
+      "en": "What is the output? `System.out.println(7 / 2);`"
+    },
+    "options": {
+      "hi": [
+        "3",
+        "3.5",
+        "4",
+        "Compile error"
+      ],
+      "en": [
+        "3",
+        "3.5",
+        "4",
+        "Compile error"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Dono operands `int` hain, to integer division hota hai aur decimal part truncate ho jata hai.",
+      "en": "Both operands are `int`, so integer division truncates the fractional part."
+    }
+  },
+  {
+    "id": "java-01-basics-02",
+    "section": "java",
+    "topic": "01-basics",
+    "level": "medium",
+    "q": {
+      "hi": "Output kya hoga? `Integer a = 127, b = 127; Integer c = 128, d = 128; System.out.println((a == b) + \" \" + (c == d));`",
+      "en": "What is the output? `Integer a = 127, b = 127; Integer c = 128, d = 128; System.out.println((a == b) + \" \" + (c == d));`"
+    },
+    "options": {
+      "hi": [
+        "false false",
+        "true true",
+        "true false",
+        "false true"
+      ],
+      "en": [
+        "false false",
+        "true true",
+        "true false",
+        "false true"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Autoboxing `Integer.valueOf()` use karta hai jo -128 se 127 tak cached objects deta hai; 128 ke liye naye objects bante hain, isliye `==` (reference compare) false.",
+      "en": "Autoboxing uses `Integer.valueOf()`, which caches -128..127; 128 creates new objects, so `==` (reference comparison) is false."
+    }
+  },
+  {
+    "id": "java-01-basics-03",
+    "section": "java",
+    "topic": "01-basics",
+    "level": "medium",
+    "q": {
+      "hi": "`Integer count = null; int c = count;` run karne par kya hoga?",
+      "en": "What happens when running `Integer count = null; int c = count;`?"
+    },
+    "options": {
+      "hi": [
+        "c = 0 ho jata hai",
+        "Runtime par NullPointerException",
+        "Compile error",
+        "ClassCastException"
+      ],
+      "en": [
+        "c becomes 0",
+        "NullPointerException at runtime",
+        "Compile error",
+        "ClassCastException"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Unboxing internally `count.intValue()` call karta hai; null par method call se NPE aata hai. Compiler ise nahi pakadta.",
+      "en": "Unboxing calls `count.intValue()` internally; calling it on null throws NPE. The compiler does not catch this."
+    }
+  },
+  {
+    "id": "java-01-basics-04",
+    "section": "java",
+    "topic": "01-basics",
+    "level": "hard",
+    "q": {
+      "hi": "`byte b = 10;` ke baad kaunsi line compile NAHI hogi?",
+      "en": "Given `byte b = 10;`, which line does NOT compile?"
+    },
+    "options": {
+      "hi": [
+        "`b = 20;`",
+        "`b += 1;`",
+        "`b++;`",
+        "`b = b + 1;`"
+      ],
+      "en": [
+        "`b = 20;`",
+        "`b += 1;`",
+        "`b++;`",
+        "`b = b + 1;`"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "`b + 1` ka result `int` hota hai, aur int se byte me implicit narrowing allowed nahi. Compound assignment (`+=`, `++`) me implicit cast hota hai; `20` ek constant hai jo byte range me fit hota hai.",
+      "en": "`b + 1` is an `int`, and implicit narrowing int to byte is not allowed. Compound assignment (`+=`, `++`) includes an implicit cast; `20` is a constant that fits in byte range."
+    }
+  },
+  {
+    "id": "java-02-strings-01",
+    "section": "java",
+    "topic": "02-strings",
+    "level": "easy",
+    "q": {
+      "hi": "Output kya hoga? `String s1 = \"hello\"; String s2 = \"hello\"; String s3 = new String(\"hello\"); System.out.println((s1 == s2) + \" \" + (s1 == s3));`",
+      "en": "What is the output? `String s1 = \"hello\"; String s2 = \"hello\"; String s3 = new String(\"hello\"); System.out.println((s1 == s2) + \" \" + (s1 == s3));`"
+    },
+    "options": {
+      "hi": [
+        "true true",
+        "true false",
+        "false false",
+        "false true"
+      ],
+      "en": [
+        "true true",
+        "true false",
+        "false false",
+        "false true"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Literals String pool se same object share karte hain; `new String()` heap par naya object banata hai. `==` reference compare karta hai, content ke liye `equals()` use karo.",
+      "en": "Literals share the same object from the String pool; `new String()` creates a new heap object. `==` compares references; use `equals()` for content."
+    }
+  },
+  {
+    "id": "java-02-strings-02",
+    "section": "java",
+    "topic": "02-strings",
+    "level": "hard",
+    "q": {
+      "hi": "Output kya hoga? `String a = \"a\"; String s1 = \"a\" + \"b\"; String s2 = a + \"b\"; System.out.println((s1 == \"ab\") + \" \" + (s2 == \"ab\"));`",
+      "en": "What is the output? `String a = \"a\"; String s1 = \"a\" + \"b\"; String s2 = a + \"b\"; System.out.println((s1 == \"ab\") + \" \" + (s2 == \"ab\"));`"
+    },
+    "options": {
+      "hi": [
+        "false true",
+        "true true",
+        "false false",
+        "true false"
+      ],
+      "en": [
+        "false true",
+        "true true",
+        "false false",
+        "true false"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "`\"a\" + \"b\"` compile-time constant hai, compiler use pool wale \"ab\" me fold kar deta hai. `a + \"b\"` me `a` non-final variable hai, to runtime par naya String banta hai (jab tak `intern()` na karo).",
+      "en": "`\"a\" + \"b\"` is a compile-time constant folded into the pooled \"ab\". `a + \"b\"` uses a non-final variable, so a new String is built at runtime (unless you call `intern()`)."
+    }
+  },
+  {
+    "id": "java-02-strings-03",
+    "section": "java",
+    "topic": "02-strings",
+    "level": "medium",
+    "q": {
+      "hi": "Loop me n baar `s += x;` (String concatenation) karne ki total cost roughly kya hai, aur better option?",
+      "en": "What is the rough total cost of doing `s += x;` n times in a loop, and the better option?"
+    },
+    "options": {
+      "hi": [
+        "O(n log n); StringBuffer hi ekmatra option hai",
+        "O(n); koi problem nahi",
+        "O(n^2) copying; StringBuilder use karo",
+        "O(1) per op kyunki String pool reuse hota hai"
+      ],
+      "en": [
+        "O(n log n); StringBuffer is the only option",
+        "O(n); no problem",
+        "O(n^2) copying; use StringBuilder",
+        "O(1) per op because the String pool is reused"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "String immutable hai, har `+=` naya String banakar purana content copy karta hai, to total O(n^2). StringBuilder ek resizable buffer me append karta hai (amortized O(1)).",
+      "en": "String is immutable, so each `+=` builds a new String and copies the old content: O(n^2) total. StringBuilder appends into a resizable buffer (amortized O(1))."
+    }
+  },
+  {
+    "id": "java-02-strings-04",
+    "section": "java",
+    "topic": "02-strings",
+    "level": "medium",
+    "q": {
+      "hi": "Java 7+ me String pool (string constant pool) kaha rehta hai?",
+      "en": "Where does the String pool live in Java 7+?"
+    },
+    "options": {
+      "hi": [
+        "Main heap me",
+        "PermGen me",
+        "Har thread ke stack par",
+        "CPU cache me"
+      ],
+      "en": [
+        "In the main heap",
+        "In PermGen",
+        "On each thread stack",
+        "In the CPU cache"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Java 7 me String pool PermGen se heap me move hua, isliye pooled strings bhi normal GC se collect ho sakti hain. Java 8 me PermGen hata kar Metaspace aaya.",
+      "en": "In Java 7 the String pool moved from PermGen to the heap, so pooled strings can be garbage collected. Java 8 replaced PermGen with Metaspace."
+    }
+  },
+  {
+    "id": "java-03-arrays-01",
+    "section": "java",
+    "topic": "03-arrays",
+    "level": "easy",
+    "q": {
+      "hi": "Output kya hoga? `int[] a = {1, 2}; int[] b = {1, 2}; System.out.println(a.equals(b) + \" \" + Arrays.equals(a, b));`",
+      "en": "What is the output? `int[] a = {1, 2}; int[] b = {1, 2}; System.out.println(a.equals(b) + \" \" + Arrays.equals(a, b));`"
+    },
+    "options": {
+      "hi": [
+        "false false",
+        "true true",
+        "false true",
+        "true false"
+      ],
+      "en": [
+        "false false",
+        "true true",
+        "false true",
+        "true false"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Arrays `Object.equals()` override nahi karte, to `a.equals(b)` reference compare karta hai. Content compare ke liye `Arrays.equals()` use karo.",
+      "en": "Arrays do not override `Object.equals()`, so `a.equals(b)` compares references. Use `Arrays.equals()` for content."
+    }
+  },
+  {
+    "id": "java-03-arrays-02",
+    "section": "java",
+    "topic": "03-arrays",
+    "level": "medium",
+    "q": {
+      "hi": "`List<Integer> list = Arrays.asList(1, 2, 3); list.add(4);` par kya hoga?",
+      "en": "What happens on `List<Integer> list = Arrays.asList(1, 2, 3); list.add(4);`?"
+    },
+    "options": {
+      "hi": [
+        "UnsupportedOperationException",
+        "List [1, 2, 3, 4] ban jati hai",
+        "Compile error",
+        "ArrayIndexOutOfBoundsException"
+      ],
+      "en": [
+        "UnsupportedOperationException",
+        "The list becomes [1, 2, 3, 4]",
+        "Compile error",
+        "ArrayIndexOutOfBoundsException"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "`Arrays.asList()` array ke upar fixed-size view deta hai: `set()` chalta hai, par `add()`/`remove()` UnsupportedOperationException dete hain. Growable chahiye to `new ArrayList<>(Arrays.asList(...))`.",
+      "en": "`Arrays.asList()` returns a fixed-size view over the array: `set()` works, but `add()`/`remove()` throw UnsupportedOperationException. Wrap with `new ArrayList<>(...)` for a growable list."
+    }
+  },
+  {
+    "id": "java-03-arrays-03",
+    "section": "java",
+    "topic": "03-arrays",
+    "level": "easy",
+    "q": {
+      "hi": "`String[] names = new String[3]; System.out.println(names[0]);` kya print karega?",
+      "en": "What does `String[] names = new String[3]; System.out.println(names[0]);` print?"
+    },
+    "options": {
+      "hi": [
+        "Compile error: uninitialized",
+        "\"\" (empty string)",
+        "NullPointerException",
+        "null"
+      ],
+      "en": [
+        "Compile error: uninitialized",
+        "\"\" (empty string)",
+        "NullPointerException",
+        "null"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Array elements default values se initialize hote hain: object references ke liye `null`, int ke liye 0, boolean ke liye false. `println(null)` \"null\" print karta hai.",
+      "en": "Array elements get default values: `null` for references, 0 for int, false for boolean. `println` of a null reference prints \"null\"."
+    }
+  },
+  {
+    "id": "java-03-arrays-04",
+    "section": "java",
+    "topic": "03-arrays",
+    "level": "hard",
+    "q": {
+      "hi": "`Arrays.sort()` ke baare me kaunsa statement sahi hai (JDK 7+)?",
+      "en": "Which statement about `Arrays.sort()` is correct (JDK 7+)?"
+    },
+    "options": {
+      "hi": [
+        "Dono ke liye Merge Sort, isliye dono stable",
+        "Primitives ke liye Dual-Pivot Quicksort (stable nahi), objects ke liye TimSort (stable)",
+        "Dono ke liye Heap Sort, worst case O(n log n)",
+        "Primitives ke liye TimSort, objects ke liye Quicksort"
+      ],
+      "en": [
+        "Both use Merge Sort, so both are stable",
+        "Primitives use Dual-Pivot Quicksort (not stable); objects use TimSort (stable)",
+        "Both use Heap Sort, worst case O(n log n)",
+        "Primitives use TimSort; objects use Quicksort"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Primitives me stability matter nahi karti, isliye fast Dual-Pivot Quicksort. Objects ke liye stable sort chahiye (equal elements ka order bana rahe), isliye TimSort.",
+      "en": "Stability does not matter for primitives, so fast Dual-Pivot Quicksort is used. Objects need a stable sort (equal elements keep order), so TimSort."
+    }
+  },
+  {
+    "id": "java-04-oops-01",
+    "section": "java",
+    "topic": "04-oops",
+    "level": "medium",
+    "q": {
+      "hi": "Output kya hoga? `class P { static { System.out.print(\"Ps \"); } P() { System.out.print(\"Pc \"); } } class C extends P { static { System.out.print(\"Cs \"); } C() { System.out.print(\"Cc \"); } }` aur main me `new C();`",
+      "en": "What is the output? `class P { static { System.out.print(\"Ps \"); } P() { System.out.print(\"Pc \"); } } class C extends P { static { System.out.print(\"Cs \"); } C() { System.out.print(\"Cc \"); } }` and in main `new C();`"
+    },
+    "options": {
+      "hi": [
+        "Cs Cc Ps Pc",
+        "Ps Pc Cs Cc",
+        "Cs Ps Cc Pc",
+        "Ps Cs Pc Cc"
+      ],
+      "en": [
+        "Cs Cc Ps Pc",
+        "Ps Pc Cs Cc",
+        "Cs Ps Cc Pc",
+        "Ps Cs Pc Cc"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Pehle class loading: parent ka static block, phir child ka. Phir object creation: parent constructor pehle (implicit `super()`), phir child constructor.",
+      "en": "Class initialization first: parent static block, then child. Then object construction: parent constructor first (implicit `super()`), then child."
+    }
+  },
+  {
+    "id": "java-04-oops-02",
+    "section": "java",
+    "topic": "04-oops",
+    "level": "hard",
+    "q": {
+      "hi": "`class P { static String who() { return \"P\"; } } class C extends P { static String who() { return \"C\"; } }` — `P p = new C(); System.out.println(p.who());` kya print karega?",
+      "en": "`class P { static String who() { return \"P\"; } } class C extends P { static String who() { return \"C\"; } }` — what does `P p = new C(); System.out.println(p.who());` print?"
+    },
+    "options": {
+      "hi": [
+        "C",
+        "P",
+        "Compile error",
+        "PC"
+      ],
+      "en": [
+        "C",
+        "P",
+        "Compile error",
+        "PC"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Static methods override nahi hote, hide hote hain. Call reference ke compile-time type (P) se resolve hota hai, runtime object se nahi.",
+      "en": "Static methods are hidden, not overridden. The call resolves on the compile-time type of the reference (P), not the runtime object."
+    }
+  },
+  {
+    "id": "java-04-oops-03",
+    "section": "java",
+    "topic": "04-oops",
+    "level": "easy",
+    "q": {
+      "hi": "Java 8+ me interface ke baare me kaunsa sahi hai?",
+      "en": "Which is true about interfaces in Java 8+?"
+    },
+    "options": {
+      "hi": [
+        "Default aur static methods ho sakte hain, par instance fields (state) nahi",
+        "Constructor ho sakta hai",
+        "Ek class sirf ek interface implement kar sakti hai",
+        "Saare methods abstract hone hi chahiye"
+      ],
+      "en": [
+        "They can have default and static methods, but no instance fields (state)",
+        "They can have constructors",
+        "A class can implement only one interface",
+        "All methods must be abstract"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Interface me fields implicitly `public static final` hote hain, instance state nahi hoti. Java 8 se default/static methods, Java 9 se private methods allowed hain.",
+      "en": "Interface fields are implicitly `public static final`; no instance state. Default/static methods since Java 8, private methods since Java 9."
+    }
+  },
+  {
+    "id": "java-04-oops-04",
+    "section": "java",
+    "topic": "04-oops",
+    "level": "medium",
+    "q": {
+      "hi": "Ek class ne `equals()` override kiya par `hashCode()` nahi. Do equal objects `HashSet` me daale. Kya hoga?",
+      "en": "A class overrides `equals()` but not `hashCode()`. You add two equal objects to a `HashSet`. What happens?"
+    },
+    "options": {
+      "hi": [
+        "Sirf ek add hoga kyunki equals() true hai",
+        "Dusra add compile error dega",
+        "Dono add ho sakte hain (set me duplicate dikhega)",
+        "Runtime par IllegalStateException"
+      ],
+      "en": [
+        "Only one is added because equals() is true",
+        "The second add gives a compile error",
+        "Both can get added (the set shows a duplicate)",
+        "IllegalStateException at runtime"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "HashSet pehle `hashCode()` se bucket dhundhta hai. Default identity hashCode alag hoga, to dusra object alag bucket me jayega aur equals() call hi nahi hoga.",
+      "en": "HashSet finds the bucket via `hashCode()` first. Default identity hashCodes differ, so the second object lands in another bucket and equals() is never called."
+    }
+  },
+  {
+    "id": "java-05-collections-overview-01",
+    "section": "java",
+    "topic": "05-collections-overview",
+    "level": "easy",
+    "q": {
+      "hi": "In me se kaunsa `Collection` interface extend NAHI karta?",
+      "en": "Which of these does NOT extend the `Collection` interface?"
+    },
+    "options": {
+      "hi": [
+        "Map",
+        "List",
+        "Set",
+        "Queue"
+      ],
+      "en": [
+        "Map",
+        "List",
+        "Set",
+        "Queue"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "`Map` key-value pairs store karta hai aur alag hierarchy hai. List, Set, Queue sab `Collection` extend karte hain.",
+      "en": "`Map` stores key-value pairs and is a separate hierarchy. List, Set and Queue all extend `Collection`."
+    }
+  },
+  {
+    "id": "java-05-collections-overview-02",
+    "section": "java",
+    "topic": "05-collections-overview",
+    "level": "medium",
+    "q": {
+      "hi": "`List<String> l = List.of(\"a\", null);` par kya hoga?",
+      "en": "What happens on `List<String> l = List.of(\"a\", null);`?"
+    },
+    "options": {
+      "hi": [
+        "UnsupportedOperationException",
+        "[a, null] wali immutable list banegi",
+        "NullPointerException",
+        "Compile error"
+      ],
+      "en": [
+        "UnsupportedOperationException",
+        "An immutable list [a, null] is created",
+        "NullPointerException",
+        "Compile error"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "`List.of()` (Java 9+) ki immutable collections null elements allow nahi karti, creation par hi NPE aata hai. Unpar `add()` UnsupportedOperationException deta hai.",
+      "en": "`List.of()` (Java 9+) immutable collections reject null elements with NPE at creation. Calling `add()` on them throws UnsupportedOperationException."
+    }
+  },
+  {
+    "id": "java-05-collections-overview-03",
+    "section": "java",
+    "topic": "05-collections-overview",
+    "level": "medium",
+    "q": {
+      "hi": "Kya hoga? `List<Integer> list = new ArrayList<>(List.of(1, 2, 3)); for (Integer x : list) { if (x == 1) list.remove(x); }`",
+      "en": "What happens? `List<Integer> list = new ArrayList<>(List.of(1, 2, 3)); for (Integer x : list) { if (x == 1) list.remove(x); }`"
+    },
+    "options": {
+      "hi": [
+        "list = [2, 3], koi error nahi",
+        "ConcurrentModificationException",
+        "IndexOutOfBoundsException",
+        "Infinite loop"
+      ],
+      "en": [
+        "list = [2, 3], no error",
+        "ConcurrentModificationException",
+        "IndexOutOfBoundsException",
+        "Infinite loop"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "For-each loop iterator use karta hai jo fail-fast hai: list ko directly modify karne se modCount badalta hai aur agle `next()` par CME aata hai. `iterator.remove()` ya `removeIf()` use karo.",
+      "en": "The for-each loop uses a fail-fast iterator: modifying the list directly changes modCount and the next `next()` throws CME. Use `iterator.remove()` or `removeIf()`."
+    }
+  },
+  {
+    "id": "java-05-collections-overview-04",
+    "section": "java",
+    "topic": "05-collections-overview",
+    "level": "easy",
+    "q": {
+      "hi": "`Comparable` aur `Comparator` me sahi fark kya hai?",
+      "en": "What is the correct difference between `Comparable` and `Comparator`?"
+    },
+    "options": {
+      "hi": [
+        "Dono me koi fark nahi, sirf naam alag hai",
+        "Comparable sirf primitives ke liye hai",
+        "Comparator sirf TreeMap me kaam karta hai",
+        "Comparable class ke andar natural order deta hai (`compareTo`); Comparator bahar se alag ordering deta hai (`compare`)"
+      ],
+      "en": [
+        "No difference, only the names differ",
+        "Comparable is only for primitives",
+        "Comparator works only with TreeMap",
+        "Comparable defines natural order inside the class (`compareTo`); Comparator provides an external ordering (`compare`)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Ek class ka ek natural order (Comparable) hota hai; multiple custom orders ke liye Comparator (jaise `Comparator.comparing(...)`) pass karte hain.",
+      "en": "A class has one natural order (Comparable); for multiple custom orders you pass a Comparator (e.g. `Comparator.comparing(...)`)."
+    }
+  },
+  {
+    "id": "java-06-lists-01",
+    "section": "java",
+    "topic": "06-lists",
+    "level": "easy",
+    "q": {
+      "hi": "`ArrayList.get(i)` aur `LinkedList.get(i)` ki time complexity?",
+      "en": "Time complexity of `ArrayList.get(i)` and `LinkedList.get(i)`?"
+    },
+    "options": {
+      "hi": [
+        "O(1) aur O(1)",
+        "O(1) aur O(n)",
+        "O(n) aur O(1)",
+        "O(log n) aur O(n)"
+      ],
+      "en": [
+        "O(1) and O(1)",
+        "O(1) and O(n)",
+        "O(n) and O(1)",
+        "O(log n) and O(n)"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "ArrayList array-backed hai to index se direct access. LinkedList ko node-by-node traverse karna padta hai (beech tak, nearest end se).",
+      "en": "ArrayList is array-backed, so index access is direct. LinkedList must walk node by node (from the nearer end)."
+    }
+  },
+  {
+    "id": "java-06-lists-02",
+    "section": "java",
+    "topic": "06-lists",
+    "level": "easy",
+    "q": {
+      "hi": "n elements wali ArrayList me `list.add(0, x)` ki time complexity?",
+      "en": "Time complexity of `list.add(0, x)` on an ArrayList with n elements?"
+    },
+    "options": {
+      "hi": [
+        "Amortized O(1)",
+        "O(1)",
+        "O(log n)",
+        "O(n)"
+      ],
+      "en": [
+        "Amortized O(1)",
+        "O(1)",
+        "O(log n)",
+        "O(n)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Index 0 par insert karne ke liye saare n elements ek position right shift hote hain (`System.arraycopy`). End par add amortized O(1) hai.",
+      "en": "Inserting at index 0 shifts all n elements one position right (`System.arraycopy`). Adding at the end is amortized O(1)."
+    }
+  },
+  {
+    "id": "java-06-lists-03",
+    "section": "java",
+    "topic": "06-lists",
+    "level": "medium",
+    "q": {
+      "hi": "`new ArrayList<>()` ki capacity kaise grow hoti hai (OpenJDK 8+)?",
+      "en": "How does `new ArrayList<>()` capacity grow (OpenJDK 8+)?"
+    },
+    "options": {
+      "hi": [
+        "Har add par +1",
+        "Shuru se 16, phir double",
+        "Pehle add par 10, phir full hone par ~1.5x (old + old >> 1)",
+        "Shuru se 10, phir 2x"
+      ],
+      "en": [
+        "+1 on every add",
+        "16 from the start, then doubles",
+        "10 on first add, then ~1.5x when full (old + old >> 1)",
+        "10 from the start, then 2x"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "No-arg constructor empty shared array rakhta hai; pehle add par capacity 10 hoti hai. Full hone par new = old + old/2, aur elements copy hote hain.",
+      "en": "The no-arg constructor starts with a shared empty array; the first add allocates capacity 10. When full, new = old + old/2 and elements are copied."
+    }
+  },
+  {
+    "id": "java-06-lists-04",
+    "section": "java",
+    "topic": "06-lists",
+    "level": "medium",
+    "q": {
+      "hi": "Output kya hoga? `List<Integer> list = new ArrayList<>(List.of(10, 20, 30)); list.remove(1); System.out.println(list);`",
+      "en": "What is the output? `List<Integer> list = new ArrayList<>(List.of(10, 20, 30)); list.remove(1); System.out.println(list);`"
+    },
+    "options": {
+      "hi": [
+        "[10, 30]",
+        "[10, 20, 30]",
+        "[20, 30]",
+        "IndexOutOfBoundsException"
+      ],
+      "en": [
+        "[10, 30]",
+        "[10, 20, 30]",
+        "[20, 30]",
+        "IndexOutOfBoundsException"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "`remove(1)` me int literal hai, to `remove(int index)` overload chunta hai aur index 1 (20) hata deta hai. Value hatani ho to `remove(Integer.valueOf(1))`.",
+      "en": "The int literal picks the `remove(int index)` overload, removing index 1 (20). To remove by value, use `remove(Integer.valueOf(1))`."
+    }
+  },
+  {
+    "id": "java-07-maps-sets-01",
+    "section": "java",
+    "topic": "07-maps-sets",
+    "level": "easy",
+    "q": {
+      "hi": "Java 8+ HashMap me `get()` ki average aur worst-case complexity?",
+      "en": "Average and worst-case complexity of `get()` in a Java 8+ HashMap?"
+    },
+    "options": {
+      "hi": [
+        "Average O(log n), worst O(n)",
+        "Average O(1), worst O(n^2)",
+        "Average O(1), worst O(log n) (treeified bucket)",
+        "Hamesha O(1)"
+      ],
+      "en": [
+        "Average O(log n), worst O(n)",
+        "Average O(1), worst O(n^2)",
+        "Average O(1), worst O(log n) (treeified bucket)",
+        "Always O(1)"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Achhe hash se O(1). Bahut collisions par Java 8+ bucket ko red-black tree bana deta hai, to worst O(log n) (pehle linked list me O(n) tha).",
+      "en": "O(1) with a good hash. Under heavy collisions Java 8+ turns the bucket into a red-black tree, so worst case is O(log n) (it was O(n) with a plain list)."
+    }
+  },
+  {
+    "id": "java-07-maps-sets-02",
+    "section": "java",
+    "topic": "07-maps-sets",
+    "level": "hard",
+    "q": {
+      "hi": "HashMap ek bucket ko linked list se tree (treeify) kab banata hai?",
+      "en": "When does HashMap convert a bucket from a linked list to a tree (treeify)?"
+    },
+    "options": {
+      "hi": [
+        "Bucket me 8+ nodes ho aur table capacity ≥ 64 ho (warna resize karta hai)",
+        "Load factor 0.75 cross hote hi",
+        "Bucket me 16 nodes hone par, capacity se farak nahi padta",
+        "Map size 64 hone par saare buckets"
+      ],
+      "en": [
+        "The bucket has 8+ nodes and table capacity is ≥ 64 (otherwise it resizes)",
+        "As soon as load factor 0.75 is crossed",
+        "At 16 nodes in a bucket, regardless of capacity",
+        "All buckets when map size reaches 64"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "TREEIFY_THRESHOLD = 8 aur MIN_TREEIFY_CAPACITY = 64. Table chhoti ho to treeify ki jagah resize hota hai. Nodes 6 (UNTREEIFY_THRESHOLD) tak gire to wapas list.",
+      "en": "TREEIFY_THRESHOLD = 8 and MIN_TREEIFY_CAPACITY = 64. If the table is smaller, it resizes instead. It reverts to a list at 6 nodes (UNTREEIFY_THRESHOLD)."
+    }
+  },
+  {
+    "id": "java-07-maps-sets-03",
+    "section": "java",
+    "topic": "07-maps-sets",
+    "level": "medium",
+    "q": {
+      "hi": "Output kya hoga? `Map<List<Integer>, String> m = new HashMap<>(); List<Integer> key = new ArrayList<>(List.of(1)); m.put(key, \"v\"); key.add(2); System.out.println(m.get(key));`",
+      "en": "What is the output? `Map<List<Integer>, String> m = new HashMap<>(); List<Integer> key = new ArrayList<>(List.of(1)); m.put(key, \"v\"); key.add(2); System.out.println(m.get(key));`"
+    },
+    "options": {
+      "hi": [
+        "NullPointerException",
+        "v",
+        "ConcurrentModificationException",
+        "null"
+      ],
+      "en": [
+        "NullPointerException",
+        "v",
+        "ConcurrentModificationException",
+        "null"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Key mutate karne se uska hashCode badal gaya, aur entry purane hash ke saath stored hai, to lookup match nahi karta. Map keys immutable rakho (String, record, etc.).",
+      "en": "Mutating the key changed its hashCode, but the entry is stored under the old hash, so lookup fails. Keep map keys immutable (String, records, etc.)."
+    }
+  },
+  {
+    "id": "java-07-maps-sets-04",
+    "section": "java",
+    "topic": "07-maps-sets",
+    "level": "easy",
+    "q": {
+      "hi": "Keys ka insertion order maintain karne ke liye kaunsa Map use karoge?",
+      "en": "Which Map keeps keys in insertion order?"
+    },
+    "options": {
+      "hi": [
+        "HashMap",
+        "LinkedHashMap",
+        "TreeMap",
+        "Hashtable"
+      ],
+      "en": [
+        "HashMap",
+        "LinkedHashMap",
+        "TreeMap",
+        "Hashtable"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "LinkedHashMap entries ke beech doubly linked list rakhta hai (insertion ya access order, LRU cache ke liye useful). TreeMap sorted order deta hai, HashMap koi order guarantee nahi karta.",
+      "en": "LinkedHashMap keeps a doubly linked list across entries (insertion or access order, handy for LRU caches). TreeMap gives sorted order; HashMap guarantees no order."
+    }
+  },
+  {
+    "id": "java-08-queues-01",
+    "section": "java",
+    "topic": "08-queues",
+    "level": "medium",
+    "q": {
+      "hi": "PriorityQueue (binary heap) me `poll()` aur `peek()` ki complexity?",
+      "en": "Complexity of `poll()` and `peek()` in a PriorityQueue (binary heap)?"
+    },
+    "options": {
+      "hi": [
+        "Dono O(log n)",
+        "Dono O(1)",
+        "poll O(n), peek O(1)",
+        "poll O(log n), peek O(1)"
+      ],
+      "en": [
+        "Both O(log n)",
+        "Both O(1)",
+        "poll O(n), peek O(1)",
+        "poll O(log n), peek O(1)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "peek sirf root padhta hai. poll root hatakar last element ko root par rakhta hai aur sift-down karta hai, jo heap height O(log n) hai.",
+      "en": "peek just reads the root. poll removes the root, moves the last element up, and sifts down over the heap height: O(log n)."
+    }
+  },
+  {
+    "id": "java-08-queues-02",
+    "section": "java",
+    "topic": "08-queues",
+    "level": "easy",
+    "q": {
+      "hi": "Output kya hoga? `PriorityQueue<Integer> pq = new PriorityQueue<>(List.of(5, 1, 3)); System.out.println(pq.poll());`",
+      "en": "What is the output? `PriorityQueue<Integer> pq = new PriorityQueue<>(List.of(5, 1, 3)); System.out.println(pq.poll());`"
+    },
+    "options": {
+      "hi": [
+        "5",
+        "1",
+        "3",
+        "null"
+      ],
+      "en": [
+        "5",
+        "1",
+        "3",
+        "null"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Default PriorityQueue min-heap hai (natural ordering), to smallest pehle nikalta hai. Max-heap ke liye `new PriorityQueue<>(Comparator.reverseOrder())`.",
+      "en": "The default PriorityQueue is a min-heap (natural ordering), so the smallest comes out first. For a max-heap use `new PriorityQueue<>(Comparator.reverseOrder())`."
+    }
+  },
+  {
+    "id": "java-08-queues-03",
+    "section": "java",
+    "topic": "08-queues",
+    "level": "easy",
+    "q": {
+      "hi": "Java me stack ke liye recommended class kaunsi hai, aur uski ek limitation?",
+      "en": "Which class is recommended for a stack in Java, and what is one of its limits?"
+    },
+    "options": {
+      "hi": [
+        "ArrayDeque; null elements allow nahi karta",
+        "Stack; thread-safe hone ke karan sabse fast",
+        "LinkedList; random access O(1) deta hai",
+        "Vector; resize nahi hota"
+      ],
+      "en": [
+        "ArrayDeque; it does not allow null elements",
+        "Stack; fastest because it is thread-safe",
+        "LinkedList; it gives O(1) random access",
+        "Vector; it never resizes"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "`Stack` legacy hai aur Vector extend karta hai (synchronized overhead). `ArrayDeque` ke `push/pop/peek` fast hain, par null insert karne par NPE deta hai.",
+      "en": "`Stack` is legacy and extends Vector (synchronized overhead). `ArrayDeque` push/pop/peek are fast, but inserting null throws NPE."
+    }
+  },
+  {
+    "id": "java-08-queues-04",
+    "section": "java",
+    "topic": "08-queues",
+    "level": "hard",
+    "q": {
+      "hi": "Output kya hoga? `PriorityQueue<Integer> pq = new PriorityQueue<>(); pq.add(3); pq.add(1); pq.add(2); System.out.println(pq);`",
+      "en": "What is the output? `PriorityQueue<Integer> pq = new PriorityQueue<>(); pq.add(3); pq.add(1); pq.add(2); System.out.println(pq);`"
+    },
+    "options": {
+      "hi": [
+        "[3, 1, 2]",
+        "[1, 2, 3]",
+        "[1, 3, 2]",
+        "[3, 2, 1]"
+      ],
+      "en": [
+        "[3, 1, 2]",
+        "[1, 2, 3]",
+        "[1, 3, 2]",
+        "[3, 2, 1]"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "`toString()` internal heap array ka order dikhata hai, sorted order nahi. add 3 → [3]; add 1 sift-up → [1, 3]; add 2 (parent 1 se bada) → [1, 3, 2]. Sorted chahiye to baar-baar poll karo.",
+      "en": "`toString()` shows the internal heap array, not sorted order. add 3 → [3]; add 1 sifts up → [1, 3]; add 2 (larger than parent 1) → [1, 3, 2]. Poll repeatedly for sorted order."
+    }
+  },
+  {
+    "id": "java-09-generics-01",
+    "section": "java",
+    "topic": "09-generics",
+    "level": "medium",
+    "q": {
+      "hi": "Output kya hoga? `System.out.println(new ArrayList<String>().getClass() == new ArrayList<Integer>().getClass());`",
+      "en": "What is the output? `System.out.println(new ArrayList<String>().getClass() == new ArrayList<Integer>().getClass());`"
+    },
+    "options": {
+      "hi": [
+        "true",
+        "false",
+        "Compile error",
+        "ClassCastException"
+      ],
+      "en": [
+        "true",
+        "false",
+        "Compile error",
+        "ClassCastException"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Type erasure: generic type info compile ke baad hat jati hai, runtime par dono sirf `ArrayList` hain.",
+      "en": "Type erasure: generic type info is removed after compilation; at runtime both are just `ArrayList`."
+    }
+  },
+  {
+    "id": "java-09-generics-02",
+    "section": "java",
+    "topic": "09-generics",
+    "level": "medium",
+    "q": {
+      "hi": "`List<? extends Number> nums` par kaunsa operation compile hoga?",
+      "en": "Which operation compiles on `List<? extends Number> nums`?"
+    },
+    "options": {
+      "hi": [
+        "`nums.add(1.5);`",
+        "`nums.add(1);`",
+        "`Number n = nums.get(0);`",
+        "`nums.add(Integer.valueOf(1));`"
+      ],
+      "en": [
+        "`nums.add(1.5);`",
+        "`nums.add(1);`",
+        "`Number n = nums.get(0);`",
+        "`nums.add(Integer.valueOf(1));`"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "PECS: Producer Extends. `? extends` se read (Number ke roop me) safe hai, par add nahi (null ke alawa), kyunki actual list `List<Double>` bhi ho sakti hai. Add ke liye `? super Integer`.",
+      "en": "PECS: Producer Extends. With `? extends` you can read as Number but not add (except null), since the list might be `List<Double>`. Use `? super Integer` to add."
+    }
+  },
+  {
+    "id": "java-09-generics-03",
+    "section": "java",
+    "topic": "09-generics",
+    "level": "easy",
+    "q": {
+      "hi": "`List<int> list = new ArrayList<>();` ke baare me sahi kya hai?",
+      "en": "What is true about `List<int> list = new ArrayList<>();`?"
+    },
+    "options": {
+      "hi": [
+        "Chalega, Java 17 me allowed hai",
+        "Compile error; generics me primitive type nahi chalta, `List<Integer>` use karo",
+        "Runtime par ClassCastException",
+        "Chalega par warning aayegi"
+      ],
+      "en": [
+        "It works; allowed in Java 17",
+        "Compile error; generics do not take primitives, use `List<Integer>`",
+        "ClassCastException at runtime",
+        "It works with a warning"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Type arguments sirf reference types ho sakte hain (erasure ke baad Object). Isliye wrapper classes aur autoboxing use hote hain.",
+      "en": "Type arguments must be reference types (they erase to Object). That is why wrapper classes and autoboxing are used."
+    }
+  },
+  {
+    "id": "java-09-generics-04",
+    "section": "java",
+    "topic": "09-generics",
+    "level": "hard",
+    "q": {
+      "hi": "`Object[] arr = new String[1]; arr[0] = 1;` aur `List<Object> lo = new ArrayList<String>();` — kya hoga?",
+      "en": "`Object[] arr = new String[1]; arr[0] = 1;` and `List<Object> lo = new ArrayList<String>();` — what happens?"
+    },
+    "options": {
+      "hi": [
+        "Pehla compile error, dusra runtime par ClassCastException",
+        "Dono compile error",
+        "Dono chal jate hain",
+        "Pehla runtime par ArrayStoreException, dusra compile error"
+      ],
+      "en": [
+        "The first is a compile error; the second throws ClassCastException at runtime",
+        "Both are compile errors",
+        "Both work fine",
+        "The first throws ArrayStoreException at runtime; the second is a compile error"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Arrays covariant hain (String[] ek Object[] hai) aur runtime par type check karte hain. Generics invariant hain, to `List<String>` ko `List<Object>` me assign karna compile time par hi rok diya jata hai.",
+      "en": "Arrays are covariant (String[] is an Object[]) and check types at runtime. Generics are invariant, so assigning `List<String>` to `List<Object>` is rejected at compile time."
+    }
+  },
+  {
+    "id": "java-10-exceptions-01",
+    "section": "java",
+    "topic": "10-exceptions",
+    "level": "medium",
+    "q": {
+      "hi": "`static int f() { try { return 1; } finally { return 2; } }` — `f()` kya return karega?",
+      "en": "`static int f() { try { return 1; } finally { return 2; } }` — what does `f()` return?"
+    },
+    "options": {
+      "hi": [
+        "1",
+        "2",
+        "Compile error",
+        "Pehle 1 phir 2 dono"
+      ],
+      "en": [
+        "1",
+        "2",
+        "Compile error",
+        "Both 1 then 2"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "finally hamesha chalta hai, aur finally ka `return` try ke return ko override kar deta hai (exception ko bhi nigal leta hai). Isliye finally me return mat likho.",
+      "en": "finally always runs, and a `return` in finally overrides the try return (and even swallows exceptions). Avoid return in finally."
+    }
+  },
+  {
+    "id": "java-10-exceptions-02",
+    "section": "java",
+    "topic": "10-exceptions",
+    "level": "hard",
+    "q": {
+      "hi": "`static int f() { int x = 1; try { return x; } finally { x = 5; } }` — `f()` kya return karega?",
+      "en": "`static int f() { int x = 1; try { return x; } finally { x = 5; } }` — what does `f()` return?"
+    },
+    "options": {
+      "hi": [
+        "0",
+        "5",
+        "Compile error",
+        "1"
+      ],
+      "en": [
+        "0",
+        "5",
+        "Compile error",
+        "1"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "try ka `return x` value 1 ko pehle hi save kar leta hai; finally me x badalne se saved return value nahi badalti (primitive hai). Return finally me hota to override hota.",
+      "en": "The try `return x` saves the value 1 first; changing x in finally does not alter the saved return value (it is a primitive). Only a return inside finally would override it."
+    }
+  },
+  {
+    "id": "java-10-exceptions-03",
+    "section": "java",
+    "topic": "10-exceptions",
+    "level": "easy",
+    "q": {
+      "hi": "In me se kaunsa checked exception hai?",
+      "en": "Which of these is a checked exception?"
+    },
+    "options": {
+      "hi": [
+        "IllegalArgumentException",
+        "NullPointerException",
+        "IOException",
+        "ArithmeticException"
+      ],
+      "en": [
+        "IllegalArgumentException",
+        "NullPointerException",
+        "IOException",
+        "ArithmeticException"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Checked exceptions (Exception ke subclass, RuntimeException ke nahi) ko catch ya `throws` me declare karna padta hai. Baaki teen RuntimeException (unchecked) hain.",
+      "en": "Checked exceptions (subclasses of Exception but not RuntimeException) must be caught or declared with `throws`. The other three are unchecked RuntimeExceptions."
+    }
+  },
+  {
+    "id": "java-10-exceptions-04",
+    "section": "java",
+    "topic": "10-exceptions",
+    "level": "medium",
+    "q": {
+      "hi": "`try (A a = new A(); B b = new B()) { throw new RuntimeException(\"x\"); }` me resources kis order me close honge, aur close() me exception aaye to?",
+      "en": "In `try (A a = new A(); B b = new B()) { throw new RuntimeException(\"x\"); }`, in what order are resources closed, and what if close() throws?"
+    },
+    "options": {
+      "hi": [
+        "Pehle B phir A; close() ka exception suppressed ban kar main exception me attach hota hai",
+        "Pehle A phir B; close() ka exception main exception ko replace kar deta hai",
+        "Order random hai; close() ka exception ignore hota hai",
+        "Pehle B phir A; program crash kar ke dono exceptions print karta hai"
+      ],
+      "en": [
+        "B first, then A; the close() exception is attached to the main one as suppressed",
+        "A first, then B; the close() exception replaces the main one",
+        "Order is random; the close() exception is ignored",
+        "B first, then A; the program prints both and crashes"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Resources declaration ke reverse order me close hote hain. Body ka exception primary rehta hai, close() ke exceptions `getSuppressed()` me milte hain.",
+      "en": "Resources close in reverse declaration order. The body exception stays primary; close() exceptions are available via `getSuppressed()`."
+    }
+  },
+  {
+    "id": "java-11-jvm-memory-01",
+    "section": "java",
+    "topic": "11-jvm-memory",
+    "level": "easy",
+    "q": {
+      "hi": "`void m() { int n = 5; User u = new User(); }` — n, reference u, aur User object kaha store hote hain?",
+      "en": "`void m() { int n = 5; User u = new User(); }` — where are n, the reference u, and the User object stored?"
+    },
+    "options": {
+      "hi": [
+        "Teeno stack par",
+        "Teeno heap par",
+        "n aur u thread stack par, User object heap par",
+        "n stack par, u aur object Metaspace me"
+      ],
+      "en": [
+        "All three on the stack",
+        "All three on the heap",
+        "n and u on the thread stack, the User object on the heap",
+        "n on the stack, u and the object in Metaspace"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Local primitives aur references method ke stack frame me hote hain (har thread ka alag stack). Objects heap par bante hain jo sab threads share karte hain. (JIT escape analysis optimization alag baat hai.)",
+      "en": "Local primitives and references live in the method stack frame (one stack per thread). Objects are created on the shared heap. (JIT escape analysis is a separate optimization.)"
+    }
+  },
+  {
+    "id": "java-11-jvm-memory-02",
+    "section": "java",
+    "topic": "11-jvm-memory",
+    "level": "easy",
+    "q": {
+      "hi": "Java 8 me PermGen ki jagah kya aaya, aur woh kaha rehta hai?",
+      "en": "What replaced PermGen in Java 8, and where does it live?"
+    },
+    "options": {
+      "hi": [
+        "Metaspace, native memory me",
+        "Metaspace, Young Gen ke andar",
+        "Code Cache, heap ke andar",
+        "String pool, stack par"
+      ],
+      "en": [
+        "Metaspace, in native memory",
+        "Metaspace, inside the Young Gen",
+        "Code Cache, inside the heap",
+        "String pool, on the stack"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Class metadata ab Metaspace me hai jo native memory use karta hai aur default me auto-grow hota hai (`-XX:MaxMetaspaceSize` se limit). Isliye \"PermGen space\" OOM khatam hua.",
+      "en": "Class metadata now lives in Metaspace, which uses native memory and grows by default (limit with `-XX:MaxMetaspaceSize`). That ended \"PermGen space\" OOMs."
+    }
+  },
+  {
+    "id": "java-11-jvm-memory-03",
+    "section": "java",
+    "topic": "11-jvm-memory",
+    "level": "medium",
+    "q": {
+      "hi": "G1 GC (Java 9+ ka default) ke baare me kya sahi hai?",
+      "en": "What is true about G1 GC (default since Java 9)?"
+    },
+    "options": {
+      "hi": [
+        "Reference counting use karta hai",
+        "Sirf single thread se poora heap ek saath collect karta hai",
+        "Kabhi stop-the-world pause nahi karta",
+        "Heap ko equal-size regions me baant kar sabse zyada garbage wale regions pehle collect karta hai, pause-time goal ke saath"
+      ],
+      "en": [
+        "It uses reference counting",
+        "It collects the whole heap at once with a single thread",
+        "It never has stop-the-world pauses",
+        "It splits the heap into equal-size regions and collects the most-garbage regions first, aiming at a pause-time goal"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "G1 = Garbage First: regions (young/old/humongous) me heap, `-XX:MaxGCPauseMillis` target. Young collections abhi bhi short STW pauses hain; ZGC jaise collectors pause aur kam karte hain.",
+      "en": "G1 = Garbage First: region-based heap (young/old/humongous) with a `-XX:MaxGCPauseMillis` target. Young collections still have short STW pauses; collectors like ZGC cut pauses further."
+    }
+  },
+  {
+    "id": "java-11-jvm-memory-04",
+    "section": "java",
+    "topic": "11-jvm-memory",
+    "level": "hard",
+    "q": {
+      "hi": "Do objects A aur B ek dusre ko refer karte hain (cycle), par kisi GC root se reachable nahi. Kya hoga?",
+      "en": "Objects A and B reference each other (a cycle), but neither is reachable from any GC root. What happens?"
+    },
+    "options": {
+      "hi": [
+        "Kabhi collect nahi honge, memory leak hai",
+        "Dono GC ke liye eligible hain",
+        "Sirf A collect hoga",
+        "JVM StackOverflowError dega"
+      ],
+      "en": [
+        "They are never collected; it is a memory leak",
+        "Both are eligible for GC",
+        "Only A is collected",
+        "The JVM throws StackOverflowError"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Java GC reachability (GC roots se tracing: stack locals, static fields, etc.) use karta hai, reference counting nahi. Unreachable cycle bhi collect ho jata hai.",
+      "en": "Java GC uses reachability tracing from GC roots (stack locals, static fields, etc.), not reference counting. An unreachable cycle is collected."
+    }
+  },
+  {
+    "id": "java-12-streams-lambdas-01",
+    "section": "java",
+    "topic": "12-streams-lambdas",
+    "level": "medium",
+    "q": {
+      "hi": "`Stream.of(1, 2, 3).filter(x -> { System.out.print(x); return x > 1; });` kya print karega?",
+      "en": "What does `Stream.of(1, 2, 3).filter(x -> { System.out.print(x); return x > 1; });` print?"
+    },
+    "options": {
+      "hi": [
+        "1",
+        "123",
+        "23",
+        "Kuch nahi"
+      ],
+      "en": [
+        "1",
+        "123",
+        "23",
+        "Nothing"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Intermediate operations lazy hain; terminal operation (`collect`, `forEach`, `count`...) ke bina pipeline chalti hi nahi.",
+      "en": "Intermediate operations are lazy; without a terminal operation (`collect`, `forEach`, `count`...) the pipeline never runs."
+    }
+  },
+  {
+    "id": "java-12-streams-lambdas-02",
+    "section": "java",
+    "topic": "12-streams-lambdas",
+    "level": "easy",
+    "q": {
+      "hi": "`int count = 0; list.forEach(x -> count++);` compile kyu nahi hota?",
+      "en": "Why does `int count = 0; list.forEach(x -> count++);` not compile?"
+    },
+    "options": {
+      "hi": [
+        "forEach int ke saath kaam nahi karta",
+        "Lambda sirf final ya effectively final local variables capture kar sakta hai",
+        "Lambda me ++ operator allowed nahi",
+        "count static hona chahiye tha, warna runtime error"
+      ],
+      "en": [
+        "forEach does not work with int",
+        "A lambda can capture only final or effectively final local variables",
+        "The ++ operator is not allowed in lambdas",
+        "count must be static, otherwise it is a runtime error"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Captured locals ki copy lambda me jati hai, isliye unhe modify karna allowed nahi. `AtomicInteger`, `stream().count()` ya field use karo.",
+      "en": "Captured locals are copied into the lambda, so modifying them is not allowed. Use `AtomicInteger`, `stream().count()` or a field."
+    }
+  },
+  {
+    "id": "java-12-streams-lambdas-03",
+    "section": "java",
+    "topic": "12-streams-lambdas",
+    "level": "medium",
+    "q": {
+      "hi": "`Stream<String> s = list.stream(); s.count(); s.count();` par kya hoga?",
+      "en": "What happens on `Stream<String> s = list.stream(); s.count(); s.count();`?"
+    },
+    "options": {
+      "hi": [
+        "Dusre count par IllegalStateException",
+        "Dono baar same count",
+        "Dusri baar 0",
+        "Compile error"
+      ],
+      "en": [
+        "IllegalStateException on the second count",
+        "The same count both times",
+        "0 the second time",
+        "Compile error"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Stream ek baar hi consume ho sakta hai (\"stream has already been operated upon or closed\"). Dobara chahiye to naya stream banao ya `Supplier<Stream<T>>` use karo.",
+      "en": "A stream can be consumed only once (\"stream has already been operated upon or closed\"). Create a new stream or use a `Supplier<Stream<T>>`."
+    }
+  },
+  {
+    "id": "java-12-streams-lambdas-04",
+    "section": "java",
+    "topic": "12-streams-lambdas",
+    "level": "hard",
+    "q": {
+      "hi": "`Stream.of(\"a\", \"bb\", \"cc\").collect(Collectors.toMap(String::length, s -> s));` par kya hoga?",
+      "en": "What happens on `Stream.of(\"a\", \"bb\", \"cc\").collect(Collectors.toMap(String::length, s -> s));`?"
+    },
+    "options": {
+      "hi": [
+        "{1=a, 2=bb} (first wins)",
+        "{1=a, 2=cc} (last wins)",
+        "IllegalStateException (duplicate key 2)",
+        "{1=a, 2=[bb, cc]}"
+      ],
+      "en": [
+        "{1=a, 2=bb} (first wins)",
+        "{1=a, 2=cc} (last wins)",
+        "IllegalStateException (duplicate key 2)",
+        "{1=a, 2=[bb, cc]}"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Do-argument `toMap` duplicate key par IllegalStateException deta hai. Merge function do: `toMap(String::length, s -> s, (a, b) -> b)`, ya list ke liye `groupingBy`.",
+      "en": "Two-argument `toMap` throws IllegalStateException on duplicate keys. Pass a merge function, e.g. `toMap(String::length, s -> s, (a, b) -> b)`, or use `groupingBy` for lists."
+    }
+  },
+  {
+    "id": "java-13-modern-java-01",
+    "section": "java",
+    "topic": "13-modern-java",
+    "level": "easy",
+    "q": {
+      "hi": "`record Point(int x, int y) {}` ke baare me kya sahi hai?",
+      "en": "What is true about `record Point(int x, int y) {}`?"
+    },
+    "options": {
+      "hi": [
+        "Fields private final hain, accessors `p.x()` hain, equals/hashCode/toString auto bante hain",
+        "Setters `setX()` bhi auto bante hain",
+        "Record dusri class extend kar sakta hai",
+        "Getters ka naam `getX()` hota hai"
+      ],
+      "en": [
+        "Fields are private final, accessors are `p.x()`, and equals/hashCode/toString are generated",
+        "Setters `setX()` are also generated",
+        "A record can extend another class",
+        "Accessors are named `getX()`"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Record (Java 16) implicitly final hai, `java.lang.Record` extend karta hai, immutable data carrier. Interfaces implement kar sakta hai aur compact constructor me validation kar sakte ho.",
+      "en": "A record (Java 16) is implicitly final, extends `java.lang.Record`, and is an immutable data carrier. It can implement interfaces and validate in a compact constructor."
+    }
+  },
+  {
+    "id": "java-13-modern-java-02",
+    "section": "java",
+    "topic": "13-modern-java",
+    "level": "medium",
+    "q": {
+      "hi": "`sealed interface Shape permits Circle, Square {}` — permitted subclass `Circle` ko kya declare karna zaroori hai?",
+      "en": "`sealed interface Shape permits Circle, Square {}` — what must the permitted subclass `Circle` be declared as?"
+    },
+    "options": {
+      "hi": [
+        "Kuch nahi, koi modifier zaroori nahi",
+        "abstract",
+        "final, sealed, ya non-sealed me se ek",
+        "static"
+      ],
+      "en": [
+        "Nothing; no modifier is required",
+        "abstract",
+        "One of final, sealed, or non-sealed",
+        "static"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Sealed types (Java 17) hierarchy band karte hain; har permitted subclass ko batana padta hai ki aage extension kaise hoga: final (band), sealed (aur restricted), ya non-sealed (khula). Records implicitly final hote hain.",
+      "en": "Sealed types (Java 17) close the hierarchy; each permitted subclass must state how it can be extended: final (closed), sealed (restricted further), or non-sealed (open). Records are implicitly final."
+    }
+  },
+  {
+    "id": "java-13-modern-java-03",
+    "section": "java",
+    "topic": "13-modern-java",
+    "level": "easy",
+    "q": {
+      "hi": "Virtual threads (Java 21) sabse zyada kis workload me fayda dete hain?",
+      "en": "Which workload benefits most from virtual threads (Java 21)?"
+    },
+    "options": {
+      "hi": [
+        "CPU-heavy number crunching ko faster banane me",
+        "Hazaron concurrent blocking I/O tasks (HTTP/DB calls)",
+        "Single-threaded apps me latency kam karne me",
+        "Platform threads se kam memory me GC avoid karne me"
+      ],
+      "en": [
+        "Making CPU-heavy number crunching faster",
+        "Thousands of concurrent blocking I/O tasks (HTTP/DB calls)",
+        "Reducing latency in single-threaded apps",
+        "Avoiding GC by using less memory than platform threads"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Virtual threads sasti hain (JVM-managed, block hone par carrier thread chhod deti hain), to thread-per-request scale karta hai. CPU-bound kaam fast nahi hota; cores utne hi hain. `Executors.newVirtualThreadPerTaskExecutor()` use karo.",
+      "en": "Virtual threads are cheap (JVM-managed, they unmount from the carrier thread when blocked), so thread-per-request scales. CPU-bound work is not faster; cores are the limit. Use `Executors.newVirtualThreadPerTaskExecutor()`."
+    }
+  },
+  {
+    "id": "java-13-modern-java-04",
+    "section": "java",
+    "topic": "13-modern-java",
+    "level": "hard",
+    "q": {
+      "hi": "`sealed interface Shape permits Circle, Square {}` (dono records). `double area(Shape s) { return switch (s) { case Circle c -> 3.14 * c.r() * c.r(); case Square q -> q.side() * q.side(); }; }` — Java 21 me kya hoga?",
+      "en": "`sealed interface Shape permits Circle, Square {}` (both records). `double area(Shape s) { return switch (s) { case Circle c -> 3.14 * c.r() * c.r(); case Square q -> q.side() * q.side(); }; }` — what happens in Java 21?"
+    },
+    "options": {
+      "hi": [
+        "Compile error: switch me type patterns allowed nahi",
+        "Compile error: switch expression me default zaroori hai",
+        "Compile hota hai par har call par MatchException",
+        "Compile hota hai; sealed hierarchy ke saare cases cover hain, default ki zaroorat nahi"
+      ],
+      "en": [
+        "Compile error: type patterns are not allowed in switch",
+        "Compile error: a switch expression needs default",
+        "It compiles but throws MatchException on every call",
+        "It compiles; all cases of the sealed hierarchy are covered, so no default is needed"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Pattern matching for switch (Java 21) sealed types par exhaustiveness check karta hai. Naya permitted type add karoge to compiler yaha error dega, jo default se chhup jata.",
+      "en": "Pattern matching for switch (Java 21) checks exhaustiveness over sealed types. Adding a new permitted type makes the compiler flag this switch, which a default would hide."
+    }
+  },
+  {
+    "id": "java-14-concurrency-01",
+    "section": "java",
+    "topic": "14-concurrency",
+    "level": "hard",
+    "q": {
+      "hi": "`volatile int count = 0;` ko 2 threads 1000-1000 baar `count++` karte hain. Final value?",
+      "en": "Two threads each run `count++` 1000 times on `volatile int count = 0;`. Final value?"
+    },
+    "options": {
+      "hi": [
+        "Hamesha 2000, volatile thread-safe hai",
+        "2000 ya usse kam ho sakta hai; volatile atomicity nahi deta",
+        "Hamesha 1000",
+        "Compile error; volatile int par ++ allowed nahi"
+      ],
+      "en": [
+        "Always 2000; volatile is thread-safe",
+        "It can be 2000 or less; volatile does not give atomicity",
+        "Always 1000",
+        "Compile error; ++ is not allowed on volatile int"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "`count++` read-modify-write hai (3 steps); volatile sirf visibility/ordering deta hai, to lost updates ho sakte hain. `AtomicInteger.incrementAndGet()` (CAS) ya lock use karo.",
+      "en": "`count++` is read-modify-write (3 steps); volatile only gives visibility/ordering, so updates can be lost. Use `AtomicInteger.incrementAndGet()` (CAS) or a lock."
+    }
+  },
+  {
+    "id": "java-14-concurrency-02",
+    "section": "java",
+    "topic": "14-concurrency",
+    "level": "medium",
+    "q": {
+      "hi": "Thread 1 `lockA` phir `lockB` leta hai, Thread 2 `lockB` phir `lockA`. Kya risk hai aur simple fix?",
+      "en": "Thread 1 takes `lockA` then `lockB`; Thread 2 takes `lockB` then `lockA`. What is the risk and the simple fix?"
+    },
+    "options": {
+      "hi": [
+        "Koi risk nahi, JVM detect karke resolve kar deta hai",
+        "Livelock; locks ko volatile bana do",
+        "Race condition; Thread.sleep() add karo",
+        "Deadlock; sab threads ek hi fixed order me locks lein"
+      ],
+      "en": [
+        "No risk; the JVM detects and resolves it",
+        "Livelock; make the locks volatile",
+        "Race condition; add Thread.sleep()",
+        "Deadlock; make all threads acquire locks in one fixed order"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Dono ek-ek lock pakad kar dusre ka wait karte hain (circular wait). Consistent lock ordering ya `tryLock(timeout)` se bachao. JVM deadlock khud resolve nahi karta.",
+      "en": "Each holds one lock and waits for the other (circular wait). Prevent it with consistent lock ordering or `tryLock(timeout)`. The JVM does not resolve deadlocks for you."
+    }
+  },
+  {
+    "id": "java-14-concurrency-03",
+    "section": "java",
+    "topic": "14-concurrency",
+    "level": "medium",
+    "q": {
+      "hi": "`ConcurrentHashMap<String, String> m = new ConcurrentHashMap<>(); m.put(\"k\", null);` par kya hoga?",
+      "en": "What happens on `ConcurrentHashMap<String, String> m = new ConcurrentHashMap<>(); m.put(\"k\", null);`?"
+    },
+    "options": {
+      "hi": [
+        "Compile error",
+        "Entry k=null store ho jati hai",
+        "NullPointerException",
+        "IllegalArgumentException"
+      ],
+      "en": [
+        "Compile error",
+        "The entry k=null is stored",
+        "NullPointerException",
+        "IllegalArgumentException"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "CHM null keys aur values dono reject karta hai: concurrent code me `get()` ka null \"key nahi hai\" aur \"value null hai\" me fark nahi bata sakta. HashMap ek null key aur null values allow karta hai.",
+      "en": "CHM rejects both null keys and values: in concurrent code a null from `get()` could not distinguish \"absent\" from \"mapped to null\". HashMap allows one null key and null values."
+    }
+  },
+  {
+    "id": "java-14-concurrency-04",
+    "section": "java",
+    "topic": "14-concurrency",
+    "level": "easy",
+    "q": {
+      "hi": "`Thread t = new Thread(task); t.run();` karne par kya hota hai?",
+      "en": "What happens on `Thread t = new Thread(task); t.run();`?"
+    },
+    "options": {
+      "hi": [
+        "task current thread me hi chalta hai, naya thread start nahi hota",
+        "Naya thread start hota hai",
+        "IllegalThreadStateException",
+        "task kabhi nahi chalta"
+      ],
+      "en": [
+        "The task runs in the current thread; no new thread starts",
+        "A new thread starts",
+        "IllegalThreadStateException",
+        "The task never runs"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "`run()` ek normal method call hai. Naya thread `start()` se banta hai, jo internally naye thread me `run()` call karta hai. Same thread par `start()` do baar call karna IllegalThreadStateException deta hai.",
+      "en": "`run()` is an ordinary method call. `start()` creates the new thread, which then calls `run()`. Calling `start()` twice on the same thread throws IllegalThreadStateException."
+    }
+  },
+  {
+    "id": "java-15-interview-qa-01",
+    "section": "java",
+    "topic": "15-interview-qa",
+    "level": "easy",
+    "q": {
+      "hi": "equals/hashCode contract ke hisaab se kya sahi hai?",
+      "en": "Per the equals/hashCode contract, which is true?"
+    },
+    "options": {
+      "hi": [
+        "Dono independent hain, ek override karna kaafi hai",
+        "Same hashCode hai to objects equal hone chahiye",
+        "a.equals(b) true hai to hashCode equal hone hi chahiye; same hashCode ka matlab equal nahi",
+        "hashCode unique hona chahiye har object ke liye"
+      ],
+      "en": [
+        "They are independent; overriding one is enough",
+        "Equal hashCodes mean the objects must be equal",
+        "If a.equals(b) is true, hashCodes must be equal; equal hashCodes do not imply equality",
+        "hashCode must be unique for every object"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Collisions normal hain (alag objects, same hash). Par equal objects ka hash alag hua to HashMap/HashSet galat bucket dekhenge.",
+      "en": "Collisions are normal (different objects, same hash). But if equal objects hash differently, HashMap/HashSet look in the wrong bucket."
+    }
+  },
+  {
+    "id": "java-15-interview-qa-02",
+    "section": "java",
+    "topic": "15-interview-qa",
+    "level": "hard",
+    "q": {
+      "hi": "Output kya hoga? `List<Integer> list = new ArrayList<>(List.of(1, 2, 3)); for (Integer x : list) { if (x == 2) list.remove(x); } System.out.println(list);`",
+      "en": "What is the output? `List<Integer> list = new ArrayList<>(List.of(1, 2, 3)); for (Integer x : list) { if (x == 2) list.remove(x); } System.out.println(list);`"
+    },
+    "options": {
+      "hi": [
+        "[1, 3]",
+        "ConcurrentModificationException",
+        "[1, 2, 3]",
+        "[1]"
+      ],
+      "en": [
+        "[1, 3]",
+        "ConcurrentModificationException",
+        "[1, 2, 3]",
+        "[1]"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Trick case: 2 hatane ke baad size 2 ho gaya aur iterator ka cursor bhi 2 hai, to `hasNext()` false deta hai aur loop `next()` call kiye bina khatam. CME check `next()` me hota hai, isliye exception nahi aata (3 skip ho jata). Fir bhi yeh bug hai; `removeIf` use karo.",
+      "en": "Trick case: after removing 2, size becomes 2 and the iterator cursor is 2, so `hasNext()` returns false and the loop ends without calling `next()`. The CME check lives in `next()`, so no exception (3 is skipped). Still a bug; use `removeIf`."
+    }
+  },
+  {
+    "id": "java-15-interview-qa-03",
+    "section": "java",
+    "topic": "15-interview-qa",
+    "level": "easy",
+    "q": {
+      "hi": "`final List<String> list = new ArrayList<>();` ke baad kya allowed hai?",
+      "en": "After `final List<String> list = new ArrayList<>();`, what is allowed?"
+    },
+    "options": {
+      "hi": [
+        "`list = new ArrayList<>();` allowed, `add` nahi",
+        "Dono allowed",
+        "Dono compile error",
+        "`list.add(\"x\");` allowed, `list = new ArrayList<>();` nahi"
+      ],
+      "en": [
+        "`list = new ArrayList<>();` is allowed, `add` is not",
+        "Both are allowed",
+        "Both are compile errors",
+        "`list.add(\"x\");` is allowed, `list = new ArrayList<>();` is not"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "`final` sirf reference ko reassign hone se rokta hai, object ko immutable nahi banata. Immutable list ke liye `List.of()` ya `List.copyOf()`.",
+      "en": "`final` only stops reassigning the reference; it does not make the object immutable. Use `List.of()` or `List.copyOf()` for an immutable list."
+    }
+  },
+  {
+    "id": "java-15-interview-qa-04",
+    "section": "java",
+    "topic": "15-interview-qa",
+    "level": "medium",
+    "q": {
+      "hi": "Output kya hoga? `Long l = 10L; System.out.println(l.equals(10) + \" \" + (l == 10));`",
+      "en": "What is the output? `Long l = 10L; System.out.println(l.equals(10) + \" \" + (l == 10));`"
+    },
+    "options": {
+      "hi": [
+        "true true",
+        "false true",
+        "true false",
+        "false false"
+      ],
+      "en": [
+        "true true",
+        "false true",
+        "true false",
+        "false false"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "`equals(10)` me 10 `Integer` me box hota hai, aur `Long.equals` sirf Long ko equal maanta hai, to false. `l == 10` me l unbox hokar numeric compare hota hai, to true.",
+      "en": "In `equals(10)`, 10 boxes to `Integer`, and `Long.equals` only matches a Long, so false. In `l == 10`, l unboxes and compares numerically, so true."
+    }
+  }
+]

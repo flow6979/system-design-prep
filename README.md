@@ -7,8 +7,10 @@ Interview prep ek jagah: system design (HLD), LLD / design patterns aur agentic 
 - **`content/01-topics/`**: 23 chhote topic files (caching, sharding, locks, Kafka, geospatial…). Har file 5–8 min ki hai aur batati hai ki ye kin systems me lagta hai.
 - **`content/02-questions/`**: 26 sabse zyada pooche jaane wale questions. Har ek me ye sab hai: interviewer se kya confirm karna hai, requirements, estimation, HLD + flow diagrams, deep dives, decision table (kyun chuna, kya nahi chuna aur kyun), failures, "isko aur better kaise karein", follow-up sawal, aur 2-minute recap.
 - **`content/03-lld/`**: LLD round ke liye OOP, SOLID aur Creational / Structural / Behavioral design patterns. Har pattern ka Java aur C++ code hai, aur sabse important patterns pe ⭐ laga hai.
+- **`content/04-java/`**: Java interview prep: basics, strings, arrays, OOP, collections (List/Map/Set/Queue internals), generics, exceptions, JVM & memory, lambdas & streams, modern Java (8–21), concurrency, aur rapid-fire Q&A. Important sections pe ⭐.
+- **`content/quiz/`**: MCQ quiz bank (HLD, LLD, Java, Agentic AI), dono languages me. Gemini se bane naye sawal Firestore ke `quiz` collection me save hote hain, taaki dobara generate na karne padein.
 - **Agentic AI** (`web/src/agents/`): pehle alag site (Agent Lab) thi, ab isi site ka section hai. [agentic-ai-handbook](https://github.com/flow6979/agentic-ai-handbook) ka asli Python code browser me Pyodide se chalta hai: ReAct, RAG, web research, multi-agent, MCP/A2A aur production labs. Build ke waqt handbook repo bundle hota hai (`npm run sync`).
-- **`web/`**: website jo saara content ek jagah render karti hai. Isme checklist progress %, login ke saath notes, Ask Gemini, Mock interview mode, Revision mode, Pattern quiz, aur LLD tab (Java/C++ toggle + "Sirf ⭐ dikhao") hain.
+- **`web/`**: website jo saara content ek jagah render karti hai. Isme personal study plan (interview date + subjects + roz ke ghante), checklist progress %, login ke saath notes, Ask Gemini, Mock interview mode, Revision mode, Pattern quiz, aur LLD tab (Java/C++ toggle + "Sirf ⭐ dikhao") hain.
 
 Markdown files GitHub pe bhi seedha padh sakte ho. Diagrams GitHub khud render kar deta hai.
 

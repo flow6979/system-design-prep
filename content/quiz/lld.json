@@ -1,0 +1,872 @@
+[
+  {
+    "id": "lld-01-oops-01",
+    "section": "lld",
+    "topic": "01-oops",
+    "level": "easy",
+    "q": {
+      "hi": "Encapsulation aur Abstraction me asli farak kya hai?",
+      "en": "What is the real difference between Encapsulation and Abstraction?"
+    },
+    "options": {
+      "hi": [
+        "Dono same hain, bas naam alag hai",
+        "Encapsulation = data chhupana (private fields + controlled methods), Abstraction = complexity chhupana (sirf 'kya karta hai' dikhana)",
+        "Encapsulation = interface banana, Abstraction = fields private rakhna",
+        "Abstraction sirf abstract class se hoti hai, Encapsulation sirf getters/setters se"
+      ],
+      "en": [
+        "They are the same thing with different names",
+        "Encapsulation = hiding data (private fields + controlled methods), Abstraction = hiding complexity (show only 'what it does')",
+        "Encapsulation = creating interfaces, Abstraction = keeping fields private",
+        "Abstraction comes only from abstract classes, Encapsulation only from getters/setters"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Wallet ka balance private rakhna encapsulation hai; Swiggy ka 'Place Order' button andar ke steps chhupata hai, ye abstraction hai. Dono ko same bolna common galti hai.",
+      "en": "Keeping a wallet balance private is encapsulation; Swiggy's 'Place Order' hiding the internal steps is abstraction. Calling them the same is a common mistake."
+    }
+  },
+  {
+    "id": "lld-01-oops-02",
+    "section": "lld",
+    "topic": "01-oops",
+    "level": "easy",
+    "q": {
+      "hi": "Ye Java code kaunsa polymorphism dikhata hai? `class Calc { int add(int a, int b) { return a + b; } double add(double a, double b) { return a + b; } }`",
+      "en": "Which kind of polymorphism does this Java code show? `class Calc { int add(int a, int b) { return a + b; } double add(double a, double b) { return a + b; } }`"
+    },
+    "options": {
+      "hi": [
+        "Runtime polymorphism (method overriding)",
+        "Inheritance",
+        "Compile-time polymorphism (method overloading)",
+        "Dynamic dispatch, JVM runtime pe object dekh ke decide karta hai"
+      ],
+      "en": [
+        "Runtime polymorphism (method overriding)",
+        "Inheritance",
+        "Compile-time polymorphism (method overloading)",
+        "Dynamic dispatch, the JVM decides at runtime by looking at the object"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Same naam, alag parameter types = overloading. Compiler arguments dekh ke version chunta hai, isliye compile-time.",
+      "en": "Same name, different parameter types = overloading. The compiler picks the version from the arguments, so it is compile-time."
+    }
+  },
+  {
+    "id": "lld-01-oops-03",
+    "section": "lld",
+    "topic": "01-oops",
+    "level": "easy",
+    "q": {
+      "hi": "Sparrow, Drone aur Plane teeno unrelated classes hain, par teeno ko 'fly' capability chahiye. Kya use karoge?",
+      "en": "Sparrow, Drone and Plane are unrelated classes, but all three need a 'fly' capability. What do you use?"
+    },
+    "options": {
+      "hi": [
+        "Ek `Flyable` interface jo teeno implement karein",
+        "Ek abstract class `FlyingThing` jisme constructor aur fields hon, teeno use extend karein",
+        "Har class me `fly()` copy-paste kar do",
+        "Ek singleton `FlyManager` jo sabke liye fly kare"
+      ],
+      "en": [
+        "A `Flyable` interface that all three implement",
+        "An abstract class `FlyingThing` with a constructor and fields that all three extend",
+        "Copy-paste `fly()` into every class",
+        "A singleton `FlyManager` that flies for everyone"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Unrelated classes ko same capability dene ke liye interface sahi hai. Abstract class shared state ke liye hoti hai, aur Java me sirf ek class extend ho sakti hai.",
+      "en": "An interface is right for giving unrelated classes the same capability. Abstract classes are for shared state, and Java allows extending only one class."
+    }
+  },
+  {
+    "id": "lld-01-oops-04",
+    "section": "lld",
+    "topic": "01-oops",
+    "level": "medium",
+    "q": {
+      "hi": "Is design me kya problem hai? `class Stack extends ArrayList<Integer> { void push(int x) { add(x); } }`",
+      "en": "What is wrong with this design? `class Stack extends ArrayList<Integer> { void push(int x) { add(x); } }`"
+    },
+    "options": {
+      "hi": [
+        "Koi problem nahi, code reuse ho gaya",
+        "Compile error, kyunki ArrayList final class hai",
+        "push() O(n) ho jaayega, performance kharab",
+        "Stack pe ab `add(index, x)` / `remove(0)` bhi call ho sakte hain. Stack IS-A ArrayList nahi hai, composition lena chahiye"
+      ],
+      "en": [
+        "Nothing, the code got reused",
+        "Compile error, because ArrayList is a final class",
+        "push() becomes O(n), so performance suffers",
+        "Callers can now call `add(index, x)` / `remove(0)` on the stack. A Stack is not an ArrayList, so composition is the right choice"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Sirf code reuse ke liye inheritance lena classic galti hai. Parent ke saare public methods leak ho jaate hain aur stack ka contract toot jaata hai. Andar ek list rakho (HAS-A).",
+      "en": "Using inheritance just for code reuse is a classic mistake. All the parent's public methods leak out and break the stack's contract. Keep a list inside instead (HAS-A)."
+    }
+  },
+  {
+    "id": "lld-01-oops-05",
+    "section": "lld",
+    "topic": "01-oops",
+    "level": "medium",
+    "q": {
+      "hi": "Parking Lot me Floor, ParkingLot ke bina exist nahi karta. Splitwise me User group chhod de to bhi User rehta hai. Ye relations kya hain?",
+      "en": "In a Parking Lot, a Floor cannot exist without the ParkingLot. In Splitwise, a User still exists after leaving a group. What are these relations?"
+    },
+    "options": {
+      "hi": [
+        "Dono composition",
+        "ParkingLot-Floor aggregation, Group-User composition",
+        "ParkingLot-Floor composition, Group-User aggregation",
+        "Dono sirf association"
+      ],
+      "en": [
+        "Both are composition",
+        "ParkingLot-Floor is aggregation, Group-User is composition",
+        "ParkingLot-Floor is composition, Group-User is aggregation",
+        "Both are just association"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Farak lifetime ka hai. Part owner ke saath mare to composition (filled diamond), part independently zinda rahe to aggregation (hollow diamond).",
+      "en": "The difference is lifetime. If the part dies with its owner it is composition (filled diamond); if it lives on independently it is aggregation (hollow diamond)."
+    }
+  },
+  {
+    "id": "lld-01-oops-06",
+    "section": "lld",
+    "topic": "01-oops",
+    "level": "hard",
+    "q": {
+      "hi": "Java: `class Account { String branch; protected double rate; private double balance; }`. Ek doosre package ki class jo Account ki subclass NAHI hai, inme se kaunse fields access kar sakti hai?",
+      "en": "Java: `class Account { String branch; protected double rate; private double balance; }`. A class in a different package that is NOT a subclass of Account can access which of these fields?"
+    },
+    "options": {
+      "hi": [
+        "branch aur rate",
+        "Teeno me se koi nahi",
+        "Sirf rate, kyunki protected bahar se visible hota hai",
+        "Sirf branch, kyunki default access sab jagah hota hai"
+      ],
+      "en": [
+        "branch and rate",
+        "None of these three",
+        "Only rate, because protected is visible from outside",
+        "Only branch, because default access works everywhere"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Java me default (package-private) sirf same package, protected = same package + subclasses, private = sirf wahi class. Bahar ka non-subclass teeno nahi dekh sakta.",
+      "en": "In Java, default (package-private) is same package only, protected is same package + subclasses, private is the class itself. An outside non-subclass sees none of them."
+    }
+  },
+  {
+    "id": "lld-02-solid-01",
+    "section": "lld",
+    "topic": "02-solid",
+    "level": "easy",
+    "q": {
+      "hi": "`class InvoiceBad { double total() {...} void print() {...} void saveToDb() {...} }` Ye class kaunsa principle tod rahi hai?",
+      "en": "`class InvoiceBad { double total() {...} void print() {...} void saveToDb() {...} }` Which principle does this class break?"
+    },
+    "options": {
+      "hi": [
+        "Open/Closed",
+        "Liskov Substitution",
+        "Interface Segregation",
+        "Single Responsibility"
+      ],
+      "en": [
+        "Open/Closed",
+        "Liskov Substitution",
+        "Interface Segregation",
+        "Single Responsibility"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "GST logic, printing aur DB persistence teen alag reasons to change hain. Invoice, InvoicePrinter, InvoiceRepository me todo.",
+      "en": "GST logic, printing and DB persistence are three separate reasons to change. Split into Invoice, InvoicePrinter and InvoiceRepository."
+    }
+  },
+  {
+    "id": "lld-02-solid-02",
+    "section": "lld",
+    "topic": "02-solid",
+    "level": "easy",
+    "q": {
+      "hi": "`class Penguin extends Bird { void fly() { throw new UnsupportedOperationException(); } }` Ye kis principle ka violation hai?",
+      "en": "`class Penguin extends Bird { void fly() { throw new UnsupportedOperationException(); } }` Which principle does this violate?"
+    },
+    "options": {
+      "hi": [
+        "Liskov Substitution",
+        "Interface Segregation",
+        "Dependency Inversion",
+        "Single Responsibility"
+      ],
+      "en": [
+        "Liskov Substitution",
+        "Interface Segregation",
+        "Dependency Inversion",
+        "Single Responsibility"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Penguin ko Bird ki jagah pass karo to fly() pe crash. Child parent ka promise tod raha hai. Fix: FlyingBird alag hierarchy ya Flyable capability.",
+      "en": "Pass a Penguin where a Bird is expected and fly() crashes. The child breaks the parent's promise. Fix: a separate FlyingBird hierarchy or a Flyable capability."
+    }
+  },
+  {
+    "id": "lld-02-solid-03",
+    "section": "lld",
+    "topic": "02-solid",
+    "level": "easy",
+    "q": {
+      "hi": "`class OtpService { private final SmsSender sender = new SmsSender(); }` Kal WhatsApp bhi chahiye aur test me mock bhi. Sahi fix kya hai?",
+      "en": "`class OtpService { private final SmsSender sender = new SmsSender(); }` Tomorrow you need WhatsApp too, plus a mock in tests. What is the right fix?"
+    },
+    "options": {
+      "hi": [
+        "SmsSender ko singleton bana do",
+        "OtpService ko SmsSender se extend karwa do",
+        "`MessageSender` interface banao aur OtpService me constructor se inject karo",
+        "sendOtp() ko static bana do"
+      ],
+      "en": [
+        "Make SmsSender a singleton",
+        "Make OtpService extend SmsSender",
+        "Create a `MessageSender` interface and inject it into OtpService via the constructor",
+        "Make sendOtp() static"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Dependency Inversion: high-level service interface pe depend kare, concrete object bahar se aaye. Provider swap aur mocking dono easy.",
+      "en": "Dependency Inversion: the high-level service depends on an interface and the concrete object comes from outside. Swapping providers and mocking both become easy."
+    }
+  },
+  {
+    "id": "lld-02-solid-04",
+    "section": "lld",
+    "topic": "02-solid",
+    "level": "medium",
+    "q": {
+      "hi": "Flipkart ke `DiscountCalculator.apply(type, price)` me har sale pe ek naya `else if` judta hai (FESTIVE, PREMIUM, BANK...). OCP ke hisaab se kya karoge?",
+      "en": "Flipkart's `DiscountCalculator.apply(type, price)` gets a new `else if` every sale (FESTIVE, PREMIUM, BANK...). Following OCP, what do you do?"
+    },
+    "options": {
+      "hi": [
+        "Ek aur else-if jod do, simple hai",
+        "`Discount` interface banao, har discount ki alag class; naya discount = nayi class, purana code untouched",
+        "Type ko enum bana ke switch likho",
+        "Saara discount logic DB stored procedure me daal do"
+      ],
+      "en": [
+        "Add another else-if, it is simple",
+        "Create a `Discount` interface with one class per discount; a new discount = a new class, old code untouched",
+        "Turn the type into an enum and write a switch",
+        "Move all discount logic into a DB stored procedure"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Open for extension, closed for modification. Enum + switch bhi wahi chain hai, har naye type pe tested code kholna padta hai.",
+      "en": "Open for extension, closed for modification. An enum + switch is the same chain; you still reopen tested code for every new type."
+    }
+  },
+  {
+    "id": "lld-02-solid-05",
+    "section": "lld",
+    "topic": "02-solid",
+    "level": "medium",
+    "q": {
+      "hi": "ISP aur LSP me farak kya hai?",
+      "en": "What is the difference between ISP and LSP?"
+    },
+    "options": {
+      "hi": [
+        "ISP interface ke size ke baare me hai (client ko unwanted methods pe majboor mat karo); LSP child ke behaviour ke baare me (parent ki jagah bina surprise chale)",
+        "ISP = ek class ek kaam; LSP = extension ke liye open",
+        "Dono same hain, dono me exception throw karna mana hai",
+        "ISP = high-level module interface pe depend kare; LSP = inheritance band karo"
+      ],
+      "en": [
+        "ISP is about interface size (don't force clients to implement methods they don't need); LSP is about child behaviour (it must replace the parent without surprises)",
+        "ISP = one class one job; LSP = open for extension",
+        "They are the same; both forbid throwing exceptions",
+        "ISP = high-level modules depend on interfaces; LSP = stop using inheritance"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Mota `Machine` interface (print, scan, fax) ISP todta hai. Penguin.fly() pe throw LSP todta hai. Dono me throw dikh sakta hai, par root cause alag hai.",
+      "en": "A fat `Machine` interface (print, scan, fax) breaks ISP. Penguin.fly() throwing breaks LSP. Both can show a throw, but the root cause differs."
+    }
+  },
+  {
+    "id": "lld-02-solid-06",
+    "section": "lld",
+    "topic": "02-solid",
+    "level": "hard",
+    "q": {
+      "hi": "`Square extends Rectangle`, aur Square ka `setWidth`/`setHeight` dono sides set karta hai. `Rectangle r = new Square(); r.setWidth(5); r.setHeight(4); System.out.println(r.area());` Kya print hoga aur problem kya hai?",
+      "en": "`Square extends Rectangle`, and Square's `setWidth`/`setHeight` set both sides. `Rectangle r = new Square(); r.setWidth(5); r.setHeight(4); System.out.println(r.area());` What prints, and what is the problem?"
+    },
+    "options": {
+      "hi": [
+        "20, koi problem nahi",
+        "25, ISP violation",
+        "Compile error, Square ko Rectangle me assign nahi kar sakte",
+        "16, jabki Rectangle use karne wala 20 expect karta hai. LSP toota"
+      ],
+      "en": [
+        "20, no problem",
+        "25, an ISP violation",
+        "Compile error, a Square cannot be assigned to a Rectangle",
+        "16, while code written for Rectangle expects 20. LSP is broken"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "setHeight(4) ne dono sides 4 kar di, to area 16. Rectangle ka promise (width aur height independent) Square tod raha hai. Classic LSP trap.",
+      "en": "setHeight(4) set both sides to 4, so area is 16. Square breaks Rectangle's promise that width and height are independent. The classic LSP trap."
+    }
+  },
+  {
+    "id": "lld-03-creational-01",
+    "section": "lld",
+    "topic": "03-creational",
+    "level": "easy",
+    "q": {
+      "hi": "Uber ride request: pickup aur drop zaroori, ride type, coupon, stops, pet-friendly optional, aur object immutable chahiye. Kaunsa pattern?",
+      "en": "Uber ride request: pickup and drop are required; ride type, coupon, stops and pet-friendly are optional; the object must be immutable. Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Singleton",
+        "Prototype",
+        "Builder",
+        "Abstract Factory"
+      ],
+      "en": [
+        "Singleton",
+        "Prototype",
+        "Builder",
+        "Abstract Factory"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Bahut saare optional fields + immutability = Builder. Required fields Builder ke constructor me, validation `build()` me ek jagah.",
+      "en": "Many optional fields + immutability = Builder. Required fields go in the Builder's constructor, and validation lives in one place in `build()`."
+    }
+  },
+  {
+    "id": "lld-03-creational-02",
+    "section": "lld",
+    "topic": "03-creational",
+    "level": "easy",
+    "q": {
+      "hi": "Java double-checked locking singleton me `private static ___ ConfigManager instance;` blank me kya zaroori hai?",
+      "en": "In a Java double-checked locking singleton, `private static ___ ConfigManager instance;` what is required in the blank?"
+    },
+    "options": {
+      "hi": [
+        "`final`",
+        "`volatile`",
+        "`transient`",
+        "Kuch nahi, synchronized block kaafi hai"
+      ],
+      "en": [
+        "`final`",
+        "`volatile`",
+        "`transient`",
+        "Nothing, the synchronized block is enough"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Bina `volatile` ke doosre thread ko half-constructed object dikh sakta hai (pehla check lock ke bahar hai). Ye sabse common galti hai.",
+      "en": "Without `volatile`, another thread may see a half-constructed object (the first check runs outside the lock). This is the most common mistake."
+    }
+  },
+  {
+    "id": "lld-03-creational-03",
+    "section": "lld",
+    "topic": "03-creational",
+    "level": "medium",
+    "q": {
+      "hi": "App me Dark aur Light theme hai. Dark me Button aur Checkbox dono dark hone chahiye, kabhi mix nahi. Kaunsa pattern fit hai?",
+      "en": "The app has Dark and Light themes. In Dark, both Button and Checkbox must be dark, never mixed. Which pattern fits?"
+    },
+    "options": {
+      "hi": [
+        "Simple Factory with switch",
+        "Builder",
+        "Prototype",
+        "Abstract Factory"
+      ],
+      "en": [
+        "Simple Factory with a switch",
+        "Builder",
+        "Prototype",
+        "Abstract Factory"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Abstract Factory poori matching family banata hai (`ThemeFactory.createButton()`, `createCheckbox()`). Theme switch = sirf factory badlo.",
+      "en": "Abstract Factory builds a whole matching family (`ThemeFactory.createButton()`, `createCheckbox()`). Switching theme = just swap the factory."
+    }
+  },
+  {
+    "id": "lld-03-creational-04",
+    "section": "lld",
+    "topic": "03-creational",
+    "level": "medium",
+    "q": {
+      "hi": "Repeat order: `Order copy() { return new Order(restaurant, address, items); }` phir `Order repeat = last.copy(); repeat.items.add(dessert);` Kya hoga?",
+      "en": "Repeat order: `Order copy() { return new Order(restaurant, address, items); }` then `Order repeat = last.copy(); repeat.items.add(dessert);` What happens?"
+    },
+    "options": {
+      "hi": [
+        "Original `last` order ki items list bhi badal jaayegi, kyunki shallow copy me dono same list share karte hain",
+        "Sirf repeat badlega, original safe hai",
+        "ConcurrentModificationException aayega",
+        "Compile error, copy() Prototype interface ka method nahi hai"
+      ],
+      "en": [
+        "The original `last` order's item list changes too, because the shallow copy shares the same list",
+        "Only repeat changes, the original is safe",
+        "A ConcurrentModificationException is thrown",
+        "Compile error, copy() is not a Prototype interface method"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Prototype ka main trap: mutable fields ka deep copy karo, jaise `new ArrayList<>(items)`. Warna clone aur original same list share karte hain.",
+      "en": "The main Prototype trap: deep-copy mutable fields, e.g. `new ArrayList<>(items)`. Otherwise the clone and the original share one list."
+    }
+  },
+  {
+    "id": "lld-03-creational-05",
+    "section": "lld",
+    "topic": "03-creational",
+    "level": "medium",
+    "q": {
+      "hi": "Simple Factory aur Factory Method (GoF) me farak kya hai?",
+      "en": "What is the difference between a Simple Factory and the (GoF) Factory Method?"
+    },
+    "options": {
+      "hi": [
+        "Koi farak nahi, dono naam same pattern ke hain",
+        "Simple Factory = ek (static) method jisme switch se object banta hai; Factory Method = base class me abstract `createX()`, subclass decide karti hai kaunsa object",
+        "Factory Method related objects ki poori family banata hai",
+        "Simple Factory hamesha singleton object return karti hai"
+      ],
+      "en": [
+        "No difference, both names refer to the same pattern",
+        "Simple Factory = one (static) method that builds the object via a switch; Factory Method = an abstract `createX()` in a base class, and subclasses decide which object",
+        "Factory Method builds a whole family of related objects",
+        "A Simple Factory always returns a singleton object"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Interview me 90% simple factory kaafi hai, par farak bata do: static method vs subclass override. Family banana Abstract Factory ka kaam hai.",
+      "en": "A simple factory is enough for 90% of interviews, but state the difference: static method vs subclass override. Building families is Abstract Factory's job."
+    }
+  },
+  {
+    "id": "lld-03-creational-06",
+    "section": "lld",
+    "topic": "03-creational",
+    "level": "hard",
+    "q": {
+      "hi": "Java me `enum Logger { INSTANCE; }` wala singleton kyun recommend kiya jaata hai?",
+      "en": "Why is the `enum Logger { INSTANCE; }` singleton recommended in Java?"
+    },
+    "options": {
+      "hi": [
+        "Ye sabse fast lazy initialization deta hai",
+        "Isse Logger ko subclass karke extend kar sakte ho",
+        "Ye thread-safe hai aur reflection/serialization se naya instance nahi ban sakta",
+        "Isse test me Logger ko mock karna easy ho jaata hai"
+      ],
+      "en": [
+        "It gives the fastest lazy initialization",
+        "It lets you extend Logger through subclasses",
+        "It is thread-safe and reflection/serialization cannot create a second instance",
+        "It makes mocking the Logger in tests easy"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Enum singleton JVM guarantee se ek hi instance rakhta hai. Mocking ulta mushkil hoti hai, isliye har cheez ko singleton banana galti hai.",
+      "en": "The JVM guarantees a single enum instance. Mocking actually gets harder, which is why making everything a singleton is a mistake."
+    }
+  },
+  {
+    "id": "lld-04-structural-01",
+    "section": "lld",
+    "topic": "04-structural",
+    "level": "easy",
+    "q": {
+      "hi": "Swiggy ka interface `pay(orderId, amountInRupees)` hai. Razorpay SDK `createPayment(paise)` maangta hai, Paytm `initiateTxn(map)`. Kaunsa pattern?",
+      "en": "Swiggy's interface is `pay(orderId, amountInRupees)`. The Razorpay SDK wants `createPayment(paise)`, Paytm wants `initiateTxn(map)`. Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Adapter",
+        "Facade",
+        "Decorator",
+        "Bridge"
+      ],
+      "en": [
+        "Adapter",
+        "Facade",
+        "Decorator",
+        "Bridge"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Third-party SDK ka interface apne interface se match karana Adapter hai. Har provider ka ek adapter, aur adapter sirf translate kare (units, format, error codes).",
+      "en": "Making a third-party SDK match your own interface is Adapter. One adapter per provider, and it only translates (units, format, error codes)."
+    }
+  },
+  {
+    "id": "lld-04-structural-02",
+    "section": "lld",
+    "topic": "04-structural",
+    "level": "easy",
+    "q": {
+      "hi": "Domino's: base Margherita, upar se Extra Cheese, Jalapeno, Olives kisi bhi combination me, runtime pe. Price aur description badhte jaate hain. Kaunsa pattern?",
+      "en": "Domino's: a base Margherita plus Extra Cheese, Jalapeno, Olives in any combination at runtime, with price and description growing. Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Har combination ki subclass (CheeseJalapenoPizza...)",
+        "Flyweight",
+        "Facade",
+        "Decorator"
+      ],
+      "en": [
+        "One subclass per combination (CheeseJalapenoPizza...)",
+        "Flyweight",
+        "Facade",
+        "Decorator"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Har topping same `Pizza` interface implement karke andar wale ko wrap karti hai. Subclass har combination ke liye = class explosion.",
+      "en": "Each topping implements the same `Pizza` interface and wraps the inner one. A subclass per combination = class explosion."
+    }
+  },
+  {
+    "id": "lld-04-structural-03",
+    "section": "lld",
+    "topic": "04-structural",
+    "level": "medium",
+    "q": {
+      "hi": "`new BufferedReader(new FileReader(file))` Java I/O ka ye style kaunse pattern pe bana hai?",
+      "en": "`new BufferedReader(new FileReader(file))` Which pattern is this Java I/O style built on?"
+    },
+    "options": {
+      "hi": [
+        "Composite",
+        "Decorator",
+        "Proxy",
+        "Abstract Factory"
+      ],
+      "en": [
+        "Composite",
+        "Decorator",
+        "Proxy",
+        "Abstract Factory"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "BufferedReader same Reader type ke object ko wrap karke buffering feature jodta hai. Layers stack ho sakti hain, ye Decorator hai.",
+      "en": "BufferedReader wraps an object of the same Reader type and adds buffering. Layers can stack, which is Decorator."
+    }
+  },
+  {
+    "id": "lld-04-structural-04",
+    "section": "lld",
+    "topic": "04-structural",
+    "level": "medium",
+    "q": {
+      "hi": "Proxy aur Decorator dono wrap karte hain. Asli farak kya hai?",
+      "en": "Proxy and Decorator both wrap. What is the real difference?"
+    },
+    "options": {
+      "hi": [
+        "Proxy interface badal deta hai, Decorator same rakhta hai",
+        "Decorator sirf ek layer ka ho sakta hai, Proxy kai layers",
+        "Proxy access control/caching/lazy loading karta hai (aksar real object khud banata hai); Decorator features jodta hai, client wrap karta hai aur stack ho sakte hain",
+        "Koi farak nahi, sirf naam alag"
+      ],
+      "en": [
+        "Proxy changes the interface, Decorator keeps it",
+        "A Decorator can only be one layer, a Proxy can be many",
+        "Proxy controls access/caching/lazy loading (often creating the real object itself); Decorator adds features, the client wraps it and decorators can stack",
+        "No difference, only the name"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Dono same interface rakhte hain; intent alag hai. Interface badalna Adapter ka kaam hai.",
+      "en": "Both keep the same interface; the intent differs. Changing the interface is Adapter's job."
+    }
+  },
+  {
+    "id": "lld-04-structural-05",
+    "section": "lld",
+    "topic": "04-structural",
+    "level": "medium",
+    "q": {
+      "hi": "Notification type (OrderAlert, OtpAlert) x channel (SMS, WhatsApp, Email). Inheritance se OtpSms, OtpWhatsApp... 6 classes ban rahi hain aur har naya channel sabko badhata hai. Kaunsa pattern?",
+      "en": "Notification type (OrderAlert, OtpAlert) x channel (SMS, WhatsApp, Email). Inheritance gives OtpSms, OtpWhatsApp... 6 classes, and every new channel multiplies them. Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Adapter",
+        "Composite",
+        "Facade",
+        "Bridge"
+      ],
+      "en": [
+        "Adapter",
+        "Composite",
+        "Facade",
+        "Bridge"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Do independent dimensions = Bridge. Message type aur channel alag hierarchies, composition se jude: 2 + 3 classes, naya channel = 1 class.",
+      "en": "Two independent dimensions = Bridge. Message type and channel become separate hierarchies joined by composition: 2 + 3 classes, a new channel = 1 class."
+    }
+  },
+  {
+    "id": "lld-04-structural-06",
+    "section": "lld",
+    "topic": "04-structural",
+    "level": "hard",
+    "q": {
+      "hi": "Swiggy map pe 1 lakh markers ke liye icon Flyweight banaya. Ek dev ne `lat, lng` bhi flyweight ke andar daal diye aur setters de diye. Kya galat hoga?",
+      "en": "An icon Flyweight was built for 1 lakh markers on the Swiggy map. A dev also put `lat, lng` inside the flyweight and added setters. What goes wrong?"
+    },
+    "options": {
+      "hi": [
+        "Sharing ka fayda khatam aur ek marker ki location badli to us icon wale saare markers hil jaayenge. Extrinsic state bahar pass karo, flyweight immutable rakho",
+        "Kuch nahi, bas thoda fast ho jaayega",
+        "Compile error, flyweight me fields allowed nahi",
+        "Garbage collector icons ko jaldi collect kar lega"
+      ],
+      "en": [
+        "Sharing loses its value, and moving one marker moves every marker with that icon. Pass extrinsic state from outside and keep the flyweight immutable",
+        "Nothing, it just gets a bit faster",
+        "Compile error, flyweights cannot have fields",
+        "The garbage collector will collect the icons early"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Intrinsic (icon) share hota hai, extrinsic (position) har call me pass hota hai. Mutable shared object = ek jagah change sab jagah dikhega.",
+      "en": "Intrinsic state (icon) is shared, extrinsic state (position) is passed per call. A mutable shared object means one change shows up everywhere."
+    }
+  },
+  {
+    "id": "lld-05-behavioral-01",
+    "section": "lld",
+    "topic": "05-behavioral",
+    "level": "easy",
+    "q": {
+      "hi": "Vending machine: coin nahi to button pe kuch nahi, coin daala to item nikle, stock khatam to coin wapas. Har jagah `switch (state)` likh rahe ho. Kaunsa pattern?",
+      "en": "Vending machine: no coin, the button does nothing; coin in, the item drops; out of stock, the coin comes back. You are writing `switch (state)` everywhere. Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Strategy",
+        "Observer",
+        "State",
+        "Command"
+      ],
+      "en": [
+        "Strategy",
+        "Observer",
+        "State",
+        "Command"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Behaviour current state pe depend karta hai. Har state (Idle, HasCoin, Dispensing, SoldOut) ek class jo apne actions handle kare aur next state set kare.",
+      "en": "Behaviour depends on the current state. Each state (Idle, HasCoin, Dispensing, SoldOut) is a class that handles its actions and sets the next state."
+    }
+  },
+  {
+    "id": "lld-05-behavioral-02",
+    "section": "lld",
+    "topic": "05-behavioral",
+    "level": "easy",
+    "q": {
+      "hi": "Text editor me Ctrl+Z / Ctrl+Y (undo/redo) chahiye. Kaunsa pattern?",
+      "en": "A text editor needs Ctrl+Z / Ctrl+Y (undo/redo). Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Command (har action ek object jisme execute + undo, history stack me)",
+        "Iterator",
+        "Observer",
+        "Facade"
+      ],
+      "en": [
+        "Command (each action is an object with execute + undo, kept on a history stack)",
+        "Iterator",
+        "Observer",
+        "Facade"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Action ko object banane se use stack me rakh sakte ho, undo pe pop karke `undo()`. Redo ke liye doosra stack.",
+      "en": "Turning an action into an object lets you push it on a stack and pop it for `undo()`. A second stack handles redo."
+    }
+  },
+  {
+    "id": "lld-05-behavioral-03",
+    "section": "lld",
+    "topic": "05-behavioral",
+    "level": "medium",
+    "q": {
+      "hi": "Strategy aur State ka structure same dikhta hai. Asli farak kya hai?",
+      "en": "Strategy and State look structurally the same. What is the real difference?"
+    },
+    "options": {
+      "hi": [
+        "Strategy me states hoti hain, State me algorithms",
+        "State sirf inheritance se banta hai, Strategy sirf composition se",
+        "Koi farak nahi",
+        "Strategy client choose karta hai; State me object khud apni state badalta hai (transitions andar)"
+      ],
+      "en": [
+        "Strategy holds states, State holds algorithms",
+        "State is built only with inheritance, Strategy only with composition",
+        "There is no difference",
+        "The client chooses the Strategy; in State the object switches its own state (transitions live inside)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Uber pricing (client surge/normal choose kare) = Strategy. Order Placed → Preparing → Delivered (object khud aage badhe) = State.",
+      "en": "Uber pricing (the client picks surge/normal) = Strategy. Order Placed → Preparing → Delivered (the object moves itself) = State."
+    }
+  },
+  {
+    "id": "lld-05-behavioral-04",
+    "section": "lld",
+    "topic": "05-behavioral",
+    "level": "medium",
+    "q": {
+      "hi": "ATM cash dispenser: 2000 ka handler jitne note de sakta hai de, baaki 500 wale ko pass kare, phir 100. Kaunsa pattern?",
+      "en": "ATM cash dispenser: the 2000 handler gives as many notes as it can and passes the rest to 500, then 100. Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Observer",
+        "Chain of Responsibility",
+        "Mediator",
+        "Template Method"
+      ],
+      "en": [
+        "Observer",
+        "Chain of Responsibility",
+        "Mediator",
+        "Template Method"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Request handlers ki chain se guzarti hai, har handler kuch kare ya aage pass kare. Naya denomination = chain me ek link. End pe default handler zaroor rakho.",
+      "en": "The request passes through a chain of handlers, each handling part or passing it on. A new denomination = one more link. Always keep a default handler at the end."
+    }
+  },
+  {
+    "id": "lld-05-behavioral-05",
+    "section": "lld",
+    "topic": "05-behavioral",
+    "level": "hard",
+    "q": {
+      "hi": "Editor code: `void run(Command c) { c.execute(); undoStack.push(c); }` Redo stack kabhi clear nahi hota. User ne 2 baar undo kiya, phir naya text type kiya, phir Redo dabaya. Kya hoga?",
+      "en": "Editor code: `void run(Command c) { c.execute(); undoStack.push(c); }` The redo stack is never cleared. The user undoes twice, types new text, then presses Redo. What happens?"
+    },
+    "options": {
+      "hi": [
+        "Purana undo kiya hua command naye text ke upar dobara chal jaayega aur document galat state me pahunchega. Naya command run hone pe redo stack clear karna chahiye",
+        "Kuch nahi, redo stack apne aap invalid ho jaata hai",
+        "StackOverflowError aayega",
+        "Undo kaam karna band kar dega, redo theek chalega"
+      ],
+      "en": [
+        "An old undone command re-applies on top of the new text and the document ends up in a wrong state. The redo stack must be cleared when a new command runs",
+        "Nothing, the redo stack invalidates itself",
+        "A StackOverflowError is thrown",
+        "Undo stops working, redo works fine"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Command pattern ki common galti: naya command aaye to redo history ab valid nahi rehti. Aur undo ke liye zaroori purana data (deleted text) command me save karo.",
+      "en": "A common Command mistake: once a new command runs, redo history is no longer valid. Also store the data undo needs (like deleted text) in the command."
+    }
+  },
+  {
+    "id": "lld-05-behavioral-06",
+    "section": "lld",
+    "topic": "05-behavioral",
+    "level": "hard",
+    "q": {
+      "hi": "Cart me har hafte naye item types add hote hain (Grocery, Furniture, GiftCard...), par operations (tax, shipping) kam badalte hain. Kya Visitor pattern lagaoge?",
+      "en": "New item types join the cart every week (Grocery, Furniture, GiftCard...), but operations (tax, shipping) rarely change. Would you use Visitor?"
+    },
+    "options": {
+      "hi": [
+        "Haan, Visitor naye types add karne ke liye hi bana hai",
+        "Haan, aur visitor ke andar `instanceof` se type check karo",
+        "Nahi. Visitor tab achha jab types stable hon aur operations badhein; yahan har naye type pe saare visitors edit karne padenge",
+        "Nahi, Singleton use karo"
+      ],
+      "en": [
+        "Yes, Visitor exists exactly for adding new types",
+        "Yes, and type-check with `instanceof` inside the visitor",
+        "No. Visitor fits when types are stable and operations grow; here every new type means editing every visitor",
+        "No, use Singleton"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Visitor ka trade-off: naya operation = nayi visitor class (sasta), naya type = har visitor badlo (mehenga). `instanceof` likhna double dispatch ka point hi khatam karta hai.",
+      "en": "Visitor's trade-off: a new operation = a new visitor class (cheap), a new type = edit every visitor (expensive). Writing `instanceof` defeats the point of double dispatch."
+    }
+  }
+]

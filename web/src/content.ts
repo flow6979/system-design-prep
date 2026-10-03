@@ -1,6 +1,6 @@
 import { parse as parseYaml } from 'yaml'
 
-export type Kind = 'topic' | 'question' | 'lld' | 'agent'
+export type Kind = 'topic' | 'question' | 'lld' | 'java' | 'agent'
 
 export interface ChecklistItem {
   id: string
@@ -31,6 +31,12 @@ const topicFiles = import.meta.glob('../../content/01-topics/*.md', {
 }) as Record<string, string>
 
 const lldFiles = import.meta.glob('../../content/03-lld/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
+
+const javaFiles = import.meta.glob('../../content/04-java/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -107,6 +113,7 @@ function build(files: Record<string, string>, kind: Kind): Page[] {
 export const topics = build(topicFiles, 'topic')
 export const questions = build(questionFiles, 'question')
 export const lld = build(lldFiles, 'lld')
+export const java = build(javaFiles, 'java')
 
 // ---- Agentic AI (the labs that used to be the separate Agent Lab site) ----
 type T2 = { hi: string; en: string }
@@ -261,7 +268,7 @@ export function agentPageFor(path: string): Page {
   return match ?? agentGeneral
 }
 
-export const allPages = [...topics, ...questions, ...lld, ...agentPages]
+export const allPages = [...topics, ...questions, ...lld, ...java, ...agentPages]
 export const pageBySlug = new Map(allPages.map((p) => [p.slug, p]))
 
 const enBySlug = new Map<string, Page>(build(enFiles, 'topic').map((p) => [p.slug, p] as const))
@@ -295,7 +302,7 @@ export const allItems = allPages.flatMap((p) => p.checklist)
 
 export function route(p: Pick<Page, 'kind' | 'slug' | 'path'>): string {
   if (p.kind === 'agent') return `#${p.path ?? '/agents'}`
-  return `#/${{ topic: 'topic', question: 'q', lld: 'lld' }[p.kind]}/${p.slug}`
+  return `#/${{ topic: 'topic', question: 'q', lld: 'lld', java: 'java' }[p.kind as 'topic' | 'question' | 'lld' | 'java']}/${p.slug}`
 }
 
 /** Map a relative .md link inside content to an in-app hash route */
@@ -312,6 +319,7 @@ const REVISION_HEADINGS: Record<Kind, RegExp> = {
   topic: /^## (Interview me bolo|Common galtiyan|Say this in the interview|Common mistakes)/,
   // LLD: only the starred (most-asked) patterns
   lld: /^## ⭐/,
+  java: /^## ⭐/,
   agent: /^$/,
 }
 

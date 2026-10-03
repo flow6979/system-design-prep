@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { agentPages, lld, localize, questions, route, topics, type Page } from '../content'
+import { agentPages, java, lld, localize, questions, route, topics, type Page } from '../content'
 import { readLocal, useStore, writeLocal } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
@@ -23,7 +23,8 @@ function Item({ page, active }: { page: Page; active: boolean }) {
 function Group({ label, pages, current, match, filtering }: { label: string; pages: Page[]; current: string; match: (p: Page) => boolean; filtering: boolean }) {
   const { progress } = useStore()
   const key = `hld.side.${label}`
-  const [closed, setClosed] = useState<boolean>(() => readLocal(key, false))
+  // Groups start collapsed so the sidebar stays short; the open state is remembered
+  const [closed, setClosed] = useState<boolean>(() => readLocal(key, true))
   const s = groupStats(pages, progress)
   const shown = pages.filter(match)
   if (!shown.length) return null
@@ -69,14 +70,24 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
         <Icon name="home" size={17} />
         Dashboard
       </a>
+      <a href="#/plan" className={`side-item home ${current === 'plan' ? 'active' : ''}`}>
+        <Icon name="plan" size={17} />
+        {tr('Mera plan', 'My plan')}
+      </a>
       <a href="#/quiz" className={`side-item home ${current === 'quiz' ? 'active' : ''}`}>
         <Icon name="quiz" size={17} />
-        Pattern quiz
+        Quiz
       </a>
       {lld[0] && (
         <a href={route(lld[0])} className={`side-item home ${lld.some((p) => p.slug === current) ? 'active' : ''}`}>
           <Icon name="code" size={17} />
           LLD · Design patterns
+        </a>
+      )}
+      {java[0] && (
+        <a href={route(java[0])} className={`side-item home ${java.some((p) => p.slug === current) ? 'active' : ''}`}>
+          <Icon name="cup" size={17} />
+          Java
         </a>
       )}
       <a href="#/agents" className={`side-item home ${current.startsWith('agents') ? 'active' : ''}`}>
@@ -94,21 +105,9 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
       <Group label="Topics" pages={topics} current={current} match={match} filtering={!!f} />
       <Group label="Questions · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} filtering={!!f} />
       <Group label="LLD · Design patterns" pages={lld} current={current} match={match} filtering={!!f} />
+      <Group label="Java" pages={java} current={current} match={match} filtering={!!f} />
       <Group label="Questions · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} filtering={!!f} />
       <Group label="Agentic AI" pages={agentPages} current={current} match={match} filtering={!!f} />
-      {!f && (
-        <div className="side-group">
-          <a href="#/agents/docs" className="side-item">
-            {tr('Agentic AI docs', 'Agentic AI docs')}
-          </a>
-          <a href="#/agents/history" className="side-item">
-            {tr('Lab history', 'Lab history')}
-          </a>
-          <a href="#/agents/presenter" className="side-item">
-            Presenter
-          </a>
-        </div>
-      )}
     </nav>
   )
 }

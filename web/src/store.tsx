@@ -1,13 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth'
-import { Bytes, deleteDoc, deleteField, doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { Bytes, arrayRemove, arrayUnion, deleteDoc, deleteField, doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db, firebaseEnabled } from './firebase'
 
 type Progress = Record<string, boolean>
 
+/** Quiz results kept small: a = question id → 1 right / 0 wrong (last attempt), s = starred ids */
+export interface QuizState {
+  a: Record<string, 0 | 1>
+  s: string[]
+}
+const LOCAL_QUIZ = 'hld.quiz.state'
+
 export interface Profile {
   /** yyyy-mm-dd; shows a countdown on the dashboard */
   interviewDate?: string
+  /** personal study plan inputs (Plan tab) */
+  plan?: { tracks: ('hld' | 'lld' | 'java' | 'agents')[]; hours: number; level: 'junior' | 'mid' | 'senior'; days?: number }
 }
 
 interface Store {
@@ -16,6 +25,9 @@ interface Store {
   progress: Progress
   profile: Profile
   saveProfile: (p: Profile) => Promise<void>
+  quiz: QuizState
+  answerQuiz: (id: string, correct: boolean) => void
+  starQuiz: (id: string, starred: boolean) => void
   toggle: (id: string, done: boolean) => void
   loadNote: (slug: string) => Promise<string>
   saveNote: (slug: string, text: string) => Promise<void>
@@ -72,6 +84,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Last text written per note, so unchanged notes are never written again
   const savedNotes = useRef(new Map<string, string>())
   const [profile, setProfile] = useState<Profile>(() => readLocal('hld.profile', {}))
+  const [quiz, setQuiz] = useState<QuizState>(() => readLocal(LOCAL_QUIZ, { a: {}, s: [] }))
 
   useEffect(() => {
     if (!auth) return
@@ -86,6 +99,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!user || !db) {
       setProgress(readLocal(LOCAL_PROGRESS, {}))
       setProfile(readLocal('hld.profile', {}))
+      setQuiz(readLocal(LOCAL_QUIZ, { a: {}, s: [] }))
       return
     }
     savedNotes.current.clear()
@@ -97,6 +111,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .then(() => writeLocal(LOCAL_PROGRESS, {}))
         .catch(() => {})
     }
+    // Quiz answers and stars made while logged out move into the account once
+    const localQuiz = readLocal<QuizState>(LOCAL_QUIZ, { a: {}, s: [] })
+    if (Object.keys(localQuiz.a).length || localQuiz.s.length) {
+      setDoc(ref, { quiz: { a: localQuiz.a, ...(localQuiz.s.length ? { s: arrayUnion(...localQuiz.s) } : {}) } }, { merge: true })
+        .then(() => writeLocal(LOCAL_QUIZ, { a: {}, s: [] }))
+        .catch(() => {})
+    }
     return onSnapshot(ref, (snap) => {
       const stored = (snap.data()?.progress as Progress) ?? {}
       // Older saves kept unticked items as `false`; drop them once to shrink the document
@@ -104,6 +125,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (stale.length) setDoc(ref, { progress: Object.fromEntries(stale.map((k) => [k, deleteField()])) }, { merge: true }).catch(() => {})
       setProgress(Object.fromEntries(Object.entries(stored).filter(([, v]) => v)))
       setProfile((snap.data()?.profile as Profile) ?? {})
+      const q = snap.data()?.quiz as Partial<QuizState> | undefined
+      setQuiz({ a: q?.a ?? {}, s: q?.s ?? [] })
     })
   }, [user])
 
@@ -162,13 +185,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [user],
   )
 
+  const answerQuiz = useCallback(
+    (id: string, correct: boolean) => {
+      const v: 0 | 1 = correct ? 1 : 0
+      setQuiz((q) => {
+        const next = { ...q, a: { ...q.a, [id]: v } }
+        if (!user) writeLocal(LOCAL_QUIZ, next)
+        return next
+      })
+      if (user && db) setDoc(doc(db, 'users', user.uid), { quiz: { a: { [id]: v } } }, { merge: true }).catch(() => {})
+    },
+    [user],
+  )
+
+  const starQuiz = useCallback(
+    (id: string, starred: boolean) => {
+      setQuiz((q) => {
+        const next = { ...q, s: starred ? [...new Set([...q.s, id])] : q.s.filter((x) => x !== id) }
+        if (!user) writeLocal(LOCAL_QUIZ, next)
+        return next
+      })
+      if (user && db) setDoc(doc(db, 'users', user.uid), { quiz: { s: starred ? arrayUnion(id) : arrayRemove(id) } }, { merge: true }).catch(() => {})
+    },
+    [user],
+  )
+
   const logout = useCallback(async () => {
     if (auth) await signOut(auth)
   }, [])
 
   const value = useMemo(
-    () => ({ user, authReady, progress, profile, saveProfile, toggle, loadNote, saveNote, logout }),
-    [user, authReady, progress, profile, saveProfile, toggle, loadNote, saveNote, logout],
+    () => ({ user, authReady, progress, profile, saveProfile, quiz, answerQuiz, starQuiz, toggle, loadNote, saveNote, logout }),
+    [user, authReady, progress, profile, saveProfile, quiz, answerQuiz, starQuiz, toggle, loadNote, saveNote, logout],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

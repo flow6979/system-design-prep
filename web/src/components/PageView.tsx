@@ -1,4 +1,4 @@
-import { allPages, lld, localize, pageBySlug, revisionBody, route, type Page } from '../content'
+import { allPages, java, lld, localize, pageBySlug, revisionBody, route, type Page } from '../content'
 import { useLang, useTr } from '../i18n'
 import { Markdown } from './Markdown'
 import { Checklist } from './Checklist'
@@ -33,9 +33,12 @@ export function PageView({
   const page = localize(source, lang)
   const related = page.related.map((s) => pageBySlug.get(s)).filter((p): p is Page => !!p)
   const isLld = page.kind === 'lld'
+  // LLD and Java are multi-page sections shown with sub-tabs, a star filter and a jump list
+  const tabbed = isLld || page.kind === 'java'
+  const tabs = page.kind === 'java' ? java : lld
   const body = revision ? revisionBody(page) : page.body
 
-  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', agent: 'Agentic AI' }[page.kind]
+  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', java: 'Java', agent: 'Agentic AI' }[page.kind]
   const revisionNote = {
     question: tr(
       'Revision mode: sirf clarifying sawal, decision table aur 2-minute recap dikh rahe hain.',
@@ -46,16 +49,17 @@ export function PageView({
       'Revision mode: showing only the summary, interview lines and common mistakes.',
     ),
     lld: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) patterns dikh rahe hain.', 'Showing only ⭐ patterns (the most asked ones).'),
+    java: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
     agent: '',
   }[page.kind]
 
   return (
     <article className="page">
-      {isLld && (
-        <nav className="subtabs" aria-label="LLD sections">
-          {lld.map((p) => (
+      {tabbed && (
+        <nav className="subtabs" aria-label="Sections">
+          {tabs.map((p) => (
             <a key={p.slug} href={route(p)} className={p.slug === page.slug ? 'on' : ''} aria-current={p.slug === page.slug ? 'page' : undefined}>
-              {localize(p, lang).title.replace(/ (Patterns|Principles|Basics)$/, '')}
+              {localize(p, lang).title.replace(/ (Patterns|Principles|Basics)$/, '').replace(/:.*$/, '')}
             </a>
           ))}
         </nav>
@@ -68,7 +72,7 @@ export function PageView({
           {isLld && <LangToggle value={codeLang} onChange={onCodeLang} />}
           <label className="toggle">
             <input type="checkbox" checked={revision} onChange={onToggleRevision} />
-            <span>{isLld ? tr('Sirf ⭐ dikhao', 'Only ⭐') : 'Revision mode'}</span>
+            <span>{tabbed ? tr('Sirf ⭐ dikhao', 'Only ⭐') : 'Revision mode'}</span>
           </label>
         </div>
       </div>
@@ -85,7 +89,7 @@ export function PageView({
         </div>
       )}
       {revision && <p className="revision-note small">{revisionNote}</p>}
-      {isLld && (
+      {tabbed && (
         <div className="jump row wrap">
           {sections(body).map((t) => (
             <button key={t} className={`chip ${t.startsWith('⭐') ? 'star' : ''}`} onClick={() => jumpTo(t)}>
@@ -94,7 +98,8 @@ export function PageView({
           ))}
         </div>
       )}
-      <Markdown text={body} />
+      {/* Java pages only have Java code, so the Java/C++ switch must not hide it */}
+      <Markdown text={body} showAllCode={page.kind === 'java'} />
       <Checklist page={page} />
       <PrevNext page={page} />
       {related.length > 0 && (

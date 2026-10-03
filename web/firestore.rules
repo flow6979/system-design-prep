@@ -4,6 +4,23 @@ service cloud.firestore {
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
+    // Shared quiz bank: questions Gemini generated once, reused by everyone.
+    // Anyone can read; logged-in users can add well-formed questions; nobody can edit or delete.
+    match /quiz/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.v == 1
+        && request.resource.data.section in ['hld', 'lld', 'java', 'agents']
+        && request.resource.data.topic is string && request.resource.data.topic.size() < 80
+        && request.resource.data.answer is int && request.resource.data.answer >= 0 && request.resource.data.answer <= 3
+        && request.resource.data.options.hi.size() == 4 && request.resource.data.options.en.size() == 4
+        && request.resource.data.q.hi is string && request.resource.data.q.hi.size() < 2000
+        && request.resource.data.q.en is string && request.resource.data.q.en.size() < 2000
+        && request.resource.data.keys().hasOnly(['v', 'section', 'topic', 'level', 'q', 'options', 'answer', 'why', 'by', 'at']);
+      allow update, delete: if false;
+    }
+
     // Each user can read and write only their own progress, profile and notes
     match /users/{uid} {
       allow read, write: if isOwner(uid);

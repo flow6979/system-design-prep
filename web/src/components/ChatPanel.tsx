@@ -13,12 +13,14 @@ const QUICK: Record<Lang, Record<Page['kind'], string[]>> = {
   hi: {
     topic: ['Isko aur simple example se samjhao', 'Mujhe 3 interview sawal poochho, ek-ek karke', 'Main explain karta hoon, tum grade karna'],
     lld: ['Is pattern ka ek aur real-life example do', 'Ek chhota LLD problem do jisme ye pattern lage', 'Mera code review karo (main paste karta hoon)'],
+    java: ['Isko ek chhote code example se samjhao', 'Is topic pe 3 interview sawal poochho, ek-ek karke', 'Iska output kya hoga, aisa ek tricky sawal do'],
     agent: ['Is lab ko simple example se samjhao', 'Interview me agentic AI pe kya pooch sakte hain?', 'Production me ye agent kahan fail ho sakta hai?'],
     question: ['Is design ka sabse weak point kya hai?', 'Interviewer is design pe kaunse 5 follow-up poochega?', 'Step 10 ke decisions ka ek aur alternative batao'],
   },
   en: {
     topic: ['Explain this with a simpler example', 'Ask me 3 interview questions, one at a time', 'Let me explain it, then grade me'],
     lld: ['Give me another real-life example of this pattern', 'Give me a small LLD problem that needs this pattern', 'Review my code (I will paste it)'],
+    java: ['Explain this with a small code example', 'Ask me 3 interview questions on this, one at a time', 'Give me a tricky output-prediction question'],
     agent: ['Explain this lab with a simple example', 'What can interviewers ask about agentic AI here?', 'Where can this agent fail in production?'],
     question: ['What is the weakest point of this design?', 'Which 5 follow-ups will the interviewer ask on this design?', 'Give another alternative for the Step 10 decisions'],
   },

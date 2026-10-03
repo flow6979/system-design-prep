@@ -38,6 +38,12 @@ function Toolbar() {
         <span style={{ fontWeight: 600 }}>{app.offline ? t.offlineChip : 'Gemini'}</span>
         {!app.offline && <span className="mono hide-sm" style={{ color: 'var(--muted)' }}>{app.modelFor('gemini')}</span>}
       </button>
+      <nav className="agent-links" aria-label="Agentic AI">
+        <Link to="/agents">Topics</Link>
+        <Link to="/agents/docs">Docs</Link>
+        <Link to="/agents/history">History</Link>
+        <Link to="/agents/presenter">Presenter</Link>
+      </nav>
       <span className="spacer" />
       {activePage && (
         <>

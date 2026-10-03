@@ -8,6 +8,7 @@ import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './components/Dashboard'
 import { PageView } from './components/PageView'
 import { Quiz } from './components/Quiz'
+import { Planner } from './components/Planner'
 import { NotesPanel } from './components/NotesPanel'
 import { ChatPanel } from './components/ChatPanel'
 import { AuthModal } from './components/AuthModal'
@@ -38,11 +39,12 @@ function useHashRoute() {
   }, [])
   const parts = hash.replace(/^#\/?/, '').split('/')
   if (parts[0] === 'quiz') return { view: 'quiz' as const, slug: 'quiz' }
+  if (parts[0] === 'plan') return { view: 'plan' as const, slug: 'plan' }
   if (parts[0] === 'agents') {
     const path = `/${parts.join('/')}`
     return { view: 'agents' as const, slug: agentPageFor(path).slug, path }
   }
-  if ((parts[0] === 'topic' || parts[0] === 'q' || parts[0] === 'lld') && parts[1]) return { view: 'page' as const, slug: parts[1] }
+  if ((parts[0] === 'topic' || parts[0] === 'q' || parts[0] === 'lld' || parts[0] === 'java') && parts[1]) return { view: 'page' as const, slug: parts[1] }
   return { view: 'home' as const, slug: '' }
 }
 
@@ -102,7 +104,7 @@ export function App() {
   useEffect(() => writeLocal('hld.revision', revision), [revision])
 
   useEffect(() => {
-    document.title = page ? `${localize(page, lang).title} · Viewinter` : view === 'quiz' ? 'Pattern quiz · Viewinter' : 'Viewinter'
+    document.title = page ? `${localize(page, lang).title} · Viewinter` : view === 'quiz' ? 'Quiz · Viewinter' : view === 'plan' ? 'Plan · Viewinter' : 'Viewinter'
     document.querySelector('.main')?.scrollTo(0, 0)
     window.scrollTo(0, 0)
   }, [page, view, lang])
@@ -144,9 +146,6 @@ export function App() {
         </a>
         <div className="spacer" />
         <LangSwitch />
-        <div className="overall" title={`${done} / ${allItems.length}`}>
-          <span className="mono small">{overall}%</span>
-        </div>
         <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={tr('Theme badlo', 'Toggle theme')}>
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
@@ -195,6 +194,7 @@ export function App() {
 
         <main className="main">
           {view === 'home' && <Dashboard />}
+          {view === 'plan' && <Planner />}
           {view === 'quiz' && <Quiz hasKey={hasKey} onOpenSettings={() => setShowSettings(true)} />}
           {view === 'page' && !page && (
             <div className="empty-state">
