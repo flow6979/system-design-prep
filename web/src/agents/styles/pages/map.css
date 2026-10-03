@@ -3,7 +3,8 @@
 @container agents (max-width: 1160px) { .map-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container agents (max-width: 600px) { .map-grid { grid-template-columns: minmax(0, 1fr); } }
 
-.map-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; display: flex; flex-direction: column; gap: 10px; min-height: 280px; }
+.map-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); transition: border-color .15s; }
+.map-card:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .map-card.hl { border: 2px solid var(--teal); }
 .map-row {
   display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 8px; font-size: 14px;

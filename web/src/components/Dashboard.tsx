@@ -49,7 +49,8 @@ function Bar({ value }: { value: number }) {
 }
 
 export function Dashboard() {
-  const { progress, profile } = useStore()
+  const { progress, profile, user } = useStore()
+  const firstName = user?.displayName?.split(' ')[0]
   const { lang } = useLang()
   const tr = useTr()
   const daysLeft = profile.interviewDate ? Math.ceil((new Date(`${profile.interviewDate}T00:00:00`).getTime() - Date.now()) / 86400000) : null
@@ -72,11 +73,14 @@ export function Dashboard() {
 
   return (
     <div className="dashboard">
-      {daysLeft !== null && daysLeft >= 0 && (
-        <p className="countdown">
-          <span className="mono">{daysLeft}</span> {daysLeft === 1 ? tr('din baaki interview me', 'day to your interview') : tr('din baaki interview me', 'days to your interview')}
-        </p>
-      )}
+      <header className="greet">
+        <h1>{firstName ? tr(`Namaste, ${firstName}`, `Hi, ${firstName}`) : tr('Namaste', 'Welcome')}</h1>
+        {daysLeft !== null && daysLeft >= 0 && (
+          <p className="countdown">
+            <span className="mono">{daysLeft}</span> {daysLeft === 1 ? tr('din baaki interview me', 'day to your interview') : tr('din baaki interview me', 'days to your interview')}
+          </p>
+        )}
+      </header>
       {next && (
         <a className="continue" href={route(next)}>
           <span className="continue-label">{tr('Agla', 'Next')}</span>

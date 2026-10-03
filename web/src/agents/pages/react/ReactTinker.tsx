@@ -1,4 +1,5 @@
 // ReAct lab, Tinker tab: TESTING.md exercises ko live controls se asli lab pe chalao aur baseline se compare karo.
+import { openSettings } from '../../../gemini'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LabError } from '../../components/LabError'
@@ -142,9 +143,9 @@ export default function ReactTinker() {
           <h3 id="e4" style={{ fontSize: 17 }}>{t.e4t}</h3>
           <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>{t.e4d}</p>
           <Seg label={t.modeLabel} value={mode} onChange={setMode} options={[{ value: 'text', label: 'Text ReAct' }, { value: 'native', label: 'Native' }]} />
-          <Link to="/agents/settings" className="row" style={{ gap: 6, fontSize: 13 }}>
+          <button type="button" onClick={openSettings} className="row" style={{ gap: 6, fontSize: 13 }}>
             <Icon name="settings" size={14} /> {t.settings}
-          </Link>
+          </button>
         </section>
       </div>
 

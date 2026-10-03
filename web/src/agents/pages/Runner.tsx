@@ -70,7 +70,7 @@ export default function Runner() {
     return (
       <div id="main" className="page col">
         <h1 className="h1">{t.notFound}</h1>
-        <Link className="btn" to="/agents/map" style={{ alignSelf: 'flex-start' }}>Map</Link>
+        <Link className="btn" to="/agents" style={{ alignSelf: 'flex-start' }}>Map</Link>
       </div>
     )
 

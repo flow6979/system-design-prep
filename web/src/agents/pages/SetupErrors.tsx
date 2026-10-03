@@ -1,5 +1,6 @@
 // Errors gallery: har error kind jo app asli mein dikhata hai (labapi.registry.classify_error).
 // LabError card "/errors#<kind>" pe link karta hai, isliye har card ka id = kind.
+import { openSettings } from '../../gemini'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { LabError } from '../components/LabError'
@@ -84,9 +85,9 @@ export default function SetupErrors() {
               </div>
               <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <span className="eyebrow">{t.fixes}:</span>
-                <Link to="/agents/settings" className="btn btn-sm">{t.settings}</Link>
+                <button type="button" onClick={openSettings} className="btn btn-sm">{t.settings}</button>
                 {(it.kind === 'rate_limit' || it.kind === 'server' || it.kind === 'auth') && (
-                  <Link to="/agents/settings" className="btn btn-sm">{t.addFallback}</Link>
+                  <button type="button" onClick={openSettings} className="btn btn-sm">{t.addFallback}</button>
                 )}
                 <button type="button" className="btn btn-sm" onClick={offline} disabled={app.provider === 'offline'}>
                   {app.provider === 'offline' ? t.offlineDone : t.offline}

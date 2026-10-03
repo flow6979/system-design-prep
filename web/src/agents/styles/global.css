@@ -47,9 +47,10 @@
 /* Breakpoints follow the space the section really gets (sidebar and panel take some), not the viewport.
    The explain card stays outside this box so position: fixed still works. */
 .agents-container { container: agents / inline-size; }
-.agents-root button, .agents-root input, .agents-root select, .agents-root textarea { font-family: inherit; font-size: inherit; color: inherit; }
-.agents-root h1, .agents-root h2, .agents-root h3 { font-family: var(--f-display); margin: 0; }
-.agents-root code, .agents-root pre, .agents-root .mono { font-family: var(--f-mono); }
+/* :where() keeps these at zero specificity so each component's own font sizes still win */
+:where(.agents-root) :where(button, input, select, textarea) { font-family: inherit; font-size: inherit; color: inherit; }
+:where(.agents-root) :where(h1, h2, h3) { font-family: var(--f-display); margin: 0; }
+:where(.agents-root) :where(code, pre, .mono) { font-family: var(--f-mono); }
 
 @keyframes al-pulse {
   0% { box-shadow: 0 0 0 0 rgba(11, 107, 102, 0.45); }
@@ -172,3 +173,6 @@
 .provider-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 0.82rem; color: var(--ink); text-decoration: none; white-space: nowrap; }
 .provider-chip:hover { border-color: var(--accent); color: var(--ink); }
 .agent-extra { max-width: 1200px; margin: 28px auto 0; display: flex; flex-direction: column; gap: 16px; }
+
+.agents-root .provider-chip { font-size: 0.82rem; cursor: pointer; }
+.agents-root .map-grid { align-items: start; }

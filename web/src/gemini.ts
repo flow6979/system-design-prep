@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { readLocal, writeLocal } from './store'
 
 export interface GeminiSettings {
@@ -19,7 +20,45 @@ export const DEFAULT_MODEL = 'gemini-flash-latest'
 export const getGeminiSettings = (): GeminiSettings =>
   readLocal(SETTINGS_KEY, { apiKey: '', model: DEFAULT_MODEL })
 
-export const saveGeminiSettings = (s: GeminiSettings) => writeLocal(SETTINGS_KEY, s)
+// One place for the Gemini key: the top-bar settings. Everything else (chat, quiz, agent labs) reads it
+// and listens for this event, so a change applies everywhere at once.
+export const GEMINI_EVENT = 'viewinter:gemini'
+export const OPEN_SETTINGS_EVENT = 'viewinter:open-settings'
+
+export type ConnectionStatus = { state: 'ok' | 'error'; model: string; message?: string; at: number }
+const STATUS_KEY = 'hld.gemini.status'
+
+export const getConnectionStatus = (): ConnectionStatus | null => readLocal(STATUS_KEY, null)
+
+function setConnectionStatus(status: ConnectionStatus | null) {
+  writeLocal(STATUS_KEY, status)
+  window.dispatchEvent(new CustomEvent(GEMINI_EVENT))
+}
+
+export function saveGeminiSettings(s: GeminiSettings) {
+  const prev = getGeminiSettings()
+  writeLocal(SETTINGS_KEY, s)
+  // A new key or model has not been tested yet
+  if (prev.apiKey !== s.apiKey || prev.model !== s.model) setConnectionStatus(null)
+  else window.dispatchEvent(new CustomEvent(GEMINI_EVENT))
+}
+
+/** Lets any screen (e.g. an agent lab) open the central settings dialog */
+export const openSettings = () => window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT))
+
+/** Sends one tiny request with the saved key and records whether it worked */
+export async function testConnection(): Promise<ConnectionStatus> {
+  try {
+    await streamGemini('Reply with the single word OK.', [{ role: 'user', text: 'ping' }], () => {})
+    const status: ConnectionStatus = { state: 'ok', model: getGeminiSettings().model, at: Date.now() }
+    setConnectionStatus(status)
+    return status
+  } catch (e) {
+    const status: ConnectionStatus = { state: 'error', model: getGeminiSettings().model, message: (e as Error).message, at: Date.now() }
+    setConnectionStatus(status)
+    return status
+  }
+}
 
 // Errors surface in the UI, so they follow the language switch
 const L = (hi: string, en: string) => (readLocal<string>('hld.lang', 'hi') === 'en' ? en : hi)
@@ -74,7 +113,8 @@ export async function streamGemini(
     const fallback = pickModel(await listModels(apiKey).catch(() => []))
     if (fallback && fallback !== model) {
       model = fallback
-      saveGeminiSettings({ apiKey, model })
+      writeLocal(SETTINGS_KEY, { apiKey, model })
+      window.dispatchEvent(new CustomEvent(GEMINI_EVENT))
       res = await request(model, apiKey, system, history, signal)
     }
   }
@@ -160,4 +200,20 @@ export async function generateJson<T>(prompt: string, signal?: AbortSignal): Pro
   } catch {
     throw new Error(L('AI ka jawab samajh nahi aaya. Dobara try karo.', 'Could not read the AI reply. Please try again.'))
   }
+}
+
+/** Current key/model and last test result; re-renders when settings change anywhere */
+export function useGemini(): { settings: GeminiSettings; status: ConnectionStatus | null } {
+  const read = () => ({ settings: getGeminiSettings(), status: getConnectionStatus() })
+  const [state, setState] = useState(read)
+  useEffect(() => {
+    const on = () => setState(read())
+    window.addEventListener(GEMINI_EVENT, on)
+    window.addEventListener('storage', on)
+    return () => {
+      window.removeEventListener(GEMINI_EVENT, on)
+      window.removeEventListener('storage', on)
+    }
+  }, [])
+  return state
 }

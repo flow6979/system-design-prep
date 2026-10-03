@@ -6,15 +6,13 @@ import { ExplainCard, GuideProvider, useGuideCtx } from './guide/guide'
 import { useT } from './i18n'
 import { common } from './i18n/common'
 import { bridge } from './lib/worker'
-import { providerById } from './lib/providers'
+import { openSettings } from '../gemini'
 import { AppProvider, useApp } from './state/app'
-import Setup from './pages/Setup'
 import './styles/global.css'
 
 const Home = lazy(() => import('./pages/Home'))
 const Section = lazy(() => import('./pages/Section'))
 const Docs = lazy(() => import('./pages/Docs'))
-const Settings = lazy(() => import('./pages/Settings'))
 const SetupErrors = lazy(() => import('./pages/SetupErrors'))
 const History = lazy(() => import('./pages/History'))
 const Presenter = lazy(() => import('./pages/Presenter'))
@@ -31,15 +29,15 @@ function Toolbar() {
   const app = useApp()
   const t = useT(common)
   const { activePage, progress, setStep, showExplain } = useGuideCtx()
-  const prov = providerById(app.provider)
-  const dot = app.connection === 'ok' || app.provider === 'offline' ? 'var(--green)' : app.connection === 'error' ? 'var(--red)' : 'var(--yellow)'
+  // Which LLM the labs use comes from the central Gemini settings; the chip just reports it
+  const dot = app.offline ? 'var(--warn)' : app.connection === 'error' ? 'var(--red)' : 'var(--green)'
   return (
     <div className="agent-toolbar">
-      <Link to="/agents/settings" className="provider-chip" title={t.settings}>
+      <button type="button" className="provider-chip" onClick={openSettings} title="Gemini">
         <span style={{ width: 8, height: 8, borderRadius: 99, background: dot }} />
-        <span style={{ fontWeight: 600 }}>{prov ? prov.name : t.notConnected}</span>
-        {prov && prov.id !== 'offline' && <span className="mono hide-sm" style={{ color: 'var(--muted)' }}>{app.modelFor(prov.id)}</span>}
-      </Link>
+        <span style={{ fontWeight: 600 }}>{app.offline ? t.offlineChip : 'Gemini'}</span>
+        {!app.offline && <span className="mono hide-sm" style={{ color: 'var(--muted)' }}>{app.modelFor('gemini')}</span>}
+      </button>
       <span className="spacer" />
       {activePage && (
         <>
@@ -56,9 +54,6 @@ function Toolbar() {
           </button>
         </>
       )}
-      <Link to="/agents/settings" className="btn btn-sm">
-        {t.settings}
-      </Link>
     </div>
   )
 }
@@ -78,10 +73,9 @@ function Shell() {
       <Toolbar />
       <Suspense fallback={<div className="page muted">...</div>}>
         <Routes>
-          <Route path="/agents" element={<Setup />} />
+          <Route path="/agents" element={<Home />} />
+          <Route path="/agents/map" element={<Navigate to="/agents" replace />} />
           <Route path="/agents/errors" element={<SetupErrors />} />
-          <Route path="/agents/settings" element={<Settings />} />
-          <Route path="/agents/map" element={<Home />} />
           <Route path="/agents/section/:sectionId" element={<Section />} />
           <Route path="/agents/docs/*" element={<Docs />} />
           <Route path="/agents/lab/react/:tab?" element={<ReactLab />} />

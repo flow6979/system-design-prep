@@ -2,7 +2,7 @@ import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { allItems, pageBySlug } from './content'
 import { useStore, readLocal, writeLocal } from './store'
-import { getGeminiSettings } from './gemini'
+import { OPEN_SETTINGS_EVENT, useGemini } from './gemini'
 import { pct } from './progress'
 import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './components/Dashboard'
@@ -60,7 +60,15 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(() => readLocal('hld.theme', systemTheme()))
   const [showAuth, setShowAuth] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [hasKey, setHasKey] = useState(() => !!getGeminiSettings().apiKey)
+  const gemini = useGemini()
+  const hasKey = !!gemini.settings.apiKey
+  // Key icon dot: orange = no key, red = last test failed
+  const keyState = !hasKey ? 'attn' : gemini.status?.state === 'error' ? 'bad' : ''
+  useEffect(() => {
+    const open = () => setShowSettings(true)
+    window.addEventListener(OPEN_SETTINGS_EVENT, open)
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, open)
+  }, [])
   const [navOpen, setNavOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -138,18 +146,15 @@ export function App() {
         <LangSwitch />
         <div className="overall" title={`${done} / ${allItems.length}`}>
           <span className="mono small">{overall}%</span>
-          <div className="bar small">
-            <i style={{ width: `${overall}%` }} />
-          </div>
         </div>
         <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={tr('Theme badlo', 'Toggle theme')}>
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
         <button
-          className={`icon-btn ${hasKey ? '' : 'attn'}`}
+          className={`icon-btn ${keyState}`}
           onClick={() => setShowSettings(true)}
           aria-label={tr('Gemini key', 'Gemini key')}
-          title={hasKey ? 'Gemini' : tr('Gemini key daalo', 'Add Gemini key')}
+          title={!hasKey ? tr('Gemini key daalo', 'Add Gemini key') : gemini.status?.state === 'ok' ? `Gemini · ${gemini.status.model}` : 'Gemini'}
         >
           <Icon name="key" />
         </button>
@@ -256,7 +261,6 @@ export function App() {
         <SettingsModal
           onClose={() => {
             setShowSettings(false)
-            setHasKey(!!getGeminiSettings().apiKey)
           }}
         />
       )}

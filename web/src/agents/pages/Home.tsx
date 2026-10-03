@@ -111,7 +111,7 @@ export default function Home() {
               <h3 style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}>{shortTitle(s, lang)}</h3>
               <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>{t.pathWhy[s.id] ?? ''}</p>
               <Progress pct={(done / total) * 100} label={shortTitle(s, lang)} />
-              <div className="col" style={{ gap: 6, marginTop: 'auto' }}>
+              <div className="col" style={{ gap: 6, marginTop: 4 }}>
                 {(rows.length ? rows : [s]).map((p) => {
                   const lab = labFor(p.id)
                   const man = runMan[p.id]

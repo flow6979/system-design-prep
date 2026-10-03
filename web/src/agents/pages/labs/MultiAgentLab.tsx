@@ -131,7 +131,7 @@ export default function MultiAgentLab() {
   return (
     <div id="main" className="page col" style={{ gap: 14 }}>
       <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
-        <Link to="/agents/map" className="btn btn-sm">{t.back}</Link>
+        <Link to="/agents" className="btn btn-sm">{t.back}</Link>
         <span className="muted" style={{ fontSize: 14 }}>{t.crumb} /</span>
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>{t.title}</h1>
         <div style={{ flexGrow: 1 }} />
@@ -190,9 +190,7 @@ export default function MultiAgentLab() {
           <div className="col" style={{ gap: 8 }}>
             <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <span className="eyebrow">{t.modelsTitle}</span>
-              <Link to="/agents/settings" style={{ fontSize: 13 }}>
-                {t.settings}
-              </Link>
+              
             </div>
             <ul className="multi-models">
               {roles.map((r) => (

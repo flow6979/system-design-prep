@@ -3,6 +3,7 @@ import { agentPages, lld, localize, questions, route, topics, type Page } from '
 import { readLocal, useStore, writeLocal } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
+import { Icon } from './Icon'
 
 export const shortTitle = (title: string) => title.replace(/^Design (an? )?/, '')
 
@@ -65,17 +66,21 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
   return (
     <nav className="sidebar" onClick={(e) => (e.target as HTMLElement).closest('a') && onNavigate()}>
       <a href="#/" className={`side-item home ${current === '' ? 'active' : ''}`}>
+        <Icon name="home" size={17} />
         Dashboard
       </a>
       <a href="#/quiz" className={`side-item home ${current === 'quiz' ? 'active' : ''}`}>
+        <Icon name="quiz" size={17} />
         Pattern quiz
       </a>
       {lld[0] && (
         <a href={route(lld[0])} className={`side-item home ${lld.some((p) => p.slug === current) ? 'active' : ''}`}>
+          <Icon name="code" size={17} />
           LLD · Design patterns
         </a>
       )}
       <a href="#/agents" className={`side-item home ${current.startsWith('agents') ? 'active' : ''}`}>
+        <Icon name="bot" size={17} />
         Agentic AI
       </a>
       <input

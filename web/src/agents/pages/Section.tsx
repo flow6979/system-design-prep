@@ -57,7 +57,7 @@ export default function Section() {
     return (
       <div id="main" className="page col">
         <p>{t.notFound}</p>
-        <Link to="/agents/map" className="btn" style={{ alignSelf: 'flex-start' }}>{t.back}</Link>
+        <Link to="/agents" className="btn" style={{ alignSelf: 'flex-start' }}>{t.back}</Link>
       </div>
     )
   if (!section) return <div id="main" className="page muted">{t.loading}</div>
@@ -81,7 +81,7 @@ export default function Section() {
   return (
     <div id="main" className="page col" style={{ gap: 18 }}>
       <div className="row" style={{ gap: 14, flexWrap: 'wrap' }}>
-        <Link to="/agents/map" className="btn btn-sm">{t.back}</Link>
+        <Link to="/agents" className="btn btn-sm">{t.back}</Link>
         <span className="mono" style={{ color: 'var(--amber)' }}>{sectionNum(section)}</span>
         <h1 className="h1" style={{ fontSize: 30 }}>{shortTitle(section, lang)}</h1>
         <span className="muted" style={{ fontSize: 13 }}>{t.projects(projects.length)}</span>

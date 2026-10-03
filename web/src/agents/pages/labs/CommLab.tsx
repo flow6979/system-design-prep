@@ -128,7 +128,7 @@ export default function CommLab() {
   return (
     <div id="main" className="page col" style={{ gap: 14 }}>
       <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
-        <Link to="/agents/map" className="btn btn-sm">{t.back}</Link>
+        <Link to="/agents" className="btn btn-sm">{t.back}</Link>
         <span className="muted" style={{ fontSize: 14 }}>{t.crumb} /</span>
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>{t.title}</h1>
         <span className="badge badge-amber">{t.replayBadge}</span>

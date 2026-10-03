@@ -121,20 +121,9 @@ interface AgentDef {
 
 const AGENT_DEFS: AgentDef[] = [
   {
-    slug: 'agents-setup',
-    path: '/agents',
-    title: { hi: 'Setup: LLM connect karo', en: 'Setup: connect your LLM' },
-    time: 3,
-    about: {
-      hi: 'Agent labs ke liye LLM provider (Gemini, Groq, OpenAI, Claude ya offline demo) chuno aur connection test karo. Python browser me Pyodide se chalta hai.',
-      en: 'Pick an LLM provider for the agent labs (Gemini, Groq, OpenAI, Claude or the offline demo) and test the connection. Python runs in the browser with Pyodide.',
-    },
-    items: [{ hi: 'LLM chuna aur connection test kiya', en: 'I picked an LLM and tested the connection' }],
-  },
-  {
     slug: 'agents-map',
-    path: '/agents/map',
-    title: { hi: 'Agentic AI map', en: 'Agentic AI map' },
+    path: '/agents',
+    title: { hi: 'Agentic AI: topics', en: 'Agentic AI: topics' },
     time: 5,
     about: {
       hi: 'Handbook ke saare sections: agentkit core, agentic architectures, web agents, RAG, agent communication, multi-agent systems aur production agent.',
@@ -265,7 +254,7 @@ export const agentGeneral: Page = {
 
 /** Longest matching agent page for a router path like /agents/labs/rag */
 export function agentPageFor(path: string): Page {
-  const clean = path.replace(/\?.*$/, '').replace(/\/$/, '') || '/agents'
+  const clean = (path.replace(/\?.*$/, '').replace(/\/$/, '') || '/agents').replace(/^\/agents\/map$/, '/agents')
   const match = agentPages
     .filter((p) => (p.path === '/agents' ? clean === '/agents' : clean === p.path || clean.startsWith(`${p.path}/`)))
     .sort((a, b) => b.path!.length - a.path!.length)[0]
