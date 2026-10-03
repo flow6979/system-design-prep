@@ -169,16 +169,16 @@ export function Resume({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSett
       <h1>{tr('Resume se sawal', 'Resume questions')}</h1>
       <p className="muted">
         {tr(
-          'Resume upload karo, Gemini usi pe interviewer jaise sawal banayega: projects, skills, design aur behavioral. Jawab likho, feedback lo.',
-          'Upload your resume and Gemini asks what an interviewer would: projects, skills, design and behavioral. Write answers, get feedback.',
+          'Resume upload karo, AI usi pe interviewer jaise sawal banayega: projects, skills, design aur behavioral. Jawab likho, feedback lo.',
+          'Upload your resume and AI asks what an interviewer would: projects, skills, design and behavioral. Write answers, get feedback.',
         )}
       </p>
 
       {!hasKey && (
         <p className="plan-warn">
-          {tr('Iske liye Gemini key chahiye.', 'This needs a Gemini key.')}{' '}
+          {tr('Iske liye AI set up karna hoga.', 'This needs AI to be set up.')}{' '}
           <button type="button" className="link-btn" onClick={onOpenSettings}>
-            {tr('Key daalo', 'Add key')}
+            {tr('Set up karo', 'Set up')}
           </button>
         </p>
       )}
@@ -225,11 +225,11 @@ export function Resume({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSett
             </button>
           </div>
         )}
-        <p className="muted small">{tr('Resume sirf is browser me save hota hai. Sawal banane ke liye tumhari Gemini key se Google ko bheja jaata hai.', 'Your resume is saved only in this browser. It is sent to Google with your Gemini key to create questions.')}</p>
+        <p className="muted small">{tr('Resume sirf is browser me save hota hai. Sawal banane ke liye ye tumhari key se AI ko bheja jaata hai.', 'Your resume is saved only in this browser. It is sent to the AI with your key to create questions.')}</p>
       </section>
 
       {busy === 'read' && <p className="muted">{tr('Resume padh rahe hain…', 'Reading the resume…')}</p>}
-      {busy === 'gen' && <p className="muted">{tr('Gemini tumhara resume padh ke sawal bana raha hai…', 'Gemini is reading your resume and writing questions…')}</p>}
+      {busy === 'gen' && <p className="muted">{tr('AI tumhara resume padh ke sawal bana raha hai…', 'AI is reading your resume and writing questions…')}</p>}
       {error && <p className="error">{error}</p>}
 
       {saved && saved.questions.length > 0 && (

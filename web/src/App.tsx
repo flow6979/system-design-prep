@@ -152,8 +152,8 @@ export function App() {
         <button
           className={`icon-btn ${keyState}`}
           onClick={() => setShowSettings(true)}
-          aria-label={tr('Gemini key', 'Gemini key')}
-          title={!hasKey ? tr('Gemini key daalo', 'Add Gemini key') : gemini.status?.state === 'ok' ? `Gemini · ${gemini.status.model}` : 'Gemini'}
+          aria-label={tr('AI settings', 'AI settings')}
+          title={!hasKey ? tr('AI set up karo', 'Set up AI') : gemini.status?.state === 'ok' ? tr('AI ready', 'AI ready') : 'AI'}
         >
           <Icon name="key" />
         </button>
@@ -162,8 +162,8 @@ export function App() {
             className={`icon-btn panel-toggle ${panelVisible ? 'on' : ''}`}
             onClick={togglePanel}
             aria-expanded={panelVisible}
-            aria-label="Notes · Gemini"
-            title="Notes · Gemini"
+            aria-label="Notes · AI"
+            title="Notes · AI"
           >
             <Icon name="panel" />
           </button>
@@ -231,7 +231,7 @@ export function App() {
             <div className="tabs" role="tablist">
               {(['notes', 'ask', ...(page.kind === 'question' ? ['mock'] : [])] as Tab[]).map((t) => (
                 <button key={t} role="tab" aria-selected={effectiveTab === t} className={effectiveTab === t ? 'on' : ''} onClick={() => setTab(t)}>
-                  {{ notes: 'Notes', ask: 'Ask Gemini', mock: 'Mock' }[t]}
+                  {{ notes: 'Notes', ask: 'Ask AI', mock: 'Mock' }[t]}
                 </button>
               ))}
               <button
@@ -253,7 +253,7 @@ export function App() {
 
       {page && !desktop && !panelOpen && (
         <button className="fab" onClick={() => setPanelOpen(true)}>
-          Notes · Gemini
+          Notes · AI
         </button>
       )}
 

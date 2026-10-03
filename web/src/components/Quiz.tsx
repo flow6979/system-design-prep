@@ -212,9 +212,9 @@ export function Quiz({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSettin
             <p className="muted">{tr('Naye sawal ban rahe hain…', 'Writing new questions…')}</p>
           ) : !hasKey ? (
             <>
-              <p className="muted">{tr('Is section ke saare sawal ho gaye. Gemini key daalo to naye sawal apne aap bante rahenge.', 'You have answered everything here. Add a Gemini key and new questions will keep coming.')}</p>
+              <p className="muted">{tr('Is section ke saare sawal ho gaye. AI set up karo to naye sawal apne aap bante rahenge.', 'You have answered everything here. Set up AI and new questions will keep coming.')}</p>
               <button className="btn primary" onClick={onOpenSettings}>
-                {tr('Gemini key daalo', 'Add Gemini key')}
+                {tr('AI set up karo', 'Set up AI')}
               </button>
             </>
           ) : (

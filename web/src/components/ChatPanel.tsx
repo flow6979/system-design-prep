@@ -135,13 +135,13 @@ export function ChatPanel({
         <p>
           {mode === 'mock'
             ? tr(
-                'Mock interview me Gemini interviewer banke 45 min ka round lega aur end me score dega.',
-                'In a mock interview, Gemini plays the interviewer for a 45-min round and scores you at the end.',
+                'Mock interview me AI interviewer banke 45 min ka round lega aur end me score dega.',
+                'In a mock interview, AI plays the interviewer for a 45-min round and scores you at the end.',
               )
-            : tr('Is page ke baare me Gemini se kuch bhi poochho. Jawab yahin screen pe aayega.', 'Ask Gemini anything about this page. The answer shows up right here.')}
+            : tr('Is page ke baare me AI se kuch bhi poochho. Jawab yahin screen pe aayega.', 'Ask AI anything about this page. The answer shows up right here.')}
         </p>
         <button className="btn primary" onClick={onOpenSettings}>
-          {tr('Gemini key daalo', 'Add Gemini key')}
+          {tr('AI set up karo', 'Set up AI')}
         </button>
       </div>
     )
@@ -214,7 +214,7 @@ export function ChatPanel({
       <form className="composer" onSubmit={submit}>
         <textarea
           id={`chat-${mode}-${page.slug}`}
-          aria-label={mode === 'mock' ? tr('Interviewer ko jawab', 'Reply to the interviewer') : tr('Gemini se sawal', 'Question for Gemini')}
+          aria-label={mode === 'mock' ? tr('Interviewer ko jawab', 'Reply to the interviewer') : tr('AI se sawal', 'Question for AI')}
           rows={2}
           value={input}
           placeholder={mode === 'mock' ? tr('Interviewer ko jawab do…', 'Reply to the interviewer…') : tr('Is page ke baare me poochho…', 'Ask about this page…')}

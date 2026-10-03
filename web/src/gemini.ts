@@ -130,8 +130,8 @@ export async function streamGemini(
     if (res.status === 404) throw new Error(
         L(`Model "${model}" nahi mila. Settings me "Models dikhao" se koi aur model chuno.`, `Model "${model}" not found. Pick another one with "Show models" in Settings.`),
       )
-    if (res.status === 429) throw new Error(L('Gemini rate limit lag gayi. Thodi der baad try karo.', 'Gemini rate limit hit. Try again in a bit.'))
-    throw new Error(`Gemini error: ${detail}`)
+    if (res.status === 429) throw new Error(L('AI ki rate limit lag gayi. Thodi der baad try karo.', 'AI rate limit hit. Try again in a bit.'))
+    throw new Error(`AI error: ${detail}`)
   }
 
   const reader = res.body.getReader()

@@ -77,15 +77,15 @@ export function QuizAsk({ question, answered, hasKey, onOpenSettings }: { questi
   if (!open)
     return (
       <button type="button" className="quiz-ask-btn" onClick={() => setOpen(true)}>
-        <span aria-hidden="true">✦</span> {tr('Samajh nahi aaya? Gemini se poochho', 'Confused? Ask Gemini')}
+        <span aria-hidden="true">✦</span> {tr('Samajh nahi aaya? AI se poochho', 'Confused? Ask AI')}
       </button>
     )
 
   return (
-    <section className="quiz-ask" aria-label={tr('Gemini se poochho', 'Ask Gemini')}>
+    <section className="quiz-ask" aria-label={tr('AI se poochho', 'Ask AI')}>
       <div className="quiz-ask-head">
         <b>
-          <span aria-hidden="true">✦</span> {tr('Gemini se poochho', 'Ask Gemini')}
+          <span aria-hidden="true">✦</span> {tr('AI se poochho', 'Ask AI')}
         </b>
         <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label={tr('Band karo', 'Close')}>
           ✕
@@ -93,9 +93,9 @@ export function QuizAsk({ question, answered, hasKey, onOpenSettings }: { questi
       </div>
       {!hasKey ? (
         <p className="small">
-          {tr('Iske liye Gemini key chahiye.', 'This needs a Gemini key.')}{' '}
+          {tr('Iske liye AI set up karna hoga.', 'This needs AI to be set up.')}{' '}
           <button type="button" className="link-btn" onClick={onOpenSettings}>
-            {tr('Key daalo', 'Add key')}
+            {tr('Set up karo', 'Set up')}
           </button>
         </p>
       ) : (
@@ -138,7 +138,7 @@ export function QuizAsk({ question, answered, hasKey, onOpenSettings }: { questi
               {tr('Poochho', 'Ask')}
             </button>
           </form>
-          {!answered && <p className="muted small">{tr('Jawab dene se pehle Gemini sahi option nahi batayega, sirf concept samjhayega.', 'Before you answer, Gemini explains the concept but will not reveal the option.')}</p>}
+          {!answered && <p className="muted small">{tr('Jawab dene se pehle AI sahi option nahi batayega, sirf concept samjhayega.', 'Before you answer, AI explains the concept but will not reveal the option.')}</p>}
         </>
       )}
     </section>

@@ -33,9 +33,9 @@ function Toolbar() {
   const dot = app.offline ? 'var(--warn)' : app.connection === 'error' ? 'var(--red)' : 'var(--green)'
   return (
     <div className="agent-toolbar">
-      <button type="button" className="provider-chip" onClick={openSettings} title="Gemini">
+      <button type="button" className="provider-chip" onClick={openSettings} title="AI">
         <span style={{ width: 8, height: 8, borderRadius: 99, background: dot }} />
-        <span style={{ fontWeight: 600 }}>{app.offline ? t.offlineChip : 'Gemini'}</span>
+        <span style={{ fontWeight: 600 }}>{app.offline ? t.offlineChip : 'AI'}</span>
         {!app.offline && <span className="mono hide-sm" style={{ color: 'var(--muted)' }}>{app.modelFor('gemini')}</span>}
       </button>
       <nav className="agent-links" aria-label="Agentic AI">

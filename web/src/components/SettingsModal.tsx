@@ -42,13 +42,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div className="modal-head">
-          <h2 id="settings-title">Gemini</h2>
+          <h2 id="settings-title">{tr('AI settings', 'AI settings')}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={tr('Band karo', 'Close')}>
             ×
           </button>
         </div>
         <p className="muted small">
-          {tr('Ek key, poori site: Ask Gemini, mock interview, quiz aur agent labs.', 'One key for the whole site: Ask Gemini, mock interviews, quiz and agent labs.')}{' '}
+          {tr('Ek Gemini key, poori site ka AI: Ask AI, mock interview, quiz, resume aur agent labs.', 'One Gemini key powers all AI on the site: Ask AI, mock interviews, quiz, resume and agent labs.')}{' '}
           <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
             {tr('Free key lo', 'Get a free key')}
           </a>
