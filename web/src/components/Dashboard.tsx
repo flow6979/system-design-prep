@@ -60,7 +60,7 @@ export function Dashboard() {
           </a>
         </div>
         {today?.revision ? (
-          <p className="muted">{tr('Revision day: ⚡ Quick look, ⭐ quiz aur ek mock interview.', 'Revision day: ⚡ Quick look, ⭐ quiz and one mock interview.')}</p>
+          <p className="muted">{tr('Revision day: Quick look, starred quiz aur ek mock interview.', 'Revision day: Quick look, starred quiz and one mock interview.')}</p>
         ) : today && today.items.length ? (
           <ul className="plan-items">
             {today.items.map((it) => {

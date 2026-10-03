@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { href } from '../router'
 import { useMemo, useState } from 'react'
 import { localize, route } from '../content'
@@ -45,7 +46,7 @@ export function Planner() {
       <div className="plan-title-row">
         <h1>{tr('Mera plan', 'My plan')}</h1>
         <button type="button" className={`chip ${showHow ? 'on' : ''}`} aria-expanded={showHow} onClick={() => setShowHow((s) => !s)}>
-          ℹ️ {tr('Plan kaise banta hai?', 'How is the plan made?')}
+          <Icon name="info" size={15} /> {tr('Plan kaise banta hai?', 'How is the plan made?')}
         </button>
       </div>
       {showHow && <PlanHowTo />}
@@ -154,13 +155,13 @@ export function Planner() {
               <div className="plan-revision">
                 <p>
                   {tr(
-                    'Revision day: pages ka ⚡ Quick look ya ⭐ Revision padho, ⭐ quiz dohrao, aur ek mock interview do.',
-                    'Revision day: read the ⚡ Quick look or ⭐ Revision of your pages, redo ⭐ quiz questions and take one mock interview.',
+                    'Revision day: pages ka Quick look ya Revision padho, starred quiz dohrao, aur ek mock interview do.',
+                    'Revision day: read the Quick look or Revision of your pages, redo starred quiz questions and take one mock interview.',
                   )}
                 </p>
                 <div className="row wrap">
                   <a className="chip" href={href('quiz')}>
-                    ⭐ Quiz
+                    ★ Quiz
                   </a>
                   {input.tracks.includes('hld') && (
                     <a className="chip" href={href('q/t1-05-bookmyshow')}>
@@ -247,7 +248,7 @@ function PlanHowTo() {
         </li>
         <li>
           <b>{tr('Aakhri din:', 'Last day:')}</b>{' '}
-          {tr('revision day: Quick look, ⭐ quiz aur ek mock interview.', 'revision day: Quick look, ⭐ quiz and one mock interview.')}
+          {tr('revision day: Quick look, starred quiz aur ek mock interview.', 'revision day: Quick look, starred quiz and one mock interview.')}
         </li>
         <li>
           <b>{tr('Roz update:', 'Updates daily:')}</b>{' '}

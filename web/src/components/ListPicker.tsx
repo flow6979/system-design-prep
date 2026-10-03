@@ -22,7 +22,7 @@ export function ListPicker({ slug }: { slug: string }) {
   return (
     <div className="list-picker" ref={ref}>
       <button type="button" className={`chip ${inAny ? 'on' : ''}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        {inAny ? `✓ ${tr('List me', 'In list')} · ${inAny}` : `＋ ${tr('List me daalo', 'Add to list')}`}
+        {inAny ? `✓ ${tr('List me', 'In list')} · ${inAny}` : `+ ${tr('List me daalo', 'Add to list')}`}
       </button>
       {open && (
         <div className="list-pop" role="dialog" aria-label={tr('Meri lists', 'My lists')}>

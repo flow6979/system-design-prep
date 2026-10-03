@@ -4,6 +4,7 @@ import { streamGemini, type ChatMessage } from '../gemini'
 import { useLang, useTr, type Lang } from '../i18n'
 import type { QuizQuestion } from '../quizBank'
 import { Markdown } from './Markdown'
+import { Icon } from './Icon'
 
 function quizPrompt(q: QuizQuestion, lang: Lang, answered: boolean): string {
   const page = pageBySlug.get(q.topic)
@@ -77,7 +78,7 @@ export function QuizAsk({ question, answered, hasKey, onOpenSettings }: { questi
   if (!open)
     return (
       <button type="button" className="quiz-ask-btn" onClick={() => setOpen(true)}>
-        <span aria-hidden="true">✦</span> {tr('Samajh nahi aaya? AI se poochho', 'Confused? Ask AI')}
+        <Icon name="sparkle" size={15} /> {tr('Samajh nahi aaya? AI se poochho', 'Confused? Ask AI')}
       </button>
     )
 
@@ -85,7 +86,7 @@ export function QuizAsk({ question, answered, hasKey, onOpenSettings }: { questi
     <section className="quiz-ask" aria-label={tr('AI se poochho', 'Ask AI')}>
       <div className="quiz-ask-head">
         <b>
-          <span aria-hidden="true">✦</span> {tr('AI se poochho', 'Ask AI')}
+          <Icon name="sparkle" size={15} /> {tr('AI se poochho', 'Ask AI')}
         </b>
         <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label={tr('Band karo', 'Close')}>
           ✕

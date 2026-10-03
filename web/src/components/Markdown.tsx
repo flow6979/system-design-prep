@@ -1,9 +1,23 @@
+import type { ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Mermaid } from './Mermaid'
 import { CodeBlock, ShowAllCodeContext, useVisibleCode } from './CodeBlock'
 import { resolveMdLink } from '../content'
 import { BASE } from '../router'
+
+function starred(children: ReactNode): ReactNode {
+  const list = Array.isArray(children) ? children : [children]
+  const first = list[0]
+  if (typeof first !== 'string' || !first.startsWith('⭐')) return children
+  return [
+    <span key="star" className="star-mark" aria-label="important">
+      ★
+    </span>,
+    first.replace(/^⭐\s*/, ' '),
+    ...list.slice(1),
+  ]
+}
 
 export function Markdown({ text, showAllCode = false }: { text: string; showAllCode?: boolean }) {
   return (
@@ -40,6 +54,13 @@ export function Markdown({ text, showAllCode = false }: { text: string; showAllC
                 {children}
               </a>
             )
+          },
+          // "⭐" in headings marks the most-asked sections; show it as a quiet accent star instead of an emoji
+          h2({ children }) {
+            return <h2>{starred(children)}</h2>
+          },
+          h3({ children }) {
+            return <h3>{starred(children)}</h3>
           },
           table({ children }) {
             return (

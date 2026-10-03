@@ -5,6 +5,7 @@ import { useLang, useTr, type Lang } from '../i18n'
 import { useResumeAnswers, type AnswerRecord, type Feedback } from '../resumeStore'
 import { readLocal, useStore, writeLocal } from '../store'
 import { Markdown } from './Markdown'
+import { Icon, type IconName } from './Icon'
 import { shortTitle } from './Sidebar'
 
 type Cat = 'project' | 'tech' | 'design' | 'behavioral'
@@ -238,13 +239,13 @@ export function Resume({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSett
       <div className="seg-tabs" role="tablist" aria-label={tr('Resume sections', 'Resume sections')}>
         {(
           [
-            ['mine', '📄', tr('Mere resume se', 'From my resume'), mine.length],
-            ['common', '💬', tr('Common sawal', 'Common questions'), common.length],
-            ['answers', '🗂', tr('Mere jawab', 'My answers'), answered.length],
-          ] as [Tab, string, string, number][]
+            ['mine', 'file', tr('Mere resume se', 'From my resume'), mine.length],
+            ['common', 'chat', tr('Common sawal', 'Common questions'), common.length],
+            ['answers', 'folder', tr('Mere jawab', 'My answers'), answered.length],
+          ] as [Tab, IconName, string, number][]
         ).map(([t, icon, label, n]) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => chooseTab(t)}>
-            <span aria-hidden="true">{icon}</span> {label}
+            <Icon name={icon} size={16} /> {label}
             <span className="count">{n}</span>
           </button>
         ))}
@@ -264,7 +265,7 @@ export function Resume({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSett
           {saved ? (
             <div className="resume-file">
               <span className="resume-file-name">
-                📄 <b>{saved.fileName}</b>
+                <Icon name="file" size={16} /> <b>{saved.fileName}</b>
               </span>
               <span className="row wrap">
                 <button className="btn" onClick={() => fileRef.current?.click()} disabled={!!busy}>
@@ -283,8 +284,8 @@ export function Resume({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSett
             </div>
           ) : (
             <div className="resume-drop" onDragOver={(e) => e.preventDefault()} onDrop={(e) => (e.preventDefault(), onFile(e.dataTransfer.files[0]))}>
-              <span className="resume-drop-icon" aria-hidden="true">
-                📄
+              <span className="resume-drop-icon">
+                <Icon name="upload" size={26} />
               </span>
               <button className="btn primary" onClick={() => fileRef.current?.click()} disabled={!!busy || !hasKey}>
                 {tr('Resume upload karo (PDF)', 'Upload resume (PDF)')}
@@ -345,7 +346,7 @@ export function Resume({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSett
       )}
 
       {tab === 'answers' && answered.length === 0 && (
-        <p className="muted">{tr('Abhi koi jawab nahi likha. "Common sawal" ya "Mere resume se" me kisi sawal pe ✍️ Answer dabao.', 'No answers yet. Press ✍️ Answer on any question in "Common questions" or "From my resume".')}</p>
+        <p className="muted">{tr('Abhi koi jawab nahi likha. "Common sawal" ya "Mere resume se" me kisi sawal pe "Answer likho" dabao.', 'No answers yet. Press "Write answer" on any question in "Common questions" or "From my resume".')}</p>
       )}
       {tab === 'common' && common.length === 0 && <p className="muted">{tr('Common sawal jaldi aa rahe hain.', 'Common questions are coming soon.')}</p>}
 
@@ -368,7 +369,7 @@ export function Resume({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSett
       {tab === 'mine' && saved && saved.questions.length > 0 && (
         <div className="row">
           <button className="btn" disabled={!!busy} onClick={() => generate(saved, 8)}>
-            {busy === 'gen' ? tr('Ban rahe hain…', 'Writing…') : `＋ ${tr('Aur sawal banao', 'More questions')}`}
+            {busy === 'gen' ? tr('Ban rahe hain…', 'Writing…') : tr('+ Aur sawal banao', '+ More questions')}
           </button>
         </div>
       )}
@@ -430,15 +431,15 @@ function QuestionCard({
       <div className="q-actions">
         {hasPoints && (
           <button type="button" className={`q-btn ${panel === 'points' ? 'on' : ''}`} aria-expanded={panel === 'points'} onClick={() => toggle('points')}>
-            <span aria-hidden="true">💡</span> {tr('Key points', 'Key points')}
+            <Icon name="bulb" size={15} /> {tr('Key points', 'Key points')}
           </button>
         )}
         <button type="button" className={`q-btn primary ${panel === 'answer' ? 'on' : ''}`} aria-expanded={panel === 'answer'} onClick={() => toggle('answer')}>
-          <span aria-hidden="true">✍️</span> {hasAnswer ? tr('Mera jawab', 'My answer') : tr('Answer likho', 'Write answer')}
+          <Icon name="pen" size={15} /> {hasAnswer ? tr('Mera jawab', 'My answer') : tr('Answer likho', 'Write answer')}
         </button>
         {page && (
           <a className="q-btn" href={route(page)}>
-            <span aria-hidden="true">📖</span> {shortTitle(localize(page, lang).title)}
+            <Icon name="book" size={15} /> {shortTitle(localize(page, lang).title)}
           </a>
         )}
         {onDelete && (
@@ -476,7 +477,7 @@ function QuestionCard({
           <div className="q-answer-bar">
             <span className="muted small">{hasAnswer ? tr('✓ Save ho gaya', '✓ Saved') : ''}</span>
             <button className="btn primary" disabled={disabled || !hasAnswer} onClick={onFeedback}>
-              {busy ? tr('Score ho raha hai…', 'Scoring…') : fb ? tr('Dobara score karo', 'Score again') : tr('⚡ Score + feedback lo', '⚡ Get score + feedback')}
+              {busy ? tr('Score ho raha hai…', 'Scoring…') : fb ? tr('Dobara score karo', 'Score again') : tr('Score + feedback lo', 'Get score + feedback')}
             </button>
           </div>
           {fb && (
@@ -497,7 +498,7 @@ function QuestionCard({
               </div>
               {fb.improve.length > 0 && (
                 <div className="feedback-block improve">
-                  <b>🔧 {tr('Kya improve karein', 'What to improve')}</b>
+                  <b className="fb-title"><Icon name="up" size={15} /> {tr('Kya improve karein', 'What to improve')}</b>
                   <ul>
                     {fb.improve.map((s, i) => (
                       <li key={i}>{s}</li>
@@ -507,7 +508,7 @@ function QuestionCard({
               )}
               {fb.good.length > 0 && (
                 <div className="feedback-block good">
-                  <b>✅ {tr('Kya accha tha', 'What worked')}</b>
+                  <b className="fb-title"><Icon name="check" size={15} /> {tr('Kya accha tha', 'What worked')}</b>
                   <ul>
                     {fb.good.map((s, i) => (
                       <li key={i}>{s}</li>
@@ -518,7 +519,7 @@ function QuestionCard({
               {fb.better && (
                 <div className="feedback-block">
                   <button type="button" className="link-btn" onClick={() => setShowBetter((s) => !s)}>
-                    ✨ {showBetter ? tr('Better answer chhupao', 'Hide the better answer') : tr('Better answer dekho', 'See a better answer')}
+                    {showBetter ? tr('Better answer chhupao', 'Hide the better answer') : tr('Better answer dekho', 'See a better answer')}
                   </button>
                   {showBetter && <Markdown text={fb.better} />}
                 </div>

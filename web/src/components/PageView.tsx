@@ -2,6 +2,7 @@ import { allPages, behavioral, cs, rag, db, java, lld, lldProblems, localize, pa
 import { ListPicker } from './ListPicker'
 import { useLang, useTr } from '../i18n'
 import { Markdown } from './Markdown'
+import { Icon, type IconName } from './Icon'
 import { Checklist } from './Checklist'
 import { LangToggle, type CodeLang } from './CodeBlock'
 import { shortTitle } from './Sidebar'
@@ -12,7 +13,8 @@ function sections(body: string): string[] {
 }
 
 function jumpTo(title: string) {
-  const el = [...document.querySelectorAll('.md h2')].find((h) => h.textContent?.trim() === title)
+  const plain = title.replace(/^⭐\s*/, '')
+  const el = [...document.querySelectorAll('.md h2')].find((h) => h.textContent?.replace(/^[★⭐]\s*/, '').trim() === plain)
   el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -57,12 +59,12 @@ export function PageView({
       'Revision mode: sirf summary, interview lines aur common galtiyan dikh rahi hain.',
       'Revision mode: showing only the summary, interview lines and common mistakes.',
     ),
-    lld: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) patterns dikh rahe hain.', 'Showing only ⭐ patterns (the most asked ones).'),
-    java: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
-    db: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
-    cs: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
-    beh: tr('Sirf ⭐ wale (must-prepare) sections dikh rahe hain.', 'Showing only ⭐ sections (must-prepare).'),
-    rag: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
+    lld: tr('Sirf ★ wale (sabse zyada pooche jaane wale) patterns dikh rahe hain.', 'Showing only ★ patterns (the most asked ones).'),
+    java: tr('Sirf ★ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ★ sections (the most asked ones).'),
+    db: tr('Sirf ★ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ★ sections (the most asked ones).'),
+    cs: tr('Sirf ★ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ★ sections (the most asked ones).'),
+    beh: tr('Sirf ★ wale (must-prepare) sections dikh rahe hain.', 'Showing only ★ sections (must-prepare).'),
+    rag: tr('Sirf ★ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ★ sections (the most asked ones).'),
     lldp: tr('Revision mode: sirf requirements, patterns aur 2-minute recap dikh rahe hain.', 'Revision mode: showing only requirements, patterns and the 2-minute recap.'),
     agent: '',
   }[page.kind]
@@ -90,14 +92,14 @@ export function PageView({
       <div className="mode-switch" role="radiogroup" aria-label={tr('Kaise padhna hai', 'Reading mode')}>
         {(
           [
-            ['full', '📖', tr('Poora page', 'Full page'), tr('Sab kuch, detail me', 'Everything, in detail')],
-            ['revision', '⭐', 'Revision', starFilter ? tr('Sirf ⭐ wale sections', 'Only ⭐ sections') : tr('Sirf recap aur interview lines', 'Only recap and interview lines')],
-            ['quick', '⚡', 'Quick look', tr('1 minute me key points', 'Key points in 1 minute')],
-          ] as [ReadMode, string, string, string][]
+            ['full', 'book', tr('Poora page', 'Full page'), tr('Sab kuch, detail me', 'Everything, in detail')],
+            ['revision', 'star', 'Revision', starFilter ? tr('Sirf important sections', 'Only key sections') : tr('Sirf recap aur interview lines', 'Only recap and interview lines')],
+            ['quick', 'bolt', 'Quick look', tr('1 minute me key points', 'Key points in 1 minute')],
+          ] as [ReadMode, IconName, string, string][]
         ).map(([m, icon, label, hint]) => (
           <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => onMode(m)} disabled={m === 'quick' && !quick}>
             <span className="mode-label">
-              <span aria-hidden="true">{icon}</span> {label}
+              <Icon name={icon} size={16} /> {label}
             </span>
             <span className="mode-hint">{hint}</span>
           </button>
@@ -120,7 +122,7 @@ export function PageView({
         <div className="jump row wrap">
           {sections(body).map((t) => (
             <button key={t} className={`chip ${t.startsWith('⭐') ? 'star' : ''}`} onClick={() => jumpTo(t)}>
-              {t}
+              {t.replace(/^⭐\s*/, '★ ')}
             </button>
           ))}
         </div>

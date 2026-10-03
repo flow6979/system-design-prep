@@ -17,7 +17,7 @@ const LABEL: Record<Filter, { hi: string; en: string }> = {
   cs: { hi: 'CS', en: 'CS' },
   rag: { hi: 'RAG', en: 'RAG' },
   agents: { hi: 'Agentic AI', en: 'Agentic AI' },
-  starred: { hi: '⭐ Starred', en: '⭐ Starred' },
+  starred: { hi: '★ Starred', en: '★ Starred' },
 }
 // Start generating the next batch while this many unanswered questions are still left
 const PREFETCH_AT = 3
@@ -223,7 +223,7 @@ export function Quiz({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSettin
         </div>
       )}
       {generating && current && <p className="muted small">{tr('Agle sawal background me ban rahe hain…', 'Preparing the next questions in the background…')}</p>}
-      {!user && <p className="muted small">{tr('Login karoge to score aur ⭐ har device pe saath rahenge.', 'Log in to keep your score and ⭐ on every device.')}</p>}
+      {!user && <p className="muted small">{tr('Login karoge to score aur stars har device pe saath rahenge.', 'Log in to keep your score and stars on every device.')}</p>}
     </div>
   )
 }

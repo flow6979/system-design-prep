@@ -6,6 +6,7 @@ import { groupStats, pageStats } from '../progress'
 import { href, navigate } from '../router'
 import { readLocal, useStore, writeLocal } from '../store'
 import { Markdown } from './Markdown'
+import { Icon } from './Icon'
 import { shortTitle } from './Sidebar'
 
 const KIND_LABEL: Record<Page['kind'], string> = { topic: 'HLD', question: 'HLD problem', lld: 'LLD', lldp: 'LLD problem', java: 'Java', db: 'DB', cs: 'CS', beh: 'Behavioral', rag: 'RAG', agent: 'Agentic AI' }
@@ -77,8 +78,8 @@ export function Lists() {
       <h1>{tr('Meri lists', 'My lists')}</h1>
       <p className="muted">
         {tr(
-          'Jo topics tumhe baar baar revise karne hain, unki apni list banao: kisi company ka round, weak topics, ya interview se pehle ki raat. Kisi bhi page pe "＋ List me daalo" se bhi add kar sakte ho.',
-          'Make your own lists of topics to revise again and again: a company round, weak topics, or the night before. You can also add from any page with "＋ Add to list".',
+          'Jo topics tumhe baar baar revise karne hain, unki apni list banao: kisi company ka round, weak topics, ya interview se pehle ki raat. Kisi bhi page pe "List me daalo" se bhi add kar sakte ho.',
+          'Make your own lists of topics to revise again and again: a company round, weak topics, or the night before. You can also add from any page with "Add to list".',
         )}
       </p>
 
@@ -99,7 +100,7 @@ export function Lists() {
         >
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Nayi list ka naam', 'New list name')} aria-label={tr('Nayi list ka naam', 'New list name')} />
           <button className="btn" disabled={!name.trim()}>
-            ＋ {tr('Banao', 'Create')}
+            <Icon name="plus" size={15} /> {tr('Banao', 'Create')}
           </button>
         </form>
       </div>
@@ -110,7 +111,7 @@ export function Lists() {
           <div className="row wrap">
             {STARTERS.map((s) => (
               <button key={s.name.en} className="btn" onClick={() => choose(create(s.name[lang], s.slugs.filter((x) => pageBySlug.has(x))).id)}>
-                ＋ {s.name[lang]} <span className="muted small">· {s.slugs.length}</span>
+                <Icon name="plus" size={15} /> {s.name[lang]} <span className="muted small">· {s.slugs.length}</span>
               </button>
             ))}
           </div>
@@ -128,10 +129,10 @@ export function Lists() {
 
           <div className="row wrap">
             <button className="btn primary" disabled={!pages.length} onClick={() => setQuickAll((q) => !q)}>
-              ⚡ {quickAll ? tr('List view pe wapas', 'Back to the list') : tr('Quick look: sab ek saath', 'Quick look: all at once')}
+              <Icon name="bolt" size={15} /> {quickAll ? tr('List view pe wapas', 'Back to the list') : tr('Quick look: sab ek saath', 'Quick look: all at once')}
             </button>
             <button className="btn" disabled={!pages.length} onClick={planFromList}>
-              📅 {tr('Isi list se plan banao', 'Make a plan from this list')}
+              <Icon name="plan" size={15} /> {tr('Isi list se plan banao', 'Make a plan from this list')}
             </button>
             <button
               className="btn"
@@ -199,7 +200,7 @@ export function Lists() {
                             setSearch('')
                           }}
                         >
-                          <span className="plan-track">{KIND_LABEL[p.kind]}</span> {shortTitle(localize(p, lang).title)} <span className="muted">＋</span>
+                          <span className="plan-track">{KIND_LABEL[p.kind]}</span> {shortTitle(localize(p, lang).title)} <span className="muted">+</span>
                         </button>
                       </li>
                     ))}

@@ -48,7 +48,6 @@ function useRoute() {
   return { view: 'home' as const, slug: '' }
 }
 
-const systemTheme = (): Theme => (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 
 export function App() {
   const { user, authReady, progress } = useStore()
@@ -59,7 +58,7 @@ export function App() {
   const page = view === 'page' ? pageBySlug.get(slug) : view === 'agents' ? agentPageFor(route.path ?? '/agents') : undefined
   const [tab, setTab] = useState<Tab>(() => readLocal('hld.tab', 'notes'))
   const [readMode, setReadMode] = useState<ReadMode>(() => readLocal('hld.mode', readLocal('hld.revision', false) ? 'revision' : 'full'))
-  const [theme, setTheme] = useState<Theme>(() => readLocal('hld.theme', systemTheme()))
+  const [theme, setTheme] = useState<Theme>(() => readLocal('hld.theme', 'dark'))
   const [showAuth, setShowAuth] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const gemini = useGemini()
