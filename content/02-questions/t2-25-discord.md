@@ -33,19 +33,21 @@ askedAt: [Discord, Slack, Microsoft, Atlassian, Amazon, Meta]
 ## Step 2: Requirements
 
 **Functional**
-1. User server banaye/join kare, server me channels hon (text + voice)
-2. Channel me message bheje, sabko real-time dikhe
-3. Channel history scroll kare (pagination, purana bhi)
-4. Unread count aur @mention badges
-5. Online presence + typing indicator
-6. Roles/permissions (kaun kaunsa channel dekh/likh sakta hai)
-7. Message search, voice channels
+1. User server join karke channel me message bhej sake, aur jinke paas permission hai unhe real-time dikhe
+2. User channel history scroll kar sake (pagination, purana bhi)
+3. User unread / @mention badges aur visible members ki presence dekh sake
+4. User apne servers me messages search kar sake (sirf jo channels woh dekh sakta hai)
 
-**Non-functional**
-- **Low latency:** message delivery p99 < 300ms
-- **Availability > strict consistency:** thoda delay chalega, message khona nahi chahiye
-- **Scale:** ~100M MAU, ~10M concurrent WebSocket connections
-- **Read-heavy history:** ek message bahut log padhte hain
+**Out of scope:** voice/video internals (sirf SFU high level), DMs, threads, bots, file upload pipeline, moderation ML.
+
+**Non-functional (priority order me)**
+1. **Durability:** acknowledged message kabhi lost nahi
+2. **Latency:** message delivery p99 < 300ms online members tak
+3. **Availability:** 99.99% send/receive, history read-heavy
+4. **Scale:** ~100M MAU, ~10M concurrent WebSockets, ~60K msgs/sec avg (peak ~180K)
+5. **Ordering:** sirf ek channel ke andar
+
+**CAP choice:** **AP** with per-channel ordering. Partition me thoda late message chalega, send fail nahi. Strong consistency sirf Postgres wale metadata (roles, membership) me.
 
 ## Step 3: Estimation (sirf jo design badle)
 
@@ -81,6 +83,8 @@ WS   wss://gateway.app/?v=10   events: MESSAGE_CREATE, TYPING_START, PRESENCE_UP
 
 ## Step 6: High-level design
 
+**Simple v1 pehle:** client → API → ek Postgres (messages table), aur ek WebSocket server jo naya message us channel ke connected users ko push kare. Chhote Slack workspace ke liye ye chal jaata hai. Ise todte hain: **10M concurrent connections** (100+ gateways, to kis gateway ko bhejna hai ye kisi ko pata hona chahiye → Guild Service), **60K writes/sec + PBs history** (ScyllaDB), **1 lakh member channels** (store once, push to online), aur **search** (Elasticsearch).
+
 ```mermaid
 flowchart LR
   C["Client app"] --> LB["Load Balancer"]
@@ -88,8 +92,7 @@ flowchart LR
   LB --> GW["Gateway Servers (WebSocket)"]
   API --> MS["Message Service"]
   MS --> DB[("ScyllaDB messages")]
-  MS --> PS[["Pub/Sub per guild"]]
-  PS --> GS["Guild Service (sharded by guild_id)"]
+  MS -- "RPC routed by guild_id hash" --> GS["Guild Service (sharded by guild_id)"]
   GS --> GW
   API --> PG[("Postgres guilds, roles, members")]
   GW --> PR["Presence Service (Redis)"]
@@ -100,14 +103,17 @@ flowchart LR
 ```
 
 **Har component kyun:**
-- **Gateway servers:** long-lived WebSocket connections hold karte hain. Stateful hain, isliye sirf connection + subscription ka kaam, business logic nahi.
-- **Message Service:** permission check, Snowflake ID, ScyllaDB me write, fir pub/sub pe publish.
-- **Guild Service (sharded by guild_id):** ek guild ka saara state (members, online sessions, kaun kis channel ko dekh raha) ek process me. Yahi decide karta hai kis gateway ko kya bhejna hai.
-- **ScyllaDB:** heavy writes, `channel_id + time bucket` partition se history fast.
-- **Postgres:** guilds, roles, members. Relational, kam writes.
-- **Presence Service:** Redis me user status, sirf subscribed viewers ko push.
-- **Kafka → ES / Read State:** search indexing aur mention counts async.
-- **Voice SFU:** media alag path pe, text system pe load nahi.
+- **Gateway servers:** 10M connections ÷ ~100K per server = 100+ servers. Stateful, isliye sirf connection + subscription, business logic nahi.
+- **Message Service:** permission check, Snowflake ID, ScyllaDB me write, phir Guild Service ko RPC.
+- **Guild Service (sharded by guild_id):** ek guild ka state (online sessions, kaun kaunsa channel dekh raha) ek process me, yahi decide karta hai kis gateway ko kya bhejna hai. Simpler option "har gateway har message sune" = 60K msgs/sec × 100+ gateways, waste. Beech me alag pub/sub layer nahi rakhi: owner process consistent hashing se pata hai, seedha RPC ek hop kam.
+- **ScyllaDB:** 60K writes/sec (peak 180K), 5TB/day. `(channel_id, bucket)` partition se history fast. Postgres pe itna write + PBs = manual sharding pain.
+- **Postgres:** guilds, roles, members. Relational, kam writes, strong consistency chahiye.
+- **Presence (Redis):** 10M users × heartbeat/40s ≈ 250K writes/sec, TTL wala ephemeral data. DB me likhna bekar.
+- **Kafka → ES / Read State:** ~180K msgs/sec peak, **do independent consumer groups** (search indexer, mention counter), aur naya index banane ke liye **replay**. SQS me replay aur multi-consumer nahi. Kafka produce Scylla write ke baad, fail pe retry (ya ScyllaDB CDC se).
+- **Elasticsearch:** FR4, PBs pe full-text search, index sharded by guild_id. Scylla me text search possible nahi.
+- **Voice SFU:** media alag path pe, text system pe load nahi (high level only).
+
+**FR → component:** FR1 → API + Message Service + ScyllaDB + Guild Service + Gateways. FR2 → ScyllaDB buckets. FR3 → Kafka + Read State + Presence Redis. FR4 → Kafka + Elasticsearch.
 
 ## Step 7: Main flow: channel me message bhejna
 
@@ -125,7 +131,7 @@ sequenceDiagram
   M->>DB: INSERT channel 42, bucket, snowflake id
   DB-->>M: OK
   M-->>U: 200 messageId
-  M->>G: publish MESSAGE_CREATE to guild 9 topic
+  M->>G: RPC MESSAGE_CREATE to owner of guild 9
   G->>G: find online sessions who can view channel 42
   G->>W: batch send per gateway server
   W->>R: WebSocket push MESSAGE_CREATE
@@ -163,6 +169,7 @@ roles(id PK, guild_id, permissions BIGINT, position)
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 WhatsApp se kya alag hai? Fan-out kaise?
+**NFR:** p99 < 300ms delivery, 1 lakh member channels.
 - WhatsApp: group max ~1K, har message har member ke inbox me copy (fan-out on write). Offline user baad me apna inbox padhta hai.
 - Discord: channel me 1 lakh+ members. Har ek ke liye copy = storage explosion. Isliye **message ek baar channel me store**, aur fan-out sirf **online + us guild ke subscribed sessions** ko live push.
 - Offline user aaye to channel history `before/after` se padh leta hai. Inbox ki zarurat nahi.
@@ -170,7 +177,10 @@ roles(id PK, guild_id, permissions BIGINT, position)
 
 > **Bolo:** "Chhote groups me fan-out on write theek hai, par bade channels me main store once, push to online karta hoon. Offline users pull karte hain."
 
+**Trade-off:** offline user ko "inbox" nahi milta, history fetch karni padti hai. Badle me storage N copies se 1 copy.
+
 ### 9.2 Hot guilds (10 lakh members wala server)
+**NFR:** latency + availability ek hot guild ke load me bhi.
 - Ek Guild process overload ho jaata hai. **Relay layer:** Guild process message ko 10–20 relay nodes ko deta hai, har relay kuch gateways ko sambhalta hai (tree fan-out).
 - **Lazy guilds:** bade servers me client ko poori member list nahi bhejte. Client sirf channel aur member list ka visible range subscribe karta hai (`memberListRange 0-99`).
 - Typing/presence events bade guilds me **throttle ya band**.
@@ -187,32 +197,45 @@ flowchart TD
   R3 --> G3["Gateways ..."]
 ```
 
+**Trade-off:** relay tree ek extra hop (thodi latency) jodta hai, aur bade guilds me typing/presence features kam ho jaate hain.
+
 ### 9.3 Unread counts aur mentions
+**NFR:** scale, badges ke liye har member pe write nahi.
 - **Unread dot:** client ke paas channel ka `last_message_id` hai. Agar `last_message_id > read_state.last_read_id` to unread. Count store nahi karna padta.
 - **Mention badge:** message me `@user` ho to Read State Service (Kafka consumer) us user ka `mention_count++`. `@everyone` bade server me har member ka counter nahi badhate, client side compute ya cap karo.
 - User channel kholta hai → `POST /ack` → `last_read_id` update, `mention_count = 0`. Writes batch/debounce karo.
 
+**Trade-off:** mention badge async hai, kuch seconds late aa sakta hai.
+
 ### 9.4 Presence at scale
+**NFR:** scale, presence events N² na hon.
 - Naive: har status change sabke friends + guild members ko → 10 lakh member guild me ek user online hua to 10 lakh events. Impossible.
 - **Lazy presence:** sirf un clients ko bhejo jinhone us member list range ko subscribe kiya hai (screen pe dikh raha hai). Baaki ke liye on-demand fetch.
 - Heartbeat har ~40 sec. Miss hua to grace period ke baad offline. Redis me `presence:{userId}` with TTL.
 
+**Trade-off:** off-screen members ka status turant updated nahi, on-demand fetch hota hai.
+
 ### 9.5 Permissions, voice, search (short)
+**NFR:** correctness (sirf allowed log dekhein) + FR4.
 - **Permissions:** role ka `permissions` ek 64-bit bitmask (VIEW_CHANNEL, SEND_MESSAGES...). Effective = guild roles OR, fir channel overwrites (deny/allow) apply. Guild Service me cached, fan-out time pe check.
 - **Voice:** client WebRTC se nearest **SFU** media server se connect karta hai. SFU har speaker ka stream forward karta hai (mix nahi karta). Signaling gateway se, media UDP pe SFU se. Text path pe zero load.
 - **Search:** Kafka → indexer → Elasticsearch, index sharded by guild_id. Permission filter query time pe (sirf visible channels).
+
+**Trade-off:** search index seconds peeche ho sakta hai, naya message turant search me nahi.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **ScyllaDB, partition `(channel_id, bucket)`** | Heavy writes, partition size bounded, range scan fast | **Postgres:** 60K writes/sec aur PBs data pe sharding pain. **Sirf channel_id partition:** hot, unbounded partition |
-| **Store once, push to online** | Bade channels me storage aur writes bachte hain | **Per-user inbox (WhatsApp style):** 1 lakh copies per message |
-| **Guild-sharded Guild Service** | Ek guild ka state ek jagah, ordering aur permission check simple | **Har gateway sab topics sune:** har gateway pe har message, waste |
-| **Snowflake IDs** | Time-sortable, coordination-free, pagination simple | **UUID:** sort nahi hota. **DB auto-increment:** distributed nahi |
-| **Lazy presence + member list ranges** | Events sirf visible logon ko | **Broadcast presence:** N² events, bade guild me crash |
-| **REST send, WebSocket receive** | Auth, rate limit, retry simple | **Sab WebSocket pe:** gateway stateful aur heavy ho jaata hai |
-| **SFU for voice** | Server pe mixing nahi, CPU sasta, scale achha | **MCU:** mixing costly. **P2P mesh:** 5+ log me bandwidth khatam |
+| **ScyllaDB, partition `(channel_id, bucket)`** | 60K writes/sec, partition bounded, range scan fast | **Postgres:** 60K writes/sec aur PBs pe manual sharding. **Sirf channel_id partition:** hot, unbounded. Sacrifice: joins/transactions nahi, query patterns fixed |
+| **Store once, push to online** | Bade channels me storage aur writes bachte hain | **Per-user inbox (WhatsApp style):** 1 lakh copies per message. Sacrifice: offline user history pull kare |
+| **Guild-sharded Guild Service, direct RPC** | Ek guild ka state ek jagah, ordering aur permission check simple | **Har gateway sab sune:** waste. **Pub/sub topic per guild:** extra hop, owner pehle se pata. Sacrifice: hot guild ek process pe, relay tree chahiye |
+| **Kafka for search + mentions** | ~180K/sec peak, 2 consumer groups, replay for reindex | **SQS:** replay nahi, har consumer ke liye alag copy. **Sync in send path:** latency badhe. Sacrifice: Kafka ops, search seconds late |
+| **Redis for presence** | ~250K heartbeats/sec, TTL se auto offline | **Postgres/Scylla:** ephemeral data pe durable writes waste. Sacrifice: Redis restart pe presence rebuild (heartbeats se) |
+| **Snowflake IDs** | Time-sortable, coordination-free, pagination simple | **UUID:** sort nahi hota. **DB auto-increment:** distributed nahi. Sacrifice: clock skew ka dhyan |
+| **Lazy presence + member list ranges** | Events sirf visible logon ko | **Broadcast presence:** N² events. Sacrifice: off-screen status stale |
+| **REST send, WebSocket receive** | Auth, rate limit, retry simple | **Sab WebSocket pe:** gateway heavy. Sacrifice: send pe thoda extra latency |
+| **SFU for voice** | Server pe mixing nahi, CPU sasta | **MCU:** mixing costly. **P2P mesh:** 5+ log me bandwidth khatam. Sacrifice: client pe zyada download |
 
 ## Step 11: Failures & bottlenecks
 
@@ -231,9 +254,7 @@ flowchart TD
 - **Data services layer** ScyllaDB ke aage: same channel ki parallel reads ko coalesce karna (Discord ne yahi kiya)
 - Purane buckets ko cold storage (S3 + Parquet) pe move karna, latest ScyllaDB me
 - Multi-region gateways, users nearest region se connect
-- Threads/forum channels: alag sub-channel jaisa model
 - Moderation pipeline: Kafka se ML spam/abuse detection
-- Mobile push notifications sirf mentions aur DMs ke liye, Notification Service se
 
 ## Step 13: Interviewer ke likely follow-up sawal
 
@@ -242,12 +263,12 @@ flowchart TD
 - "Message ordering kaise?" → Snowflake ID, ek channel ek guild process se, client ID se sort kare
 - "Gateway crash pe events lost?" → session `RESUME` with sequence number, short buffer replay, nahi to history fetch
 - "@everyone 10 lakh members pe?" → har counter mat badhao, client compute, bade servers me restrict
-- "Partition bada ho gaya to?" → time bucket, 10 din ka
 - "Voice kaise scale?" → SFU nodes regionally, ek voice channel ek SFU pe
+- **Senior signal:** khud bolo ki asli bottleneck **hot guild fan-out** hai (1 msg × 1 lakh online = 1 lakh pushes, ek process pe) aur outage ke baad **10M clients ka reconnect storm**. Plan: relay tree, lazy member lists, typing/presence off, jittered backoff + gateway connection rate limit.
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> Discord ka model guild → channel → message hai. WhatsApp se farak: channels bahut bade aur history shared, isliye message ek baar ScyllaDB me `(channel_id, bucket)` partition aur Snowflake `message_id` clustering ke saath store hota hai. Send REST se, receive WebSocket gateways se. Message Service store karke guild topic pe publish karta hai. Guild Service (sharded by guild_id) jaanta hai kaun online hai aur kaun channel dekh sakta hai, aur har gateway ko batch bhejta hai. Hot guilds ke liye relay tree, lazy member list, typing/presence throttle. Unread = last_message_id > last_read_id, mentions counter Kafka consumer se. Presence lazy, sirf visible members ki. Permissions role bitmask + channel overwrites. Search Elasticsearch via Kafka. Voice WebRTC SFU se, alag path.
+> Discord ka model guild → channel → message hai. WhatsApp se farak: channels bahut bade aur history shared, isliye message ek baar ScyllaDB me `(channel_id, bucket)` partition aur Snowflake `message_id` clustering ke saath store hota hai. Send REST se, receive WebSocket gateways se. Message Service store karke guild ke owner Guild Service ko RPC karta hai (alag pub/sub nahi). Guild Service (sharded by guild_id) jaanta hai kaun online hai aur kaun channel dekh sakta hai, aur har gateway ko batch bhejta hai. Hot guilds ke liye relay tree, lazy member list, typing/presence throttle. Unread = last_message_id > last_read_id, mentions counter Kafka consumer se. Presence lazy, sirf visible members ki. Permissions role bitmask + channel overwrites. Search Elasticsearch via Kafka (180K/sec, 2 consumers, replay). Voice WebRTC SFU se, alag path.
 
 ## Checklist
 

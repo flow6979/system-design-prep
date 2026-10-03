@@ -23,7 +23,7 @@ askedAt: [Datadog, Amazon, Microsoft, Uber, Flipkart, Atlassian]
 | "Only logs, or metrics and traces too?" | Logs are core, plus metrics + alerting | Two storage paths: search store + time-series DB |
 | "How many hosts, how much volume?" | 50K hosts, ~10TB logs/day | Kafka buffer, sharded ES cluster |
 | "What search latency? How soon after arrival must a log show up?" | Search < 2-5 sec, ingestion lag < 30 sec | Near real-time, refresh interval ~5-10 sec |
-| "Retention?" | 7 days searchable, 1 year archive (compliance) | Hot/warm/cold + S3 archive |
+| "Retention?" | 7 days fast search, slow search ok up to 30 days, 1 year archive (compliance) | Hot/warm/cold + S3 archive |
 | "Can some logs be dropped?" | Debug logs yes, error/audit no | Level-based sampling |
 | "Multi-tenant (like Datadog) or internal?" | Multi-tenant | Per-tenant quotas, isolation |
 | "Can PII appear in logs?" | Yes | Masking in the pipeline |
@@ -33,25 +33,28 @@ askedAt: [Datadog, Amazon, Microsoft, Uber, Flipkart, Atlassian]
 ## Step 2: Requirements
 
 **Functional**
-1. Collect logs from every host/container (app logs, system logs)
-2. Parse, enrich (service, host, region) and store logs
-3. Full-text + field search (service=payments AND level=ERROR, last 15 min)
-4. Metrics (CPU, latency, error rate) dashboards
-5. Alert rules (error rate > 5% for 5 min → PagerDuty/Slack)
-6. Retention policy and archive
+1. Services should be able to ship their logs (via an agent), which get parsed + enriched and stored
+2. Engineers should be able to search logs by full text + fields (service=payments AND level=ERROR, last 15 min)
+3. Engineers should be able to view metrics dashboards (CPU, latency, error rate)
+4. Engineers should be able to create alert rules and get notified on PagerDuty/Slack on a breach (error rate > 5% for 5 min)
 
-**Non-functional**
-- **Zero impact on the app:** if logging is slow, the app must not get slow
-- **Durability:** error/audit logs must never be lost
-- **Scale:** ~10TB/day, peak 3x (logs grow during an incident)
-- **Cost efficient:** storage is the biggest expense
-- **Availability > consistency:** fine if logs show up 10 sec late
+**Out of scope:** deep tracing design (only linking via trace_id), APM profiling, billing, query UI design, ML anomaly detection.
+
+**Non-functional (in priority order)**
+1. **Zero impact on the app:** if logging is slow, the app must not get slow
+2. **Durability:** error/audit logs are never lost (debug may be sampled)
+3. **Freshness + latency:** ingestion lag < 30 sec, last-15-min search p95 < 5 sec
+4. **Scale:** ~10TB/day, ~250K events/sec avg, 5-10x during an incident
+5. **Cost:** 7 days hot, 30 days slow-searchable, 1 year S3 archive
+
+**CAP choice:** **AP**. Ingest always accepts (into a buffer), search may lag 10-30 sec. Dropping logs is worse than stale search.
 
 ## Step 3: Estimation (only what changes the design)
 
 - 10TB/day ÷ 86,400 ≈ **~120MB/sec** avg, peak ~400MB/sec. Avg log is 500 bytes → **~250K events/sec**, peak ~800K/sec.
 - Index overhead in ES is ~1.2–1.5x, with 1 replica → 10TB raw ≈ **~25-30TB/day of ES disk**. 7 days hot = ~200TB. So keeping 1 year in ES is impossible; use an S3 archive.
 - S3 compressed (~10x) → 1TB/day, 1 year ≈ 365TB, cheap.
+- Kafka buffer for 72h: 120MB/sec × 72h ≈ 31TB raw, compressed (~5x) × RF 3 ≈ **~20TB**. So 72h, not 7 days.
 - During an incident logs grow 5-10x, exactly when ES is also under load. **A buffer is a must.**
 
 > **Say:** "Storage cost drives the design. Hot data on SSD, older data on cheap disk, and a year of data compressed on S3."
@@ -79,6 +82,8 @@ POST /v1/alerts           {query, threshold, window: 5m, notify}      → {alert
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** Filebeat on every host → straight into Elasticsearch → Kibana. For a small setup (a few hundred hosts) this is enough. What breaks it: **~800K events/sec peak and incident bursts** exactly when ES is the slow part (buffer → Kafka), **10TB/day × 1 year** (tiers + S3), **metrics aggregation** (TSDB), and **multi-tenant quotas** (Ingest Gateway).
+
 ```mermaid
 flowchart LR
   H["Hosts with Fluent Bit agent"] --> IG["Ingest Gateway (auth, quota)"]
@@ -96,14 +101,16 @@ flowchart LR
 ```
 
 **Why each component:**
-- **Agent (Filebeat/Fluent Bit):** tails files on the host, keeps a local disk buffer, batches + compresses and sends. The app only writes to stdout/a file and never waits on the network.
-- **Ingest Gateway:** API key auth, tenant quota, rate limit.
-- **Kafka:** the shock absorber. If ES is slow or down, data waits in Kafka (retention 24-72 hrs) and is not lost. Replay is also possible.
-- **Processors (Logstash/Vector):** JSON/grok parsing, host/k8s metadata enrichment, PII masking, debug sampling.
-- **Elasticsearch:** inverted index, full-text + field search, aggregations.
-- **S3 archive:** all raw logs compressed, for compliance and rare queries.
-- **Time-series DB:** separate for metrics, because aggregating numbers is much cheaper in a TSDB than in ES.
-- **Alert Evaluator:** streaming rules on Kafka, threshold rules on the TSDB.
+- **Agent (Filebeat/Fluent Bit):** NFR1. Tails files, local disk buffer, batch + gzip. The app only writes to stdout/a file and never waits on the network. The simpler "direct HTTP from the app" slows the app down.
+- **Ingest Gateway:** multi-tenant API key auth, per-tenant quota and rate limit. Without it, one tenant's bug can stop everyone's ingestion.
+- **Kafka:** ~250K events/sec avg, ~800K peak (NFR4). If ES is slow/down, data stays safe in Kafka for **72h** and is **replayed** later. **Two consumer groups** (processors, alert stream) read the same data. SQS/RabbitMQ do not fit this throughput and replay.
+- **Processors (Vector/Logstash):** CPU-heavy parsing, enrichment, PII masking, sampling. Separate from ES so they scale independently.
+- **Elasticsearch:** FR2, full-text + field search over the last 7-30 days. The simpler option (grep on S3 / Athena) takes minutes and fails NFR3.
+- **S3 archive:** 1 year ≈ 365TB compressed, ~10x more expensive on ES.
+- **Time-series DB:** FR3. Aggregating numbers is much cheaper and faster than in ES.
+- **Alert Evaluator:** FR4. Threshold rules on the TSDB, log-pattern rules on the Kafka stream (cheaper than querying ES every minute).
+
+**FR → component:** FR1 → Agent + Gateway + Kafka + Processors. FR2 → Elasticsearch (+ S3 for old data). FR3 → Metrics agent + TSDB + Grafana. FR4 → Alert Evaluator + PagerDuty/Slack.
 
 ## Step 7: Main flow: from log line to search
 
@@ -148,6 +155,7 @@ sequenceDiagram
 ## Step 9: Deep dives (where the interviewer will push)
 
 ### 9.1 Back-pressure: what if ES gets slow?
+**NFR:** zero impact on the app + durable error logs.
 - ES slow → processors' bulk indexing slows → Kafka consumer lag grows. **The data is safe in Kafka**, it just shows up late in search.
 - Processors keep bulk size and concurrency adaptive. If ES returns `429 Too Many Requests`, use exponential backoff.
 - If Kafka also fills up (long outage) → the Gateway returns 429 to the tenant → the agent keeps data in its local disk buffer → if the disk also fills, **drop debug/info first**, keep error/audit until the very end.
@@ -164,7 +172,10 @@ flowchart LR
 
 > **Say:** "There is a buffer at every layer: agent disk, Kafka, processor retry. Even if ES is down, logs are not lost, only delayed. And the S3 archive is independent of ES, so we can also reindex from there."
 
+**Trade-off:** in a long outage, search lags by minutes/hours, and in a very long one debug logs are dropped.
+
 ### 9.2 Storage tiers, ILM and cost
+**NFR:** cost, 7 days fast + 1 year archive.
 - **Hot (0-2 days):** SSD nodes, recent data, most queries. Indexing happens here.
 - **Warm (3-7 days):** HDD nodes, read-only, force-merge to 1 segment, fewer replicas.
 - **Cold/Frozen (7-30 days):** searchable snapshots on S3, slow but cheap.
@@ -172,7 +183,10 @@ flowchart LR
 - ILM (Index Lifecycle Management) does this rollover → move → delete automatically.
 - Cost levers: **sampling** (debug 10%, info 50%, error 100%), **compression** (zstd/best_compression), **field drop** (remove useless fields), **build metrics from logs** (a count metric instead of keeping every request log).
 
+**Trade-off:** searching old logs is slow (cold tier) or needs rehydration. In return, 5-10x lower cost.
+
 ### 9.3 Metrics vs logs vs traces
+**NFR:** cost + FR3, the cheapest store for each question.
 | | Metrics | Logs | Traces |
 |---|---|---|---|
 | What it is | Numbers over time | Text detail of an event | The path of one request across services |
@@ -182,29 +196,38 @@ flowchart LR
 
 - Link all three with `trace_id`: alert (metric) → trace → logs of that request. This is the main value of Datadog.
 
+**Trade-off:** three separate stores to operate instead of one.
+
 ### 9.4 High cardinality and multi-tenancy
+**NFR:** availability, one tenant or one bad tag must not take everyone down.
 - **Cardinality:** if you put `user_id` or `request_id` in metric tags → every value is a new series → TSDB memory blows up (tens of millions of series). Rule: only bounded values in metric tags (service, region, status_code). Unbounded IDs go in logs/traces.
 - A per-tenant **series limit** at the gateway and an alert on new tags.
 - In ES too, lots of dynamic fields → mapping explosion. Use the `flattened` type or a field limit (1000).
 - **Multi-tenant:** small tenants in shared indices with a `tenant_id` filter, big tenants get dedicated indices/clusters. Per-tenant ingest quota + query timeout, so one tenant's big query does not slow everyone down (noisy neighbour).
 
+**Trade-off:** limits will sometimes reject genuine data or queries. Less flexibility in return for isolation.
+
 ### 9.5 Alerting pipeline
+**NFR:** alert within 1-2 min, few false pages.
 - **Metric alerts:** the evaluator runs a TSDB query every 30-60 sec (`error_rate > 5% for 5m`). The `for` window reduces flapping.
 - **Log alerts:** streaming match on Kafka (Flink), cheaper than running an ES query every minute.
 - Dedup + grouping (the same alert from 100 hosts → one incident), silence/maintenance windows, routing by team.
 - The alerting system itself must be monitored (dead man's switch: page if the heartbeat alert does not arrive).
 
+**Trade-off:** the `for` window and dedup make an alert ~5 min late, in return for no flapping pages.
+
 ## Step 10: Decision table (what we chose, why, what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Kafka buffer** in the middle | Absorbs spikes, data is safe when ES is down, replay possible | **Agent → ES directly:** if ES is slow, agents block or data is lost |
-| **Time-based indices + ILM** | Retention = index drop, simple tiering | **One big index:** delete by query is very slow, shards get too big |
-| **Hot/warm/cold + S3 archive** | 5-10x lower cost, recent data stays fast | **Everything on SSD for 1 year:** very expensive |
-| **Separate TSDB for metrics** | Compressed numbers, fast aggregation | **Metrics in ES too:** costly and slow aggregation |
-| **Level-based sampling** | Lower volume and cost, all errors kept | **Keep everything:** cost explodes. **Randomly drop errors too:** debugging breaks |
-| **Agent with local buffer** | Zero impact on the app, data is safe on a network blip | **Direct HTTP log push from the app:** app latency goes up |
-| **Per-tenant quotas** | Protects against noisy neighbours | **Shared with no limits:** one tenant's bug can stop everyone's ingestion |
+| **Kafka buffer** in the middle | ~800K events/sec peak, 72h replay, 2 consumer groups | **Agent → ES directly:** if ES is slow, agents block or data is lost. **SQS/RabbitMQ:** expensive at this throughput, no replay. Sacrifice: ops for a ~20TB Kafka cluster |
+| **Elasticsearch** for logs | Full-text + field search in seconds | **ClickHouse/Loki:** cheaper, but weak free-text search. **S3 + Athena:** minutes. Sacrifice: indexing cost and big disks |
+| **Time-based indices + ILM** | Retention = index drop, simple tiering | **One big index:** delete by query is slow, shards too big. Sacrifice: many small indices to manage |
+| **Hot/warm/cold + S3 archive** | 5-10x lower cost, recent data stays fast | **Everything on SSD for 1 year:** very expensive. Sacrifice: old data is slow |
+| **Separate TSDB for metrics** | Compressed numbers, fast aggregation | **Metrics in ES too:** costly and slow. Sacrifice: one more store |
+| **Level-based sampling** | Lower volume and cost, all errors kept | **Keep everything:** cost explodes. **Random drop:** errors go too. Sacrifice: less debug detail |
+| **Agent with local buffer** | Zero impact on the app, data is safe on a network blip | **Direct HTTP push from the app:** app latency goes up. Sacrifice: host disk use |
+| **Per-tenant quotas** | Protects against noisy neighbours | **Shared with no limits:** one tenant's bug stops everyone. Sacrifice: a tenant gets 429 on bursts |
 
 ## Step 11: Failures & bottlenecks
 
@@ -224,9 +247,7 @@ flowchart LR
 - A columnar log store (ClickHouse/Loki style) that indexes only labels, cheaper than full-text ES
 - Automatic metrics from logs (log-to-metric) and pattern clustering (grouping similar logs)
 - Tail-based trace sampling: keep full traces only for slow/error ones
-- Anomaly detection alerts (ML baseline) instead of static thresholds
 - On-demand queries on the S3 archive (like Athena), so no rehydration is needed
-- Multi-region: ingest + store within the region, global query fan-out
 
 ## Step 13: Likely follow-up questions
 
@@ -237,6 +258,7 @@ flowchart LR
 - "How will you stop PII?" → regex/field-based masking in the processor (card, phone, email), allowlist of fields
 - "One tenant is slowing everyone down?" → quotas, dedicated index, query limits
 - "Need to search logs from 30 days ago?" → cold tier searchable snapshot, or rehydrate from S3
+- **Senior signal:** raise on your own that the worst moment is an **incident**: log volume goes up 5-10x exactly when engineers search the most, and indexing and search fight on the hot ES nodes. Plan: prioritise error logs, dynamic sampling of info/debug, separate ingest and search capacity, and make sure the logging stack does not depend on the systems it monitors.
 
 ## 2-minute recap (read this before the interview)
 

@@ -19,23 +19,26 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 
 ### 2. Over-engineering
 - **Kyun hurt:** 1,000 QPS ke liye 12 microservices, multi-region active-active, Kubernetes service mesh. Dikhta hai ki tum scale aur cost ka sense nahi rakhte.
-- **Karo:** simple design se shuru karo jo requirements meet kare. Phir bolo "agar 10x scale ho to yahan ye badlega".
+- **Variants:** jo kaam ek Postgres kar leta, usme Kafka, microservices ya Kubernetes daal dena. Ya simple v1 skip karke seedha "final" architecture banana.
+- **Karo:** pehle simple v1 (client → service → ek DB) jo saare FR meet kare. Phir har naya component tabhi jab koi NFR ya number maange: "agar 10x scale ho to yahan ye badlega".
 
 ### 3. Tech naam lena bina justification
 - **Kyun hurt:** "Yahan Cassandra" bolna buzzword hai. Interviewer turant poochhega "kyun?", aur jawab nahi diya to marks gaye.
-- **Karo:** har choice ke saath ek "kyunki" aur ek "kya nahi chuna": "Cassandra, kyunki write-heavy hai aur multi-row transactions nahi chahiye. Postgres nahi, kyunki 1M writes/sec ek node pe nahi hoga."
+- **Karo:** har choice ko ek requirement ya number se jodo, aur ek "kya nahi chuna" do: "Cassandra, kyunki write-heavy hai aur multi-row transactions nahi chahiye. Postgres nahi, kyunki 1M writes/sec ek node pe nahi hoga."
 
 ### 4. Interviewer ki di hui NFR ignore karna
-- **Kyun hurt:** interviewer ne bola "double booking bilkul nahi" ya "latency < 100ms", aur tumne design me uska koi zikr nahi kiya. Ye seedha signal hai ki tum sun nahi rahe.
-- **Karo:** NFRs board pe likho. Har deep dive ko unse jodo: "Ye isliye kyunki aapne strong consistency maangi thi."
+- **Kyun hurt:** interviewer ne bola "double booking bilkul nahi" ya "latency < 100ms", aur tumne design me uska koi zikr nahi kiya. Ye seedha signal hai ki tum sun nahi rahe. Usi family ki galti: NFR vague rakhna ("fast", "scalable"). Bina number ke koi decision justify nahi hota.
+- **Karo:** NFRs numbers me board pe likho (`p99 < 200 ms`, `99.99%`, `10K writes/sec`). Har deep dive ko unse jodo: "Ye isliye kyunki aapne strong consistency maangi thi."
 
 ### 5. Deep dives na karna
 - **Kyun hurt:** sirf boxes aur arrows = junior level. Senior signal deep dive me aata hai (contention, hot keys, failure).
-- **Karo:** HLD ke baad khud bolo "Main 2–3 cheezon pe deep dive karna chahunga: X, Y, Z". Question ka asli hard part pehchano.
+- **Variant:** deep dive kiya, par kisi stated requirement se juda nahi (NFR consistency thi, tum logging pe 10 min gaye).
+- **Karo:** HLD ke baad khud bolo "Main 2–3 cheezon pe deep dive karna chahunga: X, Y, Z", aur har ek ko NFR se jodo: "NFR: p99 < 50 ms, isliye cache".
 
 ### 6. Single points of failure chhod dena
 - **Kyun hurt:** ek DB, ek Redis, ek LB, koi replica nahi. Production me ye down time hai.
-- **Karo:** design ke end me har component pe "ye fail hua to?" bolo. Replicas, failover, multi-AZ. Dekho [Reliability](../01-topics/20-reliability-observability.md).
+- **Senior red flag:** bottlenecks aur failures tabhi bolna jab interviewer point out kare. Senior se expected hai ki khud uthaye.
+- **Karo:** bina poochhe har component pe "ye fail hua to? ye pehle kahan atkega?" bolo. Replicas, failover, multi-AZ. Dekho [Reliability](../01-topics/20-reliability-observability.md).
 
 ### 7. Drawing karte waqt chup rehna
 - **Kyun hurt:** interviewer tumhari thinking evaluate karta hai, drawing nahi. 5 min silence = woh guess kar raha hai, aur usually galat guess.
@@ -43,7 +46,7 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 
 ### 8. Time manage na karna
 - **Kyun hurt:** 20 min requirements aur estimation me, aur deep dive ke liye time hi nahi. Ya HLD adhoora reh gaya.
-- **Karo:** 45 min ka rough plan: requirements 5, estimation 3, APIs + entities 5, HLD 10, deep dives 15, wrap-up 5. Ghadi dekhte raho.
+- **Karo:** 45 min ka rough plan: requirements 5, entities 2, APIs 5, HLD 10–15, deep dives 10–15, wrap-up 3. Estimation sirf jahan number decision badle. Ghadi dekhte raho.
 
 ### 9. Interviewer se behes karna
 - **Kyun hurt:** interviewer ka hint ya pushback usually tumhe sahi direction me le jaane ke liye hota hai. Defensive hona = collaboration ka bura signal.
@@ -58,11 +61,11 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 | Red flag | Ek line fix |
 |---|---|
 | Requirements skip | 3–5 min sawal, NFR likho |
-| Over-engineering | Simple se shuru, scale pe evolve |
-| Buzzwords | Har tech ke saath "kyunki" + alternative |
-| NFR ignore | NFR board pe, har decision usse jodo |
-| No deep dive | Khud 2–3 deep dive propose karo |
-| SPOF | Har box pe "ye fail hua to?" |
+| Over-engineering / v1 skip | Simple v1 pehle, number maange tabhi evolve |
+| Buzzwords | Har tech ke saath requirement/number + alternative |
+| NFR ignore ya vague | NFR numbers me, har decision usse jodo |
+| No deep dive / random deep dive | 2–3 deep dive, har ek kisi NFR se juda |
+| SPOF / bottleneck ka wait | Khud bolo "ye fail hua to?" |
 | Silence | Bolte hue draw karo |
 | Time waste | 45 min ka plan, ghadi dekho |
 | Behes | Hint ko gift samjho |

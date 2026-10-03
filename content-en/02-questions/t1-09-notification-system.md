@@ -33,23 +33,28 @@ Ask these questions before you start the design:
 
 ## Step 2: Requirements
 
-**Functional**
-1. Internal services can send a notification through one API (single user or bulk/campaign)
-2. Channels: push (iOS/Android), SMS, email, in-app
-3. User preferences (opt-out, channel choice, quiet hours) and rate limits are respected
-4. Templates, scheduling, and delivery status tracking (sent, delivered, opened)
+**Functional (users should be able to)**
+1. Internal services should be able to send a notification to a user or a segment (campaign) through one API, now or scheduled
+2. Users should receive it by push (iOS/Android), SMS, email or in-app
+3. Users should be able to set preferences (opt-out, channel, quiet hours), and the system respects them + rate limits
+4. Callers should be able to see delivery status (sent, delivered, opened)
 
-**Non-functional**
-- **Reliability:** no notification is lost (at-least-once)
-- **No duplicates for user:** the same OTP is not sent twice
-- **Low latency for transactional:** OTP within < 5 sec
-- **Scale:** spiky (campaigns, IPL match end), isolation from third-party failures
+**Out of scope:** template editor UI, A/B testing, provider internals (treat APNs/Twilio as black boxes).
+
+**Non-functional (in priority order)**
+1. **Reliability:** an accepted notification is never lost (at-least-once, durable queue)
+2. **Latency for transactional:** OTP p99 < 5 sec end-to-end, even while a campaign runs
+3. **No duplicates for the user:** effectively once (the same OTP is not sent twice)
+4. **Scale + isolation:** 100M/day, campaign peak ~17K/sec; one provider's outage must not stop other channels
+
+**CAP choice:** availability. Accept the request and keep it in the queue even if a provider or Redis is down. Slightly stale preferences (cache) are fine; dedup is best-effort + provider idempotency.
 
 ## Step 3: Estimation (only what changes the design)
 
 - 100M/day ≈ **~1.2K/sec avg**. Campaign: 10M in 10 min ≈ **~17K/sec peak**. So we need a queue as a buffer.
 - Provider limits: SMS provider ~1K/sec, APNs/FCM high. **The provider decides the throughput, not us.** Workers must throttle to the provider's rate.
-- Status events (sent/delivered/opened) are ~3x notifications → ~300M/day. Write-heavy, so a store like Cassandra.
+- Status events (sent/delivered/opened) are ~3x notifications → ~300M/day ≈ 3.5K/sec avg, **~50K/sec** during a campaign. Write-heavy data with a TTL → Cassandra.
+- Campaign peak: 17K notifications/sec × ~2 channels + 3x status events ≈ **~100K msgs/sec** in total. This number and the need for replay are what pick Kafka.
 
 > **Say:** "The bottleneck is not my servers, it is the third-party providers. So I will put a Kafka buffer in the middle, per-channel workers, and provider-wise rate limiting."
 
@@ -79,33 +84,37 @@ GET  /users/{id}/inbox?cursor=...                             → in-app notific
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** API → a `notifications` table (Postgres) → one worker picks pending rows on a cron and calls the provider. This works up to ~1K/sec. But a 17K/sec campaign spike, OTPs that must not wait behind marketing, and an SMS outage that must not stop push → a durable queue, a topic per channel + priority, separate worker pools. Dedup and rate limits on every request → Redis. ~50K status writes/sec → Cassandra.
+
 ```mermaid
 flowchart LR
-  S["Internal services"] --> API["Notification API"]
+  S["Internal services"] --> API["Notification API + pref check"]
   SCH["Scheduler"] --> API
-  API --> PR["Preference + Rate limit check"]
-  PR --> RC[("Redis prefs, dedup, limits")]
-  PR --> K[["Kafka topics per channel + priority"]]
+  API --> RC[("Redis prefs, dedup, limits")]
+  API --> K[["Kafka topics per channel + priority"]]
   K --> PW["Push workers"]
   K --> SW["SMS workers"]
   K --> EW["Email workers"]
   K --> IW["In-app workers"]
-  PW --> APN["APNs / FCM"]
-  SW --> TW["Twilio / Gupshup"]
-  EW --> SES["Amazon SES"]
+  PW --> PRV["Providers: APNs/FCM, Twilio, SES"]
+  SW --> PRV
+  EW --> PRV
   IW --> DB[("Cassandra inbox + status")]
-  PW --> DLQ[["DLQ"]]
-  APN -. "delivery callbacks" .-> TR["Tracking Service"]
+  SW --> DLQ[["DLQ topic"]]
+  PRV -. "delivery callbacks" .-> TR["Tracking Service"]
   TR --> DB
 ```
 
+**FR mapping:** FR1 → API + Scheduler + Kafka, FR2 → channel workers + providers, FR3 → pref check + Redis + Postgres prefs, FR4 → Tracking Service + Cassandra.
+
 **Why each component:**
-- **Notification API:** validates, checks idempotency, resolves the template, then puts the message in Kafka and returns 202.
-- **Preference + Rate limit check:** opt-out, quiet hours, per-user limit (max 3 promos/day). Cached in Redis.
-- **Kafka topics per channel:** if the SMS provider is down, only the SMS topic stops and push keeps running. Separate topics for priority.
-- **Channel workers:** stateless, call the provider's SDK, have retry logic. Scale based on the provider's rate.
+- **Notification API + pref check:** validation, idempotency, opt-out, quiet hours, per-user limit, then put it in Kafka and return 202. No separate "preference service"; an in-process check is enough.
+- **Redis:** dedup `SET NX`, rate-limit counters and a prefs cache, sub-ms at 17K/sec. The simpler option, a counter update in Postgres per request, creates hot rows.
+- **Kafka (topic per channel + priority):** ~100K msgs/sec at campaign peak, 2 consumer groups on the status stream (Cassandra writer, analytics), and replay from an offset after a buggy template. **Honest note:** at only ~1K/sec with no campaigns, per-channel SQS queues (built-in delay, retry, DLQ) would be the simpler and better choice.
+- **Channel workers:** stateless, call the provider SDK, throttled to the provider's rate. Separate pools = outage isolation.
 - **DLQ:** messages that fail again and again are kept aside for investigation/replay.
-- **Tracking Service:** records provider callbacks (delivered, bounced) and opens/clicks.
+- **Cassandra:** ~50K status writes/sec at peak, per-user time-ordered inbox, 90-day TTL. The simpler option, Postgres, would need sharding at this peak.
+- **Tracking Service:** provider webhooks (delivered, bounced) and opens/clicks; the provider callback endpoint scales separately.
 
 ## Step 7: Main flow: order delivered notification
 
@@ -155,19 +164,24 @@ delivery_events        PK notification_id, CK ts      → status history
 ## Step 9: Deep dives (the interviewer will push here)
 
 ### 9.1 Retries, backoff and DLQ
+**NFR:** reliability (nothing lost) + one provider's outage does not stop the rest.
 - The provider returned 5xx/timeout → **exponential backoff + jitter** (1s, 2s, 4s, 8s...), max 5 tries.
-- Use separate **retry topics** for retries (`sms.retry.1m`, `sms.retry.10m`), so the main topic is not blocked.
+- Use separate **retry topics** for retries (`sms.retry.1m`, `sms.retry.10m`), so the main topic is not blocked. Kafka has no per-message delay, which is why we need these topics (SQS has it built in).
 - After 5 tries → **DLQ**. Alert + dashboard, replay after the fix.
 - No retry on 4xx (invalid token, invalid number). Mark the token as inactive.
 - **Circuit breaker:** if Twilio keeps failing → switch to a fallback provider (Gupshup/MSG91). That is why you keep an adapter interface in front of providers.
+- **Trade-off:** retry topics are extra topics and consumers; ordering is not guaranteed across retries.
 
 ### 9.2 Idempotency and dedup
+**NFR:** no duplicates for the user (effectively once).
 - Kafka is at-least-once. If a worker sends and then crashes before the commit → the message comes again.
 - **API level:** store the caller's `Idempotency-Key` (e.g. `order-123-delivered`) in Redis with `SET NX EX 24h`. On a duplicate request, return the same notificationId.
 - **Worker level:** check `sent:{notificationId}:{channel}` before sending. Set it after sending. A small window still remains, so many providers also accept an idempotency key, pass it to them.
 - Exactly-once is impossible with a third party. Target: **effectively once** for the user.
+- **Trade-off:** if Redis is down, dedup weakens; for transactional we accept a duplicate risk rather than a missed notification.
 
 ### 9.3 Priority and rate limits
+**NFR:** OTP p99 < 5 sec, even during a campaign.
 ```mermaid
 flowchart LR
   A["Notification API"] --> H[["push.high - OTP, payment"]]
@@ -181,28 +195,33 @@ flowchart LR
 - **Per-user rate limit:** max 3 promos/day, 1 per hour (Redis counter / sliding window). No limit on transactional.
 - **Per-provider rate limit:** token bucket, don't send more than the SMS provider's 1K/sec limit, or it will block you.
 - **Quiet hours:** hold promos from 10 pm to 8 am, put them in the scheduled queue.
+- **Trade-off:** reserved OTP workers are often idle (cost), but we get a latency guarantee.
 
 ### 9.4 Templates, scheduling, bulk fan-out
+**NFR:** a 10M campaign in 10 min (~17K/sec), without touching OTPs.
 - **Templates:** versioned, per locale (Hindi, English). The worker fills in `{{name}}`. Templates change without a code deploy.
 - **Scheduling:** a `send_at` index on the `scheduled_notifications` table. Every minute the scheduler picks up due rows and puts them into the API/Kafka. At very large scale, use time-bucketed partitions (by minute).
 - **Bulk campaign:** split the segment (10M users) into small batches (1K), each batch is one Kafka message. Fan-out workers expand a batch into individual notifications. No single giant job.
+- **Trade-off:** the scheduler works at minute granularity, so `sendAt` has ±1 min jitter.
 
 ### 9.5 Delivery tracking
+**NFR:** status is available but eventual (a few seconds late is fine).
 - Worker: `QUEUED → SENT`. Provider callback/webhook: `DELIVERED`, `BOUNCED`. App/email pixel: `OPENED`, `CLICKED`.
 - Events go Kafka → Cassandra + analytics warehouse. Campaign dashboard: sent vs delivered vs opened.
 - On email bounces/spam complaints, put the address on a suppress list, or the SES account can get blocked.
+- **Trade-off:** `OPENED` is approximate (email clients block pixels).
 
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Async API (202) + Kafka** | Caller is fast, spikes get buffered, replay is possible | **Sync provider call in API:** if Twilio is slow, Order Service is slow too, and everything falls over in a spike |
-| **Topic per channel + priority** | One provider's outage does not stop other channels, OTP doesn't get stuck behind marketing | **One common queue:** head-of-line blocking, OTP 20 min late behind 10M promos |
-| **Kafka** over plain SQS/RabbitMQ | High throughput, retention + replay, multiple consumers (tracking, analytics) | **RabbitMQ:** good per-message priority, but Kafka is better for replay and very high throughput. SQS also works if AWS-only |
-| **Retry topics + backoff + DLQ** | Main flow is not blocked, poison messages kept aside | **Infinite inline retry:** the consumer gets stuck and the rest of the partition's traffic stops |
-| **Idempotency key + Redis dedup** | No duplicates for the user even with at-least-once | **Relying on Kafka exactly-once:** a third-party call is not part of a Kafka transaction |
-| **Cassandra** for logs/inbox | 300M+ writes/day, per-user time-ordered reads | **Postgres:** sharding burden at this many writes, and no need for relations |
-| **Provider adapter + fallback** | Switch if one vendor is down/expensive | **Single hardcoded provider:** vendor outage = whole channel down |
+| **Async API (202) + queue** | Caller is fast, spikes get buffered | **Sync provider call in API:** if Twilio is slow, Order Service is slow too. **Sacrifice:** the caller gets status separately via poll/webhook |
+| **Topic per channel + priority** | Provider outage isolation, OTP doesn't wait behind marketing | **One common queue:** head-of-line blocking, OTP 20 min late. **Sacrifice:** more topics and worker pools to manage |
+| **Kafka** over SQS/RabbitMQ | ~100K msgs/sec campaign peak, 2 consumers on the status stream, replay | **SQS:** delay/retry/DLQ built in, the better pick at ~1K/sec. **RabbitMQ:** good per-message priority, but no replay. **Sacrifice:** retry topics built by hand, cluster ops |
+| **Retry topics + backoff + DLQ** | Main flow not blocked, poison messages kept aside | **Infinite inline retry:** the rest of the partition's traffic stops. **Sacrifice:** ordering lost on retry |
+| **Idempotency key + Redis dedup** | No duplicates for the user even with at-least-once | **Relying on Kafka exactly-once:** a third-party call is not in the transaction. **Sacrifice:** dependency on Redis, a small duplicate window |
+| **Cassandra** for logs/inbox | ~50K writes/sec peak, per-user time-ordered reads, TTL | **Postgres:** sharding burden at this peak. **Sacrifice:** no ad-hoc queries, a separate analytics warehouse |
+| **Provider adapter + fallback** | Switch if one vendor is down/expensive | **Single hardcoded provider:** vendor outage = channel down. **Sacrifice:** maintaining contracts and templates for two vendors |
 
 ## Step 11: Failures & bottlenecks
 
@@ -233,10 +252,12 @@ flowchart LR
 - "What if the user opted out?" → preference check before sending, cached in Redis. Transactional (OTP) can't be opted out of
 - "How will you send a campaign to 10M users?" → fan-out in batches, throttled low priority topic → Step 9.4
 - "Is order preserved?" → if you need per-user ordering, Kafka key = userId, order is kept within one partition
+- "Why Kafka and not SQS?" → ~100K msgs/sec at campaign peak, 2 consumers on the status stream and replay. At only ~1K/sec we would take SQS (delay + DLQ built in)
+- **Senior signal:** say it yourself: the real bottleneck is the provider rate limit (SMS ~1K/sec), not our servers; a 10M SMS campaign takes ~3 hours. So use a per-provider token bucket, tell the caller the campaign ETA, and decide the fail-open/closed policy for a Redis outage up front.
 
 ## 2-minute recap
 
-> A notification system is an async pipeline. Internal services call `POST /notifications` (with an Idempotency-Key). The API checks dedup (Redis `SET NX`), preferences, quiet hours and the per-user rate limit, puts the message in Kafka, and returns 202. Kafka has separate topics for each channel (push, SMS, email, in-app) and priority (high/medium/low), so one provider's outage or a marketing blast doesn't block OTPs. Stateless channel workers render the template and call APNs/FCM, Twilio, SES, staying inside the provider's rate limit. On failure: exponential backoff, retry topics, then DLQ, and a circuit breaker switches to a fallback provider. Status events go to Cassandra, and delivered/opened is tracked from provider callbacks. The scheduler puts due notifications into the pipeline, and campaigns fan out in batches.
+> A notification system is an async pipeline. Internal services call `POST /notifications` (with an Idempotency-Key). The API checks dedup (Redis `SET NX`), preferences, quiet hours and the per-user rate limit, puts the message in Kafka, and returns 202. Kafka because the campaign peak is ~100K msgs/sec, the status stream has 2 consumers and we need replay; at ~1K/sec SQS would be enough. Kafka has separate topics for each channel (push, SMS, email, in-app) and priority (high/medium/low), so one provider's outage or a marketing blast doesn't block OTPs. Stateless channel workers render the template and call APNs/FCM, Twilio, SES, staying inside the provider's rate limit. On failure: exponential backoff, retry topics, then DLQ, and a circuit breaker switches to a fallback provider. Status events go to Cassandra, and delivered/opened is tracked from provider callbacks. The scheduler puts due notifications into the pipeline, and campaigns fan out in batches.
 
 ## Checklist
 

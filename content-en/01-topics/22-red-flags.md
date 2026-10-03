@@ -19,23 +19,26 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 
 ### 2. Over-engineering
 - **Why it hurts:** 12 microservices, multi-region active-active and a Kubernetes service mesh for 1,000 QPS. It shows you have no sense of scale and cost.
-- **Do:** start with a simple design that meets the requirements. Then say "if scale goes 10x, this part will change".
+- **Variants:** adding Kafka, microservices or Kubernetes to a design one Postgres would handle. Or skipping the simple v1 and drawing the "final" architecture straight away.
+- **Do:** first a simple v1 (client → service → one DB) that meets every FR. Then add a component only when an NFR or a number demands it: "if scale goes 10x, this part will change".
 
 ### 3. Naming tech without justification
 - **Why it hurts:** saying "Cassandra here" is a buzzword. The interviewer will immediately ask "why?", and if you can't answer, you lose marks.
-- **Do:** with every choice, give one "because" and one "what I didn't pick": "Cassandra, because it's write-heavy and we don't need multi-row transactions. Not Postgres, because 1M writes/sec won't fit on one node."
+- **Do:** tie every choice to a requirement or a number, and give one "what I didn't pick": "Cassandra, because it's write-heavy and we don't need multi-row transactions. Not Postgres, because 1M writes/sec won't fit on one node."
 
 ### 4. Ignoring the NFRs the interviewer gave
-- **Why it hurts:** the interviewer said "absolutely no double booking" or "latency < 100ms", and your design doesn't mention it at all. This is a direct signal that you aren't listening.
-- **Do:** write the NFRs on the board. Link every deep dive to them: "This is because you asked for strong consistency."
+- **Why it hurts:** the interviewer said "absolutely no double booking" or "latency < 100ms", and your design doesn't mention it at all. This is a direct signal that you aren't listening. Same family: vague NFRs ("fast", "scalable"). Without a number, no decision can be justified.
+- **Do:** write the NFRs on the board in numbers (`p99 < 200 ms`, `99.99%`, `10K writes/sec`). Link every deep dive to them: "This is because you asked for strong consistency."
 
 ### 5. Not doing deep dives
 - **Why it hurts:** only boxes and arrows = junior level. The senior signal comes from deep dives (contention, hot keys, failure).
-- **Do:** after the HLD, say it yourself: "I'd like to deep dive into 2–3 things: X, Y, Z". Identify the real hard part of the question.
+- **Variant:** a deep dive that addresses no stated requirement (the NFR was consistency, you spent 10 min on logging).
+- **Do:** after the HLD, say it yourself: "I'd like to deep dive into 2–3 things: X, Y, Z", and tie each to an NFR: "NFR: p99 < 50 ms, hence the cache".
 
 ### 6. Leaving single points of failure
 - **Why it hurts:** one DB, one Redis, one LB, no replicas. In production, that is downtime.
-- **Do:** at the end of the design, ask "what if this fails?" for every component. Replicas, failover, multi-AZ. See [Reliability](../01-topics/20-reliability-observability.md).
+- **Senior red flag:** raising bottlenecks and failures only when the interviewer points them out. A senior is expected to raise them unprompted.
+- **Do:** without being asked, say for every component "what if this fails? where will it choke first?" Replicas, failover, multi-AZ. See [Reliability](../01-topics/20-reliability-observability.md).
 
 ### 7. Staying silent while drawing
 - **Why it hurts:** the interviewer evaluates your thinking, not your drawing. 5 min of silence = they are guessing, and usually guessing wrong.
@@ -43,7 +46,7 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 
 ### 8. Not managing time
 - **Why it hurts:** 20 min on requirements and estimation, and no time left for deep dives. Or the HLD is left half done.
-- **Do:** a rough 45 min plan: requirements 5, estimation 3, APIs + entities 5, HLD 10, deep dives 15, wrap-up 5. Keep watching the clock.
+- **Do:** a rough 45 min plan: requirements 5, entities 2, APIs 5, HLD 10–15, deep dives 10–15, wrap-up 3. Estimate only where a number changes a decision. Keep watching the clock.
 
 ### 9. Arguing with the interviewer
 - **Why it hurts:** the interviewer's hint or pushback is usually meant to guide you in the right direction. Being defensive = a bad collaboration signal.
@@ -58,11 +61,11 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 | Red flag | One-line fix |
 |---|---|
 | Skipping requirements | 3–5 min of questions, write down NFRs |
-| Over-engineering | Start simple, evolve with scale |
-| Buzzwords | "Because" + an alternative with every tech |
-| Ignoring NFRs | NFRs on the board, link every decision to them |
-| No deep dive | Propose 2–3 deep dives yourself |
-| SPOF | "What if this fails?" for every box |
+| Over-engineering / skipping v1 | Simple v1 first, evolve only when a number demands it |
+| Buzzwords | A requirement/number + an alternative with every tech |
+| Ignoring or vague NFRs | NFRs in numbers, link every decision to them |
+| No deep dive / unrelated deep dive | 2–3 deep dives, each tied to an NFR |
+| SPOF / waiting to be told | Ask "what if this fails?" yourself |
 | Silence | Talk while you draw |
 | Time waste | A 45 min plan, watch the clock |
 | Arguing | Treat a hint as a gift |

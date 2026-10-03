@@ -33,23 +33,28 @@ Ask these questions before you start the design:
 
 ## Step 2: Requirements
 
-**Functional**
-1. A creator can upload a video (a big file that resumes if the network drops midway)
-2. The system processes the video into multiple resolutions (240p to 4K)
-3. A viewer can watch the video, and quality changes on its own based on the network
-4. Video metadata (title, description, thumbnail) and view count are shown
+**Functional (users should be able to)**
+1. A creator should be able to upload a big video (up to 10 GB) that resumes if the network drops
+2. A few minutes after upload, the video should be watchable in multiple resolutions (240p–4K)
+3. A viewer should be able to watch, with quality changing on its own based on the network
+4. A viewer should be able to see metadata (title, thumbnail) and an approximate view count
 
-**Non-functional**
-- **Availability > consistency:** it is fine if a view count or a new video shows up a bit late
-- **Low latency:** video starts in < 2 sec, minimum buffering
-- **Durability:** an uploaded video must never be lost
-- **Scale:** read:write is more than ~100:1, global users
+**Out of scope:** search, comments, recommendations, live streaming, monetization.
+
+**Non-functional (in priority order)**
+1. **Durability:** an uploaded video is never lost (S3, 11 nines)
+2. **Playback latency:** video start p95 < 2 sec, rebuffering < 1% of watch time
+3. **Availability:** 99.99% for the watch path; upload/processing may degrade a little
+4. **Scale:** 1B views/day, 500 hours uploaded/min, read:write > 100:1, global users
+
+**CAP choice:** availability on the watch path. A new video or the view count may show up seconds/minutes late (eventual). Only the video status (`READY`) and the upload record need strong consistency, and those live in one SQL row.
 
 ## Step 3: Estimation (only what changes the design)
 
 - Upload: 500 hours/min. 1 hour of raw video ≈ 1–2 GB → **~1 PB raw/day**. Transcoded copies (5–6 resolutions) take ~3x storage. So we use a blob store like S3, and move old raw files to cold storage.
-- Watch: 1B views/day ≈ **~12K video starts/sec**. Avg 5 Mbps × hundreds of thousands of concurrent viewers = **Tbps-level bandwidth**. Only a CDN can provide this.
-- Metadata reads: metadata on every view → ~12K+ QPS. Serve from cache.
+- Watch: 1B views/day ≈ **~12K video starts/sec**. 1B views × ~5 min avg ≈ ~3.5M concurrent viewers × 5 Mbps = **~15+ Tbps of bandwidth**. Only a CDN can provide this.
+- Metadata reads: metadata on every view → ~12K QPS avg, and one row gets hot for a viral video. Hence a cache.
+- Transcode tasks: 500 hours/min ÷ 10 sec chunks × ~6 resolutions ≈ **~18K tasks/sec**. A job for a managed queue (SQS) and autoscaling workers.
 
 > **Say:** "The bottleneck is bandwidth and storage, not QPS. So the centre of the architecture is blob storage + CDN, and app servers only return metadata and URLs."
 
@@ -76,32 +81,37 @@ POST /videos/{id}/view      {watchedSec}                 → 202 Accepted
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** one API service + a SQL DB (metadata) + S3 (video files). The client uploads to S3 with a pre-signed URL, one worker runs ffmpeg, the viewer reads the file from S3. Then the numbers break it: ~15 Tbps of bandwidth → CDN. 18K transcode tasks/sec + retries → SQS + a worker fleet + an orchestrator. The hot metadata row of a viral video and 12K views/sec → Redis.
+
 ```mermaid
 flowchart LR
   C["Creator app"] --> G["API Gateway"]
   C -- "multipart upload" --> RAW[("S3 raw bucket")]
   G --> US["Upload Service"]
   US --> MDB[("Metadata DB")]
-  RAW -- "upload complete event" --> Q[["Kafka / SQS"]]
+  US -- "upload complete" --> O["Transcode Orchestrator"]
+  O --> Q[["SQS task queue"]]
   Q --> TW["Transcode Workers"]
   TW --> OUT[("S3 processed bucket")]
-  TW --> MDB
+  TW -- "status READY" --> MDB
   V["Viewer app"] --> G
   G --> VS["Video Service"]
-  VS --> RC[("Redis cache")]
+  VS --> RC[("Redis cache + view counters")]
   VS --> MDB
   V -- "segments" --> CDN["CDN"]
   CDN --> OUT
-  G --> VC["View Counter"]
 ```
 
+**FR mapping:** FR1 → Upload Service + S3 raw (pre-signed multipart), FR2 → Orchestrator + SQS + Workers + S3 processed, FR3 → CDN + HLS, FR4 → Video Service + Redis + Metadata DB.
+
 **Why each component:**
-- **Upload Service:** creates the video row, starts the S3 multipart upload, and returns a pre-signed URL for each part.
-- **S3 raw bucket:** the original file. Durable (11 nines) and cheap.
-- **Queue + Transcode Workers:** heavy CPU work done async. Workers autoscale based on queue length.
-- **S3 processed bucket + CDN:** HLS segments and manifests. Cached at the CDN edge, so less load on the origin.
-- **Video Service + Redis:** metadata and manifest URL. Metadata of hot videos sits in the cache.
-- **View Counter:** async aggregation of views, no DB write for every single view.
+- **Upload Service:** video row + starts the S3 multipart upload + pre-signed URL per part. Bytes never pass through it.
+- **S3 raw / processed:** durability NFR (11 nines), cheap at PB/day. No blobs in the DB and no home-made file servers.
+- **Orchestrator + SQS + Workers:** ~18K chunk tasks/sec, each task needs retry, a visibility timeout and a DLQ. This is task distribution, so SQS. Not Kafka: we need no replay or multiple consumer groups, and per-message retry/DLQ is built into SQS.
+- **CDN:** ~15 Tbps of bandwidth and start < 2 sec. The simpler option (serve from S3/origin) fails on both bandwidth cost and latency.
+- **Video Service + Redis:** 12K metadata reads/sec, the hot row of a viral video. The simpler option is read replicas, but only a cache saves a single hot key.
+- **View counts (Redis `INCR` + flush):** 12K views/sec avg is easy for a sharded Redis (~100K ops/sec per node). Batch-flush to the DB every 30 sec. Kafka only when view events must feed analytics, fraud ML and recommendations, with replay.
+- **Upload vs Video Service split:** uploads are rare and heavy, watches are 100x more and latency-sensitive; they scale differently. In v1 one service is fine.
 
 ## Step 7: Main flow: upload and processing
 
@@ -110,7 +120,7 @@ sequenceDiagram
   participant C as Creator
   participant U as Upload Service
   participant S as S3
-  participant Q as Queue
+  participant Q as Orchestrator and SQS
   participant W as Transcode Worker
   participant DB as Metadata DB
   C->>U: POST /videos size 4 GB
@@ -121,8 +131,8 @@ sequenceDiagram
   C->>U: POST complete with ETags
   U->>S: CompleteMultipartUpload
   U->>DB: status PROCESSING
-  U->>Q: publish video 99 ready for transcode
-  Q->>W: split, transcode, package HLS
+  U->>Q: orchestrator enqueues chunk tasks for video 99
+  Q->>W: transcode chunk, package HLS
   W->>S: write segments and manifests
   W->>DB: status READY, renditions saved
 ```
@@ -142,17 +152,20 @@ view_counts(video_id PK, count, updated_at)
 
 - **Metadata → MySQL/Postgres (sharded by video_id):** structured data with relations (channel, video, renditions). YouTube used Vitess (sharded MySQL).
 - **Video bytes → S3:** never keep blobs in the DB.
-- **View counts → Redis counters + periodic flush** to the DB, or Cassandra counters.
+- **View counts → Redis counters + a batch flush every 30 sec** to `view_counts`. A Redis crash loses a few seconds of views, acceptable for an approximate count.
 
 ## Step 9: Deep dives (the interviewer will push here)
 
 ### 9.1 Big upload: pre-signed URL, multipart, resumable
+**NFR:** durability + a 10 GB upload without restarting.
 - Split the file into **5–10 MB parts**. Each part gets its own pre-signed URL and parts upload in parallel. If one part fails, only that part is retried.
 - **Resumable:** if the network drops, the client asks `GET /uploads/{id}` which parts are done (S3 `ListParts`) and sends the rest.
 - The pre-signed URL has a short TTL (15–60 min) and allows PUT on only one key. Security stays intact.
 - For unfinished uploads, add an S3 lifecycle rule: abort after 7 days.
+- **Trade-off:** the client logic gets complex (parts, ETags, resume), but server bandwidth is zero.
 
 ### 9.2 Transcoding pipeline: DAG of tasks
+**NFR:** video live within minutes of upload, ~18K tasks/sec.
 ```mermaid
 flowchart LR
   A["Raw video"] --> B["Validate + split into chunks"]
@@ -168,36 +181,44 @@ flowchart LR
   P --> R["Mark READY"]
 ```
 - Split the video into **chunks (e.g. 10 sec)**. Each chunk × resolution is a separate task. Thousands of workers run in parallel, so a 1-hour video is ready in minutes.
-- An orchestrator (like Temporal/Step Functions) tracks the DAG: which task is done and which needs a retry.
+- An orchestrator (like Temporal/Step Functions) tracks the DAG and puts ready tasks into SQS. A worker deletes the message only after writing its output to S3. After 3 failures, DLQ.
 - Every task is **idempotent**: the same input gives the same output key. If a worker crashes, the task goes back to the queue, and overwriting is safe.
 - Make 360p/720p ready first and put the video live, 4K can come later.
+- **Trade-off:** encoding is a bit less efficient at chunk boundaries and the orchestrator is one more system, but it is minutes vs hours.
 
 ### 9.3 Adaptive bitrate: HLS/DASH
+**NFR:** start < 2 sec, rebuffering < 1%.
 - Each resolution is cut into **2–6 sec segments**. The master manifest (`master.m3u8`) lists all qualities.
 - The player measures bandwidth and picks a quality for each segment. 1080p on the metro, 240p in a tunnel, with no stopping.
 - Segments are static files, so they cache perfectly on the CDN.
+- **Trade-off:** 5–6 copies of every video, ~3x storage.
 
 ### 9.4 CDN: popular vs long-tail
+**NFR:** ~15 Tbps of bandwidth, low latency globally.
 - **Popular videos (top ~10–20%) = ~80% of traffic.** Pre-push these to CDN edges (like a new Netflix show before launch). Netflix puts its own boxes (Open Connect) inside ISPs.
 - **Long-tail (old, rarely watched):** pull-based on the CDN, the first request comes from the origin. Add an origin shield layer so all edges don't hit S3 directly.
 - Less popular resolutions of long-tail videos go to cold storage, or get transcoded on demand.
+- **Trade-off:** the first long-tail request is slow (origin fetch), and the CDN bill is the biggest cost.
 
 ### 9.5 View counts
+**NFR:** availability > accuracy; an approximate count ~30 sec late is fine.
 - Running `UPDATE videos SET views=views+1` on every view turns a viral video into a hot row.
-- Send view events to Kafka. A stream processor aggregates them in 10–30 sec windows and batch-updates the DB. Show a near real-time count from a Redis counter.
-- Fake view filtering (same IP/user again and again) also happens in this pipeline.
+- The view API does `INCR views:{videoId}` in Redis (12K/sec is a small load for a sharded Redis). A job reads the counters every 30 sec and batch-updates the DB.
+- Basic fake-view filter: `SET seen:{user}:{video} NX EX 3600`; if it is already set, do not count.
+- **When Kafka:** when analytics, recommendations and fraud ML each need to consume views separately with replay. Not in this scope.
+- **Trade-off:** a Redis crash can lose views since the last flush; fine for an approximate count.
 
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Pre-signed URL, direct S3 upload** | No bandwidth/memory used on app servers, S3 scales by itself | **Upload through the app server:** 10 GB files will choke the servers, extra hop |
-| **Multipart + resumable** | Parallel parts, only one part retried on failure | **Single PUT:** 5 GB limit, if the network drops you redo everything |
-| **Queue + workers, chunk-level DAG** | Async, autoscale, parallel, retry per task | **Sync transcode inside the upload request:** takes hours, request times out |
-| **HLS/DASH segments** | Adaptive quality, CDN-friendly static files | **One big MP4 file:** no quality switch, buffering on slow networks |
-| **CDN for delivery** | Tbps bandwidth, edge close to the user, low latency | **Serve from origin servers:** both bandwidth cost and latency are unacceptable |
-| **SQL (sharded) for metadata** | Structured relations, moderate writes | **NoSQL only:** works, but you give up the benefit of joins/consistency. Never use a DB for the bytes |
-| **Async batched view counts** | Avoids hot rows, 1000x fewer DB writes | **DB increment on every view:** lock contention on viral videos |
+| **Pre-signed URL, direct S3 upload** | No bandwidth/memory on app servers, S3 scales by itself | **Through the app server:** 10 GB files choke servers. **Sacrifice:** complex client, server-side validation only after upload |
+| **Multipart + resumable** | Parallel parts, only one part retried on failure | **Single PUT:** 5 GB limit, redo everything on failure. **Sacrifice:** tracking parts + ETags |
+| **SQS + workers, chunk-level DAG** | ~18K tasks/sec, per-task retry, visibility timeout, DLQ built in | **Kafka:** no need for replay/multi-consumer, per-message retry must be hand-built. **Sync transcode:** request timeout. **Sacrifice:** the orchestrator is one more system |
+| **HLS/DASH segments** | Adaptive quality, CDN-friendly static files | **One big MP4:** no quality switch, buffering. **Sacrifice:** ~3x storage |
+| **CDN for delivery** | ~15 Tbps, edge close to the user | **Serve from origin:** bandwidth cost + latency unacceptable. **Sacrifice:** CDN is the biggest bill, misses on long-tail |
+| **SQL (sharded) for metadata** | Structured relations, moderate writes | **Cassandra/DynamoDB:** works, but we give up joins and consistent status transitions. **Sacrifice:** we manage sharding (Vitess) |
+| **Redis cache + counters** | Hot metadata and 12K views/sec INCR, ~1000x fewer DB writes | **DB increment per view:** hot row contention. **Kafka + stream processor:** overkill for 12K/sec. **Sacrifice:** approximate counts, a few seconds of views lost on crash |
 
 ## Step 11: Failures & bottlenecks
 
@@ -228,10 +249,12 @@ flowchart LR
 - "What if the CDN misses on a viral video?" → origin shield, request collapsing, pre-warm
 - "Is the view count consistent?" → no, it is eventually consistent. Batched aggregation, a small delay is acceptable
 - "If a video is private, how do you protect it on the CDN?" → signed CDN URLs/cookies with short expiry, DRM for paid content
+- "Why not Kafka for the transcode queue?" → this is task distribution: we need per-task retry, a visibility timeout and a DLQ, not replay. SQS fits
+- **Senior signal:** say it yourself: the cost is in CDN bandwidth and storage, not compute; a CDN miss storm on a viral video can hit the origin, so use an origin shield + request collapsing. And send a poison video (crashes every time) to the DLQ, or workers loop on it.
 
 ## 2-minute recap
 
-> In YouTube the bottleneck is bandwidth and storage, not QPS. Upload: the Upload Service creates the video row and returns pre-signed part URLs for an S3 multipart upload. The client sends parts directly to S3 in parallel, and it is resumable. On completion an event goes to the queue, and transcode workers split the video into chunks and run a DAG (each resolution, audio, thumbnails). Then they write HLS/DASH segments + manifest to S3 and set the status to READY. Watch: the Video Service returns metadata (sharded SQL + Redis) and the manifest URL, all segments come from the CDN, and the player changes quality with adaptive bitrate. Popular content is pre-pushed to the CDN, long-tail is pulled + origin shield. View counts are async and batched through Kafka.
+> In YouTube the bottleneck is bandwidth and storage, not QPS. Upload: the Upload Service creates the video row and returns pre-signed part URLs for an S3 multipart upload. The client sends parts directly to S3 in parallel, and it is resumable. On completion the orchestrator splits the video into chunks and puts ~18K tasks/sec into SQS (retry + DLQ, no need for Kafka), and workers run the DAG (each resolution, audio, thumbnails). Then they write HLS/DASH segments + manifest to S3 and set the status to READY. Watch: the Video Service returns metadata (sharded SQL + Redis) and the manifest URL, all segments come from the CDN, and the player changes quality with adaptive bitrate. Popular content is pre-pushed to the CDN, long-tail is pulled + origin shield. View counts use Redis `INCR` + a batch flush to the DB every 30 sec.
 
 ## Checklist
 

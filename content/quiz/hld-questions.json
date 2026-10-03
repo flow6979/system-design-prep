@@ -42,19 +42,19 @@
         "MD5(longUrl) ke first 7 chars, kyunki hash deterministic hai to collision check nahi chahiye",
         "Har write pe Redis INCR global counter, kyunki ye sabse simple aur bottleneck-free hai",
         "Random 7-char string generate karo aur DB me exist check karo, retries kabhi nahi aate",
-        "Range allocation: KGS har server ko 1000 ids ka block deta hai, server local counter + Base62 chalata hai"
+        "Range allocation: etcd/ZooKeeper counter har write server ko 1000 ids ka block deta hai, server local counter + Base62 chalata hai"
       ],
       "en": [
         "First 7 chars of MD5(longUrl), since the hash is deterministic and needs no collision check",
         "A global Redis INCR counter on every write, since it is simplest and has no bottleneck",
         "Generate a random 7-char string and check the DB; retries never happen",
-        "Range allocation: a KGS hands each server a block of 1000 ids, and the server runs a local counter + Base62"
+        "Range allocation: an etcd/ZooKeeper counter hands each write server a block of 1000 ids, and the server runs a local counter + Base62"
       ]
     },
     "answer": 3,
     "why": {
-      "hi": "Hash me collision + retry, single counter bottleneck/SPOF. Range allocation collision-free hai aur coordination sirf har 1000 writes me ek baar.",
-      "en": "Hashing needs collision checks and retries; a single counter is a bottleneck/SPOF. Range allocation is collision-free and coordinates only once per 1000 writes."
+      "hi": "Hash me collision + retry, single counter bottleneck/SPOF. Range allocation collision-free hai aur coordination sirf har 1000 writes me ek baar (~5 calls/sec), isliye alag KGS service bhi nahi chahiye.",
+      "en": "Hashing needs collision checks and retries; a single counter is a bottleneck/SPOF. Range allocation is collision-free and coordinates only once per 1000 writes (~5 calls/sec), so no separate KGS service is needed."
     }
   },
   {
@@ -126,13 +126,13 @@
     },
     "options": {
       "hi": [
-        "Pure push, bas Kafka fan-out workers 100x scale kar do",
+        "Pure push, bas queue ke fan-out workers 100x scale kar do",
         "Hybrid: normal users ke liye push, celebrity ki post sirf `user_posts` me, feed read pe merge (pull)",
         "Sabke liye pure pull, kyunki read time merge hamesha sasta hota hai",
         "Celebrity posts feed me na dikhao, sirf push notification bhejo"
       ],
       "en": [
-        "Pure push, just scale Kafka fan-out workers 100x",
+        "Pure push, just scale the queue fan-out workers 100x",
         "Hybrid: push for normal users; celebrity posts stay in `user_posts` and are merged at read time (pull)",
         "Pure pull for everyone, since read-time merge is always cheap",
         "Do not show celebrity posts in feeds; only send a push notification"
@@ -1086,19 +1086,19 @@
         "Op log me, taaki version history me cursors bhi replay ho sakein",
         "Cassandra me persist karke, taaki crash pe cursor na khoye",
         "Alag HTTP polling har 5 sec",
-        "Same WebSocket pe ~50ms throttle ke saath, op log me nahi; presence Redis me TTL ke saath"
+        "Same WebSocket pe ~50ms throttle ke saath, op log me nahi; presence owner Document Server ki memory me"
       ],
       "en": [
         "In the op log, so cursors replay in version history",
         "Persisted to Cassandra so cursors survive crashes",
         "Separate HTTP polling every 5 seconds",
-        "Over the same WebSocket, throttled to ~50 ms, not in the op log; presence lives in Redis with a TTL"
+        "Over the same WebSocket, throttled to ~50 ms, not in the op log; presence lives in the owner Document Server's memory"
       ]
     },
     "answer": 3,
     "why": {
-      "hi": "Cursor updates bahut zyada aur temporary hain. Op log me daaloge to log bekaar bharega aur history gandi hogi.",
-      "en": "Cursor updates are frequent and ephemeral. Putting them in the op log would bloat it and pollute history."
+      "hi": "Cursor updates bahut zyada aur temporary hain. Op log me daaloge to log bekaar bharega aur history gandi hogi. Saare editors same owner server pe hain, isliye presence ke liye Redis ki zarurat nahi.",
+      "en": "Cursor updates are frequent and ephemeral. Putting them in the op log would bloat it and pollute history. All editors are on the same owner server, so presence needs no Redis."
     }
   },
   {

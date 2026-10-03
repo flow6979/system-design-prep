@@ -27,7 +27,7 @@ Ask these questions before you start the design:
 | "Scale? DAU, posts/day, avg follows?" | 300M DAU, 50M posts/day, avg 200 follows | We must calculate the fan-out load |
 | "Max followers? Are there celebrities?" | Yes, some accounts have 100M+ followers | Hybrid fan-out is needed |
 | "Media in posts? Images/videos?" | Yes | S3 + CDN, only the URL in the feed |
-| "How fresh must the feed be? How soon after posting should it show?" | A few seconds is fine | Async fan-out via Kafka is OK |
+| "How fresh must the feed be? How soon after posting should it show?" | A few seconds is fine | Async fan-out via a queue is OK |
 | "Are likes, comments, notifications in scope?" | Show counts, nothing else | Counters are a separate service, out of scope |
 
 > **Say:** "I will design 2 core flows: create post and get home feed. Feed reads are very high, so I will precompute the feed and keep it in Redis, and use a hybrid model for celebrities."
@@ -35,22 +35,26 @@ Ask these questions before you start the design:
 ## Step 2: Requirements
 
 **Functional**
-1. A user can post text + media
-2. A user can follow/unfollow other users
-3. Home feed: posts from followed users, newest first (or ranked)
-4. Infinite scroll pagination
+1. Users should be able to post text + media
+2. Users should be able to follow/unfollow other users
+3. Users should be able to see a home feed: posts from followed users, newest first, infinite scroll
 
-**Non-functional**
-- **Low latency:** feed load < 200ms
-- **High availability:** the feed always opens, slightly stale is fine (eventual consistency)
-- **Scale:** read-heavy, feed reads >> post writes
-- **Freshness:** a post reaches followers' feeds in ~5 sec
+**Out of scope:** the likes/comments write path, notifications, search, ML ranking details.
+
+**Non-functional (in priority order)**
+1. **Latency:** feed load p99 < 200 ms
+2. **Availability:** feed reads 99.99%, slightly stale is fine
+3. **Freshness:** a post reaches followers' feeds in p95 ~5 sec (eventual)
+4. **Scale:** 300M DAU, ~35K feed reads/sec vs 600 posts/sec
+
+**CAP choice:** availability (AP). A post showing up 5 sec late is fine; a feed that does not open is not.
 
 ## Step 3: Estimation (only what changes the design)
 
 - Posts: 50M/day ≈ **600 posts/sec**, peak ~3K/sec.
 - Feed reads: 300M DAU × 10 opens ≈ 3B/day ≈ **35K reads/sec**, peak ~150K. We cannot compute the feed every time.
 - Fan-out writes: 600 posts/sec × 200 followers avg = **120K feed inserts/sec**. Manageable.
+- Queue: only 600 post events/sec (peak 3K). Even if big authors' fan-out is split into 1K-follower batches, it is a few thousand msgs/sec. That is not Kafka-level throughput.
 - Celebrity: one post × 100M followers = 100M writes. **This is the real problem.**
 - Feed cache: 300M users × 500 post ids × 8 bytes ≈ **1.2 TB** of Redis. Keep it only for active users.
 
@@ -77,6 +81,8 @@ GET  /feed?cursor=<lastPostId>&limit=20                → {posts[], nextCursor}
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** one service + Postgres (`posts`, `follows`). Feed = a pull query that merges the latest posts of followed authors. This meets all three FRs. The numbers break it: 35K–150K feed reads/sec × a 200-author merge → precomputed Redis feed; 120K feed inserts/sec → async queue + workers; 100M-follower celebrities → hybrid; 50M posts/day for years → Cassandra.
+
 ```mermaid
 flowchart LR
   C["Client app"] --> G["API Gateway"]
@@ -84,8 +90,8 @@ flowchart LR
   G --> FS["Feed Service"]
   G --> GS["Follow Graph Service"]
   PS --> PDB[("Posts DB Cassandra")]
-  PS --> K[["Kafka post-created"]]
-  K --> FO["Fan-out Workers"]
+  PS --> Q[["SQS fan-out queue"]]
+  Q --> FO["Fan-out Workers"]
   FO --> GS
   GS --> GDB[("Follow Graph DB")]
   FO --> FC[("Redis feed cache")]
@@ -95,13 +101,15 @@ flowchart LR
   CDN --> S3[("S3 media")]
 ```
 
+**FR mapping:** FR1 → Post Service + Cassandra + S3/CDN. FR2 → Follow Graph Service. FR3 → Feed Service + Redis feed (filled by the queue + Fan-out Workers).
+
 **Why each component:**
-- **Post Service:** saves the post and puts an event in Kafka. It does not wait for fan-out
-- **Kafka + Fan-out Workers:** async fan-out. Get the list of followers and push the post_id into each follower's Redis feed
-- **Follow Graph Service:** both "who follows X" and "whom does X follow" must be fast
-- **Redis feed cache:** precomputed feed for each user (latest ~500 post_ids)
+- **Post Service:** saves the post and puts an event on the queue, without waiting for fan-out. Sync fan-out (simpler) would take seconds for a post with 10K followers
+- **SQS + Fan-out Workers:** ~600 events/sec, and the job is "distribute tasks, retry, DLQ on failure". A managed queue is enough for that. **Not Kafka**, because there is only one consumer now and no need for replay
+- **Follow Graph Service:** both direction tables (follows + followers) must be written consistently, and both Feed and Fan-out read from it
+- **Redis feed cache:** 35K–150K reads/sec, p99 < 200 ms. A DB merge of 200 authors on every read (simpler) will not work
 - **Feed Service:** ids from Redis, merge celebrity posts, hydrate post details, rank, return
-- **S3 + CDN:** images/videos go directly client → S3 (pre-signed URL), served from the CDN
+- **S3 + CDN:** images/videos go directly client → S3 (pre-signed URL), served from the CDN. Serving media from app servers (simpler) eats their bandwidth
 
 ## Step 7: Main flow: posting and reading the feed
 
@@ -109,16 +117,16 @@ flowchart LR
 sequenceDiagram
   participant A as Author
   participant PS as Post Service
-  participant K as Kafka
+  participant Q as SQS
   participant FO as Fan-out Worker
   participant FC as Redis Feed
   participant U as Follower
   participant FS as Feed Service
   A->>PS: POST /posts
   PS->>PS: save post, postId = snowflake
-  PS->>K: post-created event
+  PS->>Q: post-created message
   PS-->>A: 201 postId
-  K->>FO: consume event
+  Q->>FO: receive message
   FO->>FO: if author is a celebrity, skip fan-out
   FO->>FC: ZADD feed of each follower, trim to 500
   U->>FS: GET /feed
@@ -150,6 +158,8 @@ Redis HASH       post:{post_id}  → post details cache
 
 ### 9.1 Fan-out on write vs fan-out on read
 
+**NFR:** feed p99 < 200 ms without breaking the write path.
+
 | | Fan-out on write (push) | Fan-out on read (pull) |
 |---|---|---|
 | How | As soon as someone posts, put it in every follower's feed | When the feed opens, fetch + merge posts of followed users |
@@ -158,7 +168,11 @@ Redis HASH       post:{post_id}  → post details cache
 | Waste | Feeds are built even for inactive users | No waste |
 | Best for | Normal users | Celebrities |
 
+**Trade-off:** push costs storage and writes (even feeds of inactive users), in exchange for a feed in one Redis read.
+
 ### 9.2 Celebrity problem: hybrid model
+
+**NFR:** ~5 sec freshness, even for celebrity posts.
 
 - Normal users (< 10K followers): **push**. Fan-out workers write into followers' feeds.
 - Celebrities (> 10K–100K followers, `is_celebrity` flag): **pull**. Their posts do not go into anyone's feed.
@@ -177,7 +191,11 @@ flowchart LR
 
 > **Say:** "In the hybrid, normal users use push and celebrities use pull. A user follows at most a few dozen celebrities, so merging at read time is cheap."
 
+**Trade-off:** feed reads get a bit more complex and slower (merge step), in exchange for no 100M-write explosion.
+
 ### 9.3 Feed cache and hydration
+
+**NFR:** latency + Redis memory (~1.2 TB) under control.
 
 - Keep only **post_ids** in the Redis feed, not the full post. On post edit/delete, you update only one place.
 - Hydration: `MGET post:{id}` from the post cache for the ids. On a miss, go to Cassandra.
@@ -185,31 +203,37 @@ flowchart LR
 - Feed size is capped at 500. For older posts, fetch from the DB with the pull model.
 - Unfollow: an async job removes that author's posts from the feed. Or filter at read time (cheap).
 
+**Trade-off:** one extra `MGET` for hydration on every read, in exchange for 500x less memory and edit/delete in one place.
+
 ### 9.4 Pagination and ranking
+
+**NFR:** infinite scroll without duplicates, stable latency.
 
 - **Cursor:** `nextCursor = last post_id`. Next request: `post_id < cursor`. Snowflake ids are time-sortable, so this is stable, and new posts do not shift the page.
 - **Ranking (briefly):** first get candidates (latest ~500), then a ranking service scores them: recency, interaction with the author, likes velocity, media type. Return the top 20. Say the ML model details are out of scope.
 - "N new posts" banner for new posts: client polls every 30 sec, or SSE.
 
+**Trade-off:** a cursor cannot "jump to page 7", in exchange for stable and fast pages.
+
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Hybrid fan-out** | Fast reads for normal users, no write explosion for celebrities | **Pure push:** a celebrity post = 100M writes, minutes of lag. **Pure pull:** 200 queries on every feed open, slow |
-| **Kafka async fan-out** | Post API stays fast, workers can scale, retries are possible | **Sync fan-out in Post API:** posting would take seconds |
-| **Redis feed with post_ids only** | Small memory, edit/delete in one place | **Full post in feed:** 500x duplicate data, every copy must be updated on edit |
-| **Cassandra for posts** | Write-heavy, time-ordered per author, horizontal scale | **Single Postgres:** 50M posts/day and years of data, we would need manual sharding |
-| **Cursor pagination** | Stable pages, fast `post_id < cursor` | **Offset:** duplicates when new posts arrive, large offsets are slow |
-| **S3 + CDN for media** | No bandwidth on app servers, low latency globally | **Media in the DB or from app servers:** costly and slow |
+| **Hybrid fan-out** | Fast reads for normal users, no write explosion for celebrities | **Pure push:** a celebrity post = 100M writes, minutes of lag. **Pure pull:** 200 queries on every feed open. Sacrifice: merge logic on the read path |
+| **SQS async fan-out** | ~600 events/sec, built-in retries + DLQ, workers autoscale on queue depth | **Kafka:** one consumer, no replay needed, extra ops. **Sync fan-out:** posting takes seconds. Sacrifice: no per-author ordering or replay |
+| **Redis feed with post_ids only** | 35K+ reads/sec, small memory, edit/delete in one place | **Full post in feed:** 500x duplicate data. **Pull from DB:** breaks p99. Sacrifice: ~1.2 TB of RAM cost, hydration step |
+| **Cassandra for posts** | Write-heavy, time-ordered per author, horizontal scale | **Single Postgres:** 50M posts/day for years, manual sharding. Sacrifice: no joins/transactions |
+| **Cursor pagination** | Stable pages, fast `post_id < cursor` | **Offset:** duplicates when new posts arrive, large offsets are slow. Sacrifice: no random page jump |
+| **S3 + CDN for media** | No bandwidth on app servers, low latency globally | **Media in the DB or from app servers:** costly and slow. Sacrifice: CDN cost, URL signing |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle |
 |---|---|---|
-| Fan-out workers lag | Posts reach feeds late | Scale Kafka partitions + workers, alert on lag |
+| Fan-out workers lag | Posts reach feeds late | Autoscale workers on queue depth, alert on oldest-message age |
 | Redis feed shard down | Some users see an empty feed | Replica failover, or rebuild the feed on the fly with the pull model |
 | Celebrity post goes viral | Heavy reads on their `user_posts` row | Local/Redis cache of celebrity recent posts, short TTL |
-| Duplicate Kafka event | Same post twice in the feed | ZSET with post_id as member, duplicates are ignored automatically |
+| Duplicate message (at-least-once) | Same post twice in the feed | ZSET with post_id as member, duplicates are ignored automatically |
 | Post deleted | Feeds still have the id | Skip deleted posts during hydration, async cleanup |
 | Hot user's feed key | Load on one Redis node | Sharding by user_id, read replicas |
 
@@ -218,10 +242,7 @@ flowchart LR
 > "If I had more time, I would improve these:"
 - **ML ranking** with a feature store, and an A/B testing framework
 - **Real-time "new posts" push** via SSE/WebSocket for active users
-- **Inactive users:** evict their feeds from the cache and rebuild lazily on login, saving 50%+ of Redis memory
-- **Multi-region:** feed cache in every region, posts replicated async
-- **Content moderation** pipeline on Kafka, filtering spam/abuse posts before fan-out
-- Make the celebrity threshold dynamic (followers + post frequency)
+- **Kafka when needed:** once moderation, search indexing and notifications also read post-created (3+ consumers, replay needed), replace SQS with a Kafka stream
 
 ## Step 13: Likely follow-up questions
 
@@ -229,12 +250,12 @@ flowchart LR
 - "A user just followed someone. How do that person's old posts get into the feed?" → On follow, an async job merges their last 20 posts into the feed
 - "What if the whole feed cache is lost?" → It is derived data. Rebuild on demand with the pull model and warm it gradually
 - "How does the cursor work with ranking?" → Cache the ranked candidate list for the session, cursor = position/score
-- "What changes for Facebook (two-way friends)?" → The friend limit is 5000, so the celebrity problem is smaller. Use pull for Pages
 - "How do you count likes on a post?" → A separate counter service, Redis INCR + periodic DB flush
+- **Senior signal:** raise it yourself: at peak, fan-out becomes 3K posts/sec × 200 = 600K Redis writes/sec. If queue lag grows, the 5 sec freshness breaks: alert on oldest-message age, skip inactive users, and serve active users' feeds first.
 
 ## 2-minute recap
 
-> A news feed is read-heavy, so we precompute the feed and keep it in Redis (only post_ids, max 500). The Post Service saves the post in Cassandra and puts an event in Kafka. Fan-out workers get the follower list from the Follow Graph and push the post_id into their Redis feeds. There is no fan-out for celebrities: their posts are pulled and merged at read time (hybrid). Fan-out is skipped for inactive users. The Feed Service takes the ids, hydrates them from the post cache, optionally ranks them, and returns them with a cursor (last post_id, Snowflake). Media goes to S3 with a pre-signed URL and is served from the CDN.
+> A news feed is read-heavy, so we precompute the feed and keep it in Redis (only post_ids, max 500). The Post Service saves the post in Cassandra and puts an event on SQS (only ~600/sec and one consumer, so no Kafka). Fan-out workers get the follower list from the Follow Graph and push the post_id into their Redis feeds. There is no fan-out for celebrities: their posts are pulled and merged at read time (hybrid). Fan-out is skipped for inactive users. The Feed Service takes the ids, hydrates them from the post cache, optionally ranks them, and returns them with a cursor (last post_id, Snowflake). Media goes to S3 with a pre-signed URL and is served from the CDN.
 
 ## Checklist
 

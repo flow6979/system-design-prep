@@ -32,22 +32,27 @@ askedAt: [Flipkart, Amazon, Meesho, Myntra, Alibaba, Walmart]
 ## Step 2: Requirements
 
 **Functional**
-1. Before the sale starts, the product page shows with a countdown
-2. When the sale starts, the user presses "Buy", and if stock is left, a unit is reserved
-3. The reserved user pays within 10 min, otherwise the unit goes back to the pool
-4. 1 unit per user, and "Sold out" shows right away once sold out
+1. Users should be able to see the product page with a countdown before the sale
+2. Users should be able to press "Buy" at sale start and reserve a unit (max 1 per user)
+3. Users should be able to pay within 10 min to confirm the order, otherwise the unit goes back to the pool
+4. Users should be able to see "Sold out" right away once stock is gone
 
-**Non-functional**
-- **Correctness:** zero oversell (most important)
-- **Availability:** the site must not go down, even if the sale path is throttled
-- **Fairness:** roughly first-come-first-served, no advantage for bots
-- **Latency:** the user gets an answer in 1–2 sec (got it / waiting / sold out)
+**Out of scope:** catalog, search, recommendations, multi-item cart, returns.
+
+**Non-functional (in priority order)**
+1. **Correctness:** zero oversell, 1 unit per user (most important)
+2. **Availability:** site 99.99% up; the sale path may be throttled but must not crash
+3. **Latency:** answer in p99 < 2 sec (got it / waiting / sold out)
+4. **Fairness:** roughly FIFO, no advantage for bots
+5. **Scale:** 1M users in one minute, ~500K page QPS, ~200K buy QPS, only 1,000 units
+
+**CAP choice:** consistency for inventory: if the stock Redis primary is down, pause the sale rather than risk oversell. Availability for the product page and queue position: a stale countdown or position is fine.
 
 ## Step 3: Estimation (only what changes the design)
 
 - 1 million users × many refreshes → **~500K QPS** on the page at sale start. Only a CDN can handle this.
 - "Buy" clicks: ~200K QPS in the first 10 sec. One Redis key does ~100K ops/sec. So filter first with a waiting room / rate limit.
-- Actual orders: only **1,000**. That is nothing for the DB.
+- Actual reservations/orders: only **1,000**. That is nothing for Postgres, so winners get a **direct sync insert**; no queue is needed in between.
 
 > **Say:** "The funnel will look like this: 500K QPS at the CDN, 200K buy clicks at the gateway, a few thousand reach Redis through the waiting room, and only 1,000 reach the DB. Each layer cuts load by 10–100x."
 
@@ -71,6 +76,8 @@ POST /orders {reservationId, paymentToken}
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** app server + Postgres: `UPDATE sales SET sold = sold + 1 WHERE id=? AND sold < total_stock` + a reservation insert. Enough for a normal sale. The numbers break it: 500K page QPS (→ CDN), 200K buy QPS on one row (→ Redis Lua), fairness + a ~100K ops/sec single-key limit (→ waiting room). The DB write for the 1,000 winners stays the same as v1.
+
 ```mermaid
 flowchart LR
   U["Users"] --> CDN["CDN product page"]
@@ -79,21 +86,21 @@ flowchart LR
   WR --> RQ[("Redis queue ZSET")]
   G --> RS["Reservation Service"]
   RS --> RI[("Redis stock + Lua")]
-  RS --> K[["Kafka reservations"]]
-  K --> OS["Order Service"]
-  OS --> DB[("Postgres orders")]
+  RS --> DB[("Postgres sales, reservations, orders")]
+  G --> OS["Order Service"]
+  OS --> DB
   OS --> PG["Payment Gateway"]
   EX["Expiry worker"] --> DB
   EX --> RI
 ```
 
-**Why each component:**
-- **CDN:** product page, images, countdown are static. The 500K QPS at sale start must not reach the origin.
-- **API Gateway + Bot filter:** per-user / per-IP rate limit, CAPTCHA, device fingerprint.
-- **Waiting Room:** gives everyone a token, keeps a line in a Redis sorted set, admits at a fixed rate.
-- **Reservation Service + Redis Lua:** atomic "stock check + decrement + user dedup".
-- **Kafka → Order Service:** writes the winners to the DB async, protecting the DB from the spike.
-- **Expiry worker:** if payment does not happen in 10 min, the reservation expires and stock goes back.
+**Why each component:** (FR1 → CDN, FR2 → Waiting Room + Reservation + Redis Lua, FR3 → Order Service + Payment + Expiry worker, FR4 → sold-out flag at gateway/CDN)
+- **CDN:** 500K page QPS must not reach the origin; app servers cannot autoscale 100x in 30 sec.
+- **API Gateway + Bot filter:** per-user / per-IP rate limit, CAPTCHA, device fingerprint (fairness).
+- **Waiting Room (Redis ZSET):** 200K buy QPS > one Redis key's ~100K ops/sec, plus FIFO fairness. A plain rate limit is random, not fair.
+- **Reservation Service + Redis Lua:** atomic "stock check + decrement + user dedup"; 200K QPS on a DB row would be lock contention.
+- **Postgres (sync insert):** the winner's reservation goes straight to the DB. ~1,000 rows in total, so **no Kafka**: the spike never reaches the DB, a queue would only add lag and ops.
+- **Expiry worker (cron, every 30 sec):** expires unpaid reservations, returns stock. A DB scan is enough for 1,000 rows.
 
 ## Step 7: Main flow: from buy click to order
 
@@ -103,7 +110,7 @@ sequenceDiagram
   participant W as Waiting Room
   participant R as Reservation Svc
   participant RD as Redis
-  participant K as Kafka
+  participant DB as Postgres
   participant O as Order Svc
   U->>W: POST /enter
   W-->>U: queueToken, position 4512
@@ -111,11 +118,10 @@ sequenceDiagram
   U->>R: POST /reserve buyToken
   R->>RD: EVAL lua - check user, DECR stock
   RD-->>R: OK, left 312
-  R->>K: ReservationCreated
+  R->>DB: INSERT reservation UNIQUE sale_id user_id
   R-->>U: reserved, pay in 10 min
-  K->>O: consume
-  O->>O: INSERT reservation UNIQUE sale_id user_id
   U->>O: POST /orders with paymentToken
+  O->>DB: UPDATE reservation PAID WHERE status RESERVED
   O-->>U: order CONFIRMED
 ```
 
@@ -129,12 +135,13 @@ reservations(id PK, sale_id, user_id, status, expires_at,
 orders(id PK, reservation_id UNIQUE, payment_id UNIQUE, status)
 ```
 
-- **Redis** = fast gatekeeper. **Postgres** = final truth.
+- **Redis** = fast gatekeeper. **Postgres** = final truth. Reservation insert + `sold = sold + 1` in one transaction; if it fails, Redis `INCR` returns the unit.
 - `CHECK (sold <= total_stock)` and `UNIQUE(sale_id, user_id)` stop oversell and double purchase at the DB level, even if something goes wrong in Redis.
 
 ## Step 9: Deep dives (where the interviewer will push)
 
 ### 9.1 How do you decrement inventory atomically?
+**NFR:** zero oversell, even at 200K buy QPS.
 A DB row `UPDATE ... SET stock = stock - 1` at 200K QPS = row lock contention, and the DB dies. So use a **Lua script** in Redis (single-threaded, atomic):
 ```lua
 if redis.call('SISMEMBER', KEYS[2], ARGV[1]) == 1 then return -2 end  -- already bought
@@ -146,41 +153,48 @@ return s - 1
 - Plain `DECR` also works (if it goes negative, `INCR` it back), but Lua also does the user dedup in the same step.
 - As soon as stock hits 0, set a flag `soldout:{saleId}`. The gateway/CDN reads that flag and shows "Sold out" right away, without even reaching Redis.
 - If one key is very hot, **split the stock**: divide 1,000 units into 10 keys of 100 each, pick a key by user hash. If one key runs out, try another.
+- **Trade-off:** Redis is fast but can lose the last writes on failover; so the DB constraint is the safety net, and we accept a little undersell.
 
 ### 9.2 Virtual waiting room and queue admission
+**NFR:** fairness + the site must not crash (fixed load).
 - On `/enter`, give the user a token, `ZADD queue:{saleId} <timestamp> <userId>`.
 - An admission worker gives a `buyToken` (signed, valid for 2 min) to N users (say 2,000) every second.
 - The client polls its position (or uses SSE). Once stock hits 0, everyone in the queue gets "Sold out" right away.
 - Benefit: load on the Reservation service comes at a fixed rate, not as a spike.
+- **Trade-off:** users wait a few seconds and we run one more service; in return, predictable load and fairness.
 
 ### 9.3 Payment timeout and stock release
+**NFR:** correctness (a paid unit is never sold twice) + less undersell.
 - Reservation TTL is 10 min. The expiry worker runs every 30 sec: `status=RESERVED AND expires_at < now()` → `EXPIRED`, then `INCR stock` in Redis and remove the user from the set.
 - Released units go to users waiting in the queue.
 - Race: payment and expiry at the same time? `UPDATE reservations SET status='PAID' WHERE id=? AND status='RESERVED'`. Whoever wins first wins. If expiry won and the payment came late, **auto refund**.
+- **Trade-off:** a unit stays blocked for the 10 min TTL; a shorter TTL = less undersell but genuine slow payers fail.
 
 ### 9.4 Bot protection
+**NFR:** fairness, real users get the product.
 - Login + verified phone required before the sale. Block new accounts or give them low priority.
 - Per-user, per-IP, per-device rate limits at the gateway. CAPTCHA on `/enter`.
 - `buyToken` is signed and bound to the user, so it cannot be shared or replayed.
 - Multiple accounts on the same address / payment card → post-sale fraud check, cancel the order.
+- **Trade-off:** every check adds friction and stops some genuine users too.
 
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Redis Lua** for stock decrement | Atomic, ~100K ops/sec, user dedup in the same step | **DB row update:** hundreds of thousands of lock waits on one row, DB crash. **Optimistic locking:** almost every request will conflict, retry storm |
-| **DB CHECK + UNIQUE constraint** | Final safety net, no oversell even if Redis fails | **Trusting only Redis:** last writes can be lost on failover, and we oversell |
-| **Virtual waiting room** | Fixed-rate load, fair FIFO, UX shows the position | **Only autoscaling:** you cannot scale 100x in 30 sec, and the bottleneck is a single key |
-| **Kafka** between reserve and order | Keeps the spike away from the DB, safe retries | **Sync DB insert:** the spike hits the DB directly |
-| **CDN** for product page | 500K QPS at the edge, origin is safe | **Serve from app servers:** wasted compute, origin goes down |
-| **TTL reservation + expiry worker** | Unpaid units come back, less undersell | **Decrement only after payment:** more than 1,000 people will pay, and we get a pile of refunds |
+| **Redis Lua** for stock decrement | Atomic, ~100K ops/sec, user dedup in the same step | **DB row update:** lakhs of lock waits. **Optimistic locking:** retry storm. Sacrifice: some writes can be lost on failover |
+| **DB CHECK + UNIQUE constraint** | Safety net, no oversell even if Redis fails | **Only Redis:** oversell on failover. Sacrifice: sometimes Redis says "yes" and the DB says "no" = an error for the user |
+| **Virtual waiting room** | Fixed-rate load, fair FIFO | **Only rate limit + autoscaling:** unfair, single-key bottleneck. Sacrifice: an extra service, users wait |
+| **Sync DB insert** for winners | ~1,000 inserts, the DB is the truth immediately | **Kafka/SQS:** the spike never reaches the DB, so a queue only adds lag + ops. Sacrifice: DB down = sale paused |
+| **CDN** for product page | 500K QPS at the edge | **App servers:** origin goes down. Sacrifice: countdown/badge slightly stale |
+| **TTL reservation + cron expiry** | Unpaid units come back | **Decrement after payment:** 1,000+ people pay, refunds. **Delay queue:** overkill. Sacrifice: ~30 sec release delay |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle |
 |---|---|---|
 | Redis primary crash | Some decrements may be lost | The DB constraint stops oversell. AOF `everysec` + replica. Dedicated Redis for the sale |
-| Kafka consumer lag | Reservation reaches the DB late | The user already got a response from the Redis result. Scale the consumer |
+| Postgres slow/down | Lua won but the insert failed | Redis `INCR` returns the unit, user gets "retry"; if the DB is down, pause the sale (correctness > availability) |
 | Payment gateway slow | Reservations are expiring | Increase the TTL a bit for the sale, get dedicated capacity from the gateway |
 | Hot key | One Redis shard at 100% CPU | Split stock across keys, sold-out flag at the edge |
 | Bots | Real users get nothing | CAPTCHA, signed tokens, rate limit, fraud check |
@@ -192,7 +206,6 @@ return s - 1
 - **Load test + game day:** rehearse with 2x the expected traffic before the sale
 - **Graceful degradation:** turn off non-critical features like recommendations and reviews during the sale
 - **Multi-region:** product page from the CDN in every region, but inventory in one primary Redis cluster
-- Post-sale **analytics stream**: how many bots were blocked, how much undersell, conversion
 
 ## Step 13: Likely follow-up questions
 
@@ -201,10 +214,12 @@ return s - 1
 - "Payment succeeded but the reservation had already expired?" → the conditional update fails, auto refund
 - "What if 10 million users show up?" → shard the waiting room's Redis ZSET, or use a pre-registration lottery
 - "How will you prove fairness?" → FIFO by queue timestamp, and admission logs for audit
+- "Why no Kafka?" → only ~1,000 writes reach the DB; the funnel already removed the spike
+- **Senior signal:** raise it yourself: the real single point is the stock Redis key. Plan its failover (last-writes loss) and hot-shard CPU up front: dedicated Redis, stock split, sold-out flag at the edge, DB constraint as backstop.
 
 ## 2-minute recap (read this before the interview)
 
-> In a flash sale the problem is contention, not throughput. Build a funnel: the CDN serves the product page, the gateway filters bots and applies rate limits, the waiting room (Redis ZSET) admits users at a fixed rate, and the Reservation service does user dedup + stock decrement atomically with a Redis Lua script. As soon as it is sold out, a flag is set and the rest of the requests are rejected at the edge. Winners go through Kafka to the Order service, which writes to Postgres with `CHECK(sold <= total)` and `UNIQUE(sale_id, user_id)`, so there is no oversell even if Redis fails. Reservations have a 10 min TTL, an expiry worker returns the stock, and late payments get an auto refund. For bots: CAPTCHA, signed buy tokens, per-device limits.
+> In a flash sale the problem is contention, not throughput. Build a funnel: the CDN serves the product page, the gateway filters bots and applies rate limits, the waiting room (Redis ZSET) admits users at a fixed rate, and the Reservation service does user dedup + stock decrement atomically with a Redis Lua script. As soon as it is sold out, a flag is set and the rest of the requests are rejected at the edge. The ~1,000 winners' reservations go straight (sync) to Postgres, since a queue is pointless for so few writes. Postgres has `CHECK(sold <= total)` and `UNIQUE(sale_id, user_id)`, so there is no oversell even if Redis fails. Reservations have a 10 min TTL, an expiry worker returns the stock, and late payments get an auto refund. For bots: CAPTCHA, signed buy tokens, per-device limits.
 
 ## Checklist
 

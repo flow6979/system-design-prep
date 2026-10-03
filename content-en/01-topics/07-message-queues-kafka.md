@@ -104,6 +104,23 @@ The consumer is slow and the queue keeps growing (consumer lag).
 - **Use:** slow side effects, fan-out to many services, spikes, event-driven pipelines, analytics.
 - **Don't use:** when the user needs the result right away (login, balance check). Use a sync call there.
 
+### When NOT to use Kafka
+
+In mocks ~60% of candidates add Kafka without a reason. Kafka has a cost: brokers, partitions, consumer lag, rebalancing ops. If none of the needs below apply, name the simpler option.
+
+| Option | Pick it when | Example |
+|---|---|---|
+| **Kafka** | ~100K+ events/sec, replay/retention needed, multiple consumer groups on the same stream, per-key ordering at scale, stream processing | Ad clicks at 50K/sec, read by both billing and analytics, 7-day replay |
+| **SQS / RabbitMQ** | Task queue: one job to one worker, retries, DLQ, routing, priorities. Less ops (SQS is fully managed) | Sending email/SMS, video transcode jobs |
+| **Transactional outbox + worker** | The DB write and the event must be atomic, moderate volume | Payment status change → notification |
+| **DB table + cron** | Low volume (a few thousand/day), delay is fine | Daily reminders, cleaning up expired holds |
+
+### How to justify it in an interview
+
+Template: **requirement → number → why this over alternatives → what we sacrifice**.
+
+> "Click events are needed by both analytics and billing (requirement), ~50K events/sec at peak (number). Kafka, because we need two independent consumer groups and 7-day replay, which SQS doesn't give. We sacrifice: more ops and cost, and ordering only per `ad_id` partition."
+
 ## Where it is used
 
 - [Notification System](../02-questions/t1-09-notification-system.md): priority queues, retries, DLQ
@@ -117,7 +134,7 @@ The consumer is slow and the queue keeps growing (consumer lag).
 
 ## Say this in the interview
 
-> "The order service will put an `order_placed` event in Kafka with key `order_id`, so the events of one order stay in order. Notification and analytics will be separate consumer groups. Delivery is at-least-once, so consumers will dedupe by `event_id`, and after 5 retries a message will go to the DLQ. I'll set up alerts and autoscaling on consumer lag."
+> "The order service will put an `order_placed` event in Kafka with key `order_id`, so the events of one order stay in order. Kafka because notification and analytics will be separate consumer groups and we need replay. Delivery is at-least-once, so consumers will dedupe by `event_id`, and after 5 retries a message will go to the DLQ. I'll set up alerts and autoscaling on consumer lag."
 
 ## Common mistakes
 
@@ -126,6 +143,7 @@ The consumer is slow and the queue keeps growing (consumer lag).
 - Not having a DLQ, so one bad message blocks a partition.
 - Too few partitions, so consumers can't scale.
 - Putting everything in a queue, even where a sync response was needed.
+- Kafka for 500 jobs/min. SQS or an outbox is enough there.
 
 ## Checklist
 

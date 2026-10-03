@@ -109,11 +109,11 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
         aria-label={tr('Topics aur questions filter karo', 'Filter topics and questions')}
       />
       <Group label="Topics" pages={topics} current={current} match={match} filtering={!!f} />
-      <Group label="Questions · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} filtering={!!f} />
+      <Group label="HLD problems · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} filtering={!!f} />
       <Group label="LLD · Design patterns" pages={lld} current={current} match={match} filtering={!!f} />
       <Group label="Databases" pages={db} current={current} match={match} filtering={!!f} />
       <Group label="Java" pages={java} current={current} match={match} filtering={!!f} />
-      <Group label="Questions · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} filtering={!!f} />
+      <Group label="HLD problems · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} filtering={!!f} />
       <Group label="Agentic AI" pages={agentPages} current={current} match={match} filtering={!!f} />
     </nav>
   )

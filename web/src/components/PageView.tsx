@@ -38,7 +38,7 @@ export function PageView({
   const tabs = page.kind === 'java' ? java : page.kind === 'db' ? db : lld
   const body = revision ? revisionBody(page) : page.body
 
-  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', java: 'Java', db: 'Databases', agent: 'Agentic AI' }[page.kind]
+  const eyebrow = { topic: 'Topic', question: `HLD problem · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', java: 'Java', db: 'Databases', agent: 'Agentic AI' }[page.kind]
   const revisionNote = {
     question: tr(
       'Revision mode: sirf clarifying sawal, decision table aur 2-minute recap dikh rahe hain.',

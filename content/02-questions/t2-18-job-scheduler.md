@@ -32,17 +32,20 @@ askedAt: [Amazon, Google, Microsoft, Atlassian, Razorpay, Uber]
 ## Step 2: Requirements
 
 **Functional**
-1. Job create/update/delete: one-time, delayed (`run_at`), cron (`0 2 * * *`)
-2. Due time pe job execute ho, payload ke saath
-3. Fail hone pe retry with backoff, max retries ke baad DLQ
-4. Job status aur execution history dekh sakein
+1. Users should be able to job create/update/delete kar sakein: one-time, delayed (`run_at`), cron (`0 2 * * *`)
+2. Users should be able to bharosa kar sakein ki job due time pe payload ke saath chalegi
+3. Users should be able to fail hone pe automatic retry (backoff) aur max retries ke baad DLQ paa sakein
+4. Users should be able to job status aur execution history dekh sakein
 
-**Non-functional**
-- **Reliability:** koi due job miss nahi (durable)
-- **Timeliness:** due time se < 2 sec me start
-- **At-least-once** execution, duplicates rare
-- **Scale:** 10M executions/day, midnight pe 10K/sec burst
-- **HA:** scheduler ya worker crash pe system chalta rahe
+**Out of scope:** job DAG/dependencies, job ka code build/deploy, multi-region active-active.
+
+**Non-functional (priority order me)**
+1. **Reliability:** koi due job miss nahi (durable), at-least-once, duplicates rare
+2. **Timeliness:** due time se p99 < 2 sec me start
+3. **HA:** 99.99%, scheduler ya worker crash pe system chalta rahe
+4. **Scale:** 10M executions/day, midnight pe 10K/sec burst
+
+**CAP choice:** scheduling state pe consistency: partition me scheduler ruk jaaye (job thodi late) chalega, par do schedulers ek bucket na uthayein. Isliye leader lease strongly consistent store me.
 
 ## Step 3: Estimation (sirf jo design badle)
 
@@ -72,29 +75,28 @@ POST   /executions/{execId}/complete {status, output}  (worker)
 
 ## Step 6: High-level design
 
+**Simple v1 pehle:** Job API + ek Postgres + workers jo seedha `SELECT ... WHERE scheduled_at <= now() FOR UPDATE SKIP LOCKED LIMIT 10` poll karein. Hazaar jobs/min tak ye poora kaam karta hai. Numbers isko todte hain: midnight pe 10K/sec burst aur ~1000 workers ka DB polling (→ scheduler + SQS ready queue), aur 40K status writes/sec peak (→ Postgres shards, har shard ka ek scheduler leader).
+
 ```mermaid
 flowchart LR
   C["Client / Service"] --> API["Job API"]
-  API --> DB[("Jobs + Executions DB")]
-  ZK["etcd / ZooKeeper"] -. "leader election" .-> SC["Scheduler leader"]
-  SC --> DB
-  SC --> Q[["Ready Queue Kafka / SQS"]]
+  API --> DB[("Postgres sharded jobs + executions")]
+  SC["Scheduler leader per shard"] -- "lease row" --> DB
+  SC --> Q[["SQS ready queue"]]
   Q --> W1["Worker pool"]
   W1 --> DB
-  W1 --> DLQ[["Dead Letter Queue"]]
+  Q --> DLQ[["SQS dead letter queue"]]
   W1 --> M["Metrics + Alerts"]
   RP["Lease reaper"] --> DB
-  RP --> Q
 ```
 
-**Har component kyun:**
-- **Job API:** definitions validate karta hai, pehla execution `scheduled_at` ke saath likhta hai.
-- **DB (Postgres sharded / Cassandra):** durable source of truth for jobs aur executions.
-- **Scheduler leader:** har second due executions uthata hai aur ready queue me daalta hai. Leader election se ek hi active per shard.
-- **Ready Queue:** workers ke liye buffer, burst absorb, visibility timeout.
-- **Workers:** pull, lease lo, chalao, heartbeat, complete.
-- **Lease reaper:** expired leases wale executions ko wapas queue me.
-- **DLQ:** max retries ke baad, manual inspection.
+**Har component kyun:** (FR1/FR4 → Job API + Postgres, FR2 → Scheduler + SQS + Workers, FR3 → backoff rows + DLQ)
+- **Postgres sharded by `hash(job_id)`:** conditional updates (status, fencing) aur `UNIQUE` chahiye. ~4 writes per execution × 10K/sec = 40K writes/sec peak, kuch shards kaafi. Cassandra me ye LWT se slow hota.
+- **Scheduler leader per shard:** har second current bucket ke due rows `QUEUED` karke SQS me. Leader **DB lease row** se (`UPDATE shard_leases SET owner=me, expires=now()+10s WHERE expires < now()`); alag etcd/ZooKeeper cluster nahi chahiye kyunki strongly consistent Postgres pehle se hai.
+- **SQS ready queue (Kafka nahi):** ye task distribution hai: per-message visibility timeout (= lease), retries, DLQ built-in. Kafka me per-message ack nahi, aur replay/multiple consumers ki zarurat nahi.
+- **Workers:** pull, lease lo, chalao, heartbeat, complete. Pull = natural backpressure.
+- **Lease reaper:** DB me `RUNNING` rows jinki lease expire ho gayi, unhe wapas `SCHEDULED`.
+- **DLQ:** SQS redrive policy, max retries ke baad manual inspection.
 
 ## Step 7: Main flow: due job se completion tak
 
@@ -129,44 +131,52 @@ INDEX (shard_id, time_bucket, status)
 
 - `time_bucket` = `scheduled_at` ko minute/second me round. Scheduler sirf current bucket padhta hai, poori table nahi.
 - `UNIQUE(job_id, scheduled_at)`: same cron run do baar create nahi ho sakta, chahe do schedulers galti se chal jaayein.
-- Chhote scale pe Postgres (conditional updates, `SKIP LOCKED`). Bahut bade scale pe Cassandra with partition key `(shard_id, time_bucket)`, jaisa Airbnb/Uber karte hain.
+- **Postgres, `hash(job_id) % N` se sharded:** conditional updates aur `UNIQUE` isi pe natural. Cassandra `(shard_id, time_bucket)` tab socho jab writes lakhs/sec ho jaayein (Airbnb/Uber scale); 40K/sec pe zarurat nahi.
 
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 Due jobs kaise dhoondhoge?
+**NFR:** timeliness, due time se < 2 sec.
 - **Time-bucketed table:** partition key `(shard, minute_bucket)`. Scheduler har second current bucket query kare. Index scan chhota, poori table kabhi nahi.
 - **Alternative: Redis ZSET** `ZADD due <run_at_epoch> exec_id`, phir `ZRANGEBYSCORE due 0 now LIMIT 1000`. Fast hai, par Redis durability kamzor, isliye DB truth rakho aur Redis sirf next 1 hour ka index.
 - **Delayed jobs** (jaise "30 min baad reminder") bhi same: `scheduled_at = now + delay`.
 - **Cron:** execution complete (ya queue) hone pe next run cron expression se compute karke naya execution row insert. Timezone aur DST ka dhyaan.
+- **Trade-off:** second-level polling DB pe constant load deta hai; bucket chhota rakhna padta hai, ms precision nahi milti.
 
 ### 9.2 Workers: pull, lease, visibility timeout
+**NFR:** reliability, worker crash pe job miss nahi.
 - Workers **pull** karte hain (push nahi), taaki apni capacity ke hisaab se lein.
 - Queue (SQS) visibility timeout = lease. Worker crash → message wapas visible → doosra worker uthayega.
 - Lambi jobs: worker har 20 sec **heartbeat** karke lease badhaye. Heartbeat ruka → lease expire → reaper re-queue.
 - **Zombie worker** (network partition, purana worker abhi bhi chal raha): complete karte waqt `WHERE lease_owner = me AND attempt = n` check. Fencing token = attempt number. Purana worker ka result reject.
-- Postgres-only design me queue ki jagah `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 10` bhi chalta hai.
+- Postgres-only design (v1) me queue ki jagah `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 10` bhi chalta hai.
+- **Trade-off:** lease chhoti = crash jaldi detect par heartbeat traffic zyada; lambi = kam traffic par recovery slow.
 
 ### 9.3 At-least-once, idempotency, retries, DLQ
+**NFR:** at-least-once, duplicates rare aur harmless.
 - Crash/timeout pe job dobara chal sakti hai, isliye **exactly-once nahi, at-least-once**. Har run ko `exec_id` idempotency key ke roop me do. Job handler (jaise "send invoice") is key se dedup kare.
 - Fail → `attempt++`, `scheduled_at = now + backoff` (exponential: 10s, 30s, 2m, 10m + jitter), status `SCHEDULED`.
 - `attempt > max_retries` → `DEAD`, DLQ me, owner ko alert. DLQ se manual replay API.
 - Job ka `timeout_sec` cross → worker kill kare, failed maan ke retry.
+- **Trade-off:** idempotency ka bojh job likhne wale pe aata hai; badle me system simple rehta hai (2PC nahi).
 
 ### 9.4 Scheduler HA aur scale
-- Do schedulers same bucket uthayein to duplicate enqueue. Isliye **leader election** (etcd/ZooKeeper lease). Leader mara → 5–10 sec me naya leader, missed bucket catch-up kare (`bucket <= now AND status SCHEDULED`).
+**NFR:** HA, scheduler SPOF na ho, midnight burst sambhle.
+- Do schedulers same bucket uthayein to duplicate enqueue. Isliye **leader election** per shard, Postgres lease row se (lease 10 sec, leader har 3 sec renew). Leader mara → ~10 sec me naya leader, missed bucket catch-up kare (`bucket <= now AND status SCHEDULED`). Shards bahut ho jaayein ya DB failover slow ho to etcd/ZooKeeper lease pe shift karo.
 - Duplicate enqueue phir bhi ho jaaye to: `UPDATE ... SET status='QUEUED' WHERE status='SCHEDULED'` sirf ek jeetega, aur worker `WHERE status='QUEUED'` se claim karega.
 - **Scale:** executions ko N shards me baanto (`hash(job_id) % N`). Har shard ka alag leader (consistent hashing se schedulers me assign). Midnight burst N schedulers me bant jaata hai.
 - Midnight thundering herd: small random **jitter** (0–30 sec) un jobs pe jo exact time sensitive nahi.
+- **Trade-off:** leader failover ke ~10 sec me us shard ke jobs late; consistency ke liye thodi availability chhodi.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **Time-bucketed executions table** | Har second sirf chhota bucket scan, durable | **`WHERE run_at <= now()` full table:** table badi hone pe slow. **Sirf in-memory priority queue:** crash pe saare jobs gaye |
+| **Time-bucketed executions table (sharded Postgres)** | Har second sirf chhota bucket scan, durable, conditional updates | **Full table scan:** slow. **In-memory priority queue:** crash pe sab gaya. **Cassandra:** LWT slow. Sacrifice: sharding ops, cross-shard queries mushkil |
 | **Workers pull + lease** | Backpressure natural, crash pe auto recovery | **Scheduler push to worker:** worker capacity pata nahi, crash detection mushkil |
 | **At-least-once + idempotent jobs** | Practical aur achievable | **Exactly-once:** distributed system me crash ke beech guarantee nahi kar sakte, 2PC mehnga aur slow |
-| **Leader election (etcd/ZK)** | Ek active scheduler per shard, duplicate kam | **Sab schedulers active bina coordination:** duplicate enqueue har bucket pe. **Single scheduler bina failover:** SPOF |
-| **Queue (Kafka/SQS) between scheduler aur workers** | Burst absorb, visibility timeout built-in | **Workers seedha DB poll:** 1000 workers ka polling DB pe load, lock contention |
+| **Leader election via Postgres lease row** | Ek active scheduler per shard, koi naya cluster nahi | **etcd/ZooKeeper:** zyada robust par ek aur cluster chalana. **Bina coordination:** duplicate enqueue. Sacrifice: failover ~10 sec, DB failover pe leader bhi atakta hai |
+| **SQS between scheduler aur workers** | Burst absorb, visibility timeout, retries, DLQ built-in | **Kafka:** per-message ack/visibility nahi, replay ki zarurat nahi. **Workers seedha DB poll:** 1000 workers = DB load, lock contention. Sacrifice: SQS ordering nahi, ek extra hop |
 | **Exponential backoff + DLQ** | Downstream ko saans lene ka time, poison jobs alag | **Immediate retry loop:** failing downstream pe aur load, poison job queue block kare |
 | **Fencing token (attempt) on complete** | Zombie worker ka purana result reject | **Sirf lease TTL:** GC pause ke baad purana worker galat status likh dega |
 
@@ -187,7 +197,6 @@ INDEX (shard_id, time_bucket, status)
 - **Job dependencies (DAG)** jaise Airflow: job B tabhi chale jab A succeed ho
 - **Priority queues**: critical jobs (payments) aur batch jobs (reports) alag queues
 - **Per-tenant rate limits** taaki ek customer ke 1 lakh jobs baaki sab ko starve na karein
-- Execution history ko 7 din baad **S3 me archive**, DB chhota
 - **Observability:** schedule lag (actual start - scheduled_at) ka p99 dashboard aur alert
 
 ## Step 13: Interviewer ke likely follow-up sawal
@@ -195,12 +204,13 @@ INDEX (shard_id, time_bucket, status)
 - "Job do baar chal gayi to?" → at-least-once accept, handler `exec_id` se idempotent (Step 9.3)
 - "1 hour ki job, worker beech me mar gaya?" → heartbeat ruka, lease expire, re-run. Lambi jobs checkpoint karein
 - "Cron job ka previous run abhi chal raha hai aur next time aa gaya?" → policy: skip, queue, ya parallel allow. Job config me rakho
-- "Leader election kaise?" → etcd lease / ZK ephemeral node, fencing ke saath
+- "Leader election kaise?" → Postgres lease row (ya bade setup me etcd lease / ZK ephemeral node), fencing ke saath
 - "Delayed job 30 din baad?" → same table, bucket 30 din baad ka. Redis me nahi, DB me
+- **Senior signal:** khud bolo: asli risk midnight burst pe **schedule lag** hai. Isko p99 metric banao, workers queue depth pe autoscale, non-critical jobs pe jitter, aur Postgres primary failover ko leader lease timing se align karo.
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> Job definition aur execution alag. Har execution ek row: `scheduled_at`, `time_bucket`, status, lease. `UNIQUE(job_id, scheduled_at)` duplicate runs rokta hai. Scheduler leader (etcd/ZK se elected, har shard ka ek) har second current bucket ke due executions ko conditional update se `QUEUED` karke ready queue me daalta hai. Workers pull karte hain, lease lete hain (visibility timeout), heartbeat se badhate hain, aur complete pe fencing token check hota hai. Crash pe lease expire → reaper re-queue. Guarantee at-least-once, isliye `exec_id` idempotency key handlers ko. Fail pe exponential backoff + jitter, max retries ke baad DLQ. Cron ke liye next run compute karke naya row. Midnight burst ke liye sharding, worker autoscale aur jitter.
+> Job definition aur execution alag. Har execution ek row: `scheduled_at`, `time_bucket`, status, lease. `UNIQUE(job_id, scheduled_at)` duplicate runs rokta hai. Data sharded Postgres me (conditional updates). Scheduler leader (Postgres lease row se elected, har shard ka ek) har second current bucket ke due executions ko conditional update se `QUEUED` karke SQS ready queue me daalta hai (task distribution hai, isliye Kafka nahi). Workers pull karte hain, lease lete hain (visibility timeout), heartbeat se badhate hain, aur complete pe fencing token check hota hai. Crash pe lease expire → reaper re-queue. Guarantee at-least-once, isliye `exec_id` idempotency key handlers ko. Fail pe exponential backoff + jitter, max retries ke baad DLQ. Cron ke liye next run compute karke naya row. Midnight burst ke liye sharding, worker autoscale aur jitter.
 
 ## Checklist
 

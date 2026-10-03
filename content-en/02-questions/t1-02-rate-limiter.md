@@ -30,22 +30,24 @@ Ask these questions before you start the design:
 | "Is it multi-region?" | Yes, 3 regions | Per-region limits or async sync |
 | "If the limiter is down, do we block traffic or let it through?" | Usually let it through | Fail-open by default |
 
-> **Say:** "I will design a distributed, server-side rate limiter that sits at the API gateway. I will use a token bucket, keep state in Redis, and load rules from a separate config service. The latency budget is ~1–2ms per request."
+> **Say:** "I will design a distributed, server-side rate limiter that sits at the API gateway. I will use a token bucket, keep state in Redis, and keep rules in Postgres that gateways cache locally. The latency budget is ~1–2ms per request."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Configurable rules: per user / IP / API key / endpoint, like "100 req/min per user on /search"
-2. If the limit is crossed, reject the request with `429` and `Retry-After`
-3. The client sees its remaining quota in headers
-4. Rules can change without a deploy
+1. Admins should be able to create rules per user / IP / API key / endpoint (like "100 req/min per user on /search"), without a deploy
+2. A client that crosses the limit should get its request rejected with `429` + `Retry-After`
+3. Clients should be able to see their remaining quota in headers
 
-**Non-functional**
-- **Low latency:** limiter check < 2ms, otherwise every API gets slow
-- **High availability:** the limiter going down must not take the whole API down
-- **Accuracy:** roughly correct count across distributed servers (strict atomicity per key)
-- **Scale:** 1M QPS, 100M+ keys
-- **Memory efficient:** small state per key
+**Out of scope:** L3/L4 DDoS protection (the CDN/WAF's job), monthly billing quotas, per-client usage dashboard.
+
+**Non-functional (in priority order)**
+1. **Latency:** limiter check p99 < 2 ms, otherwise every API gets slow
+2. **Availability:** the API keeps working even if the limiter is down (99.99%)
+3. **Accuracy:** atomic check per key; ~1–5% over the limit is fine for multi-region/hot keys
+4. **Scale:** 1M QPS, ~300M keys, small state per key
+
+**CAP choice:** availability (AP). On a Redis or network partition, allowing the request (fail-open) is better; we give up a little exactness. Exception: fail-closed for login/OTP.
 
 ## Step 3: Estimation (only what changes the design)
 
@@ -84,6 +86,8 @@ PUT  /rules/{ruleId}  {endpoint, keyType, capacity, refillPerSec}
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** one gateway, a token bucket per key in its memory, rules in a config file. On one machine this meets all three FRs. The problem: 1M QPS needs many gateways, and if each gateway keeps its own count, N gateways = N x the limit. So we need shared state (Redis). "Rules without a deploy" moves the rules from a file to a DB.
+
 ```mermaid
 flowchart LR
   C["Clients"] --> LB["Load Balancer"]
@@ -91,15 +95,17 @@ flowchart LR
   G -- "Lua script check" --> RC[("Redis Cluster sharded by key")]
   G -- "allowed" --> S["Backend services"]
   G -- "rejected 429" --> C
-  RS["Rules Config Service"] --> RDB[("Rules DB")]
-  RS -- "push on change" --> G
+  AD["Rules admin API"] --> RDB[("Rules DB Postgres")]
+  G -- "poll every 30s" --> RDB
   G -- "metrics" --> M["Metrics and alerts"]
 ```
 
+**FR mapping:** FR1 → Rules admin API + Postgres + gateway poll. FR2 + FR3 → gateway middleware + Redis.
+
 **Why each component:**
-- **API Gateway middleware:** enforce limits in one place. No separate code in each service, and bad traffic never reaches the backend
-- **Redis Cluster:** shared state, in-memory, ~0.5ms. Atomic read-modify-write with Lua scripts
-- **Rules Config Service:** rules live in a DB, and gateways cache them in local memory. Push on change (or poll every 30 sec)
+- **API Gateway middleware:** limits in one place, bad traffic never reaches the backend. The simpler option (a library in every service) duplicates logic and lets rules drift out of sync
+- **Redis Cluster:** shared state for 1M checks/sec, ~0.5 ms, atomic with Lua. Local memory (simpler) does not share the count; Postgres counters mean a disk write per request
+- **Rules DB + admin API, gateways poll:** only a few thousand rules that rarely change. Poll every 30 sec + local cache, zero extra calls on the check path. **We do not build a separate push-based config service**: a 30 sec delay is fine for rules
 - **Metrics:** how many 429s are going out, and from which rule. If a wrong rule blocks genuine users, we know right away
 
 ## Step 7: Main flow: checking one request
@@ -141,6 +147,8 @@ Rules table (Postgres)
 
 ### 9.1 Which algorithm? (always show the comparison)
 
+**NFR:** allow bursts, small state (300M keys), check in one round trip.
+
 | Algorithm | How | Plus | Minus |
 |---|---|---|---|
 | **Fixed window counter** | `INCR key:minute`, compare with the limit | Simplest, 1 counter | 2x burst at the window boundary (59th sec + 0th sec) |
@@ -151,7 +159,11 @@ Rules table (Postgres)
 
 > **Say:** "I will choose the token bucket. It allows bursts, keeps the average rate under control, and the state is just 2 numbers. Stripe and AWS API Gateway use it too."
 
+**Trade-off:** two params (capacity, refill rate) to tune, in exchange for burst + smooth average in 2 fields.
+
 ### 9.2 Race condition: atomicity with Redis + Lua
+
+**NFR:** per-key accuracy, check p99 < 2 ms.
 
 - Problem: two gateways read `GET tokens = 1` at the same time and both allow the request. The limit is broken.
 - Solution: put the whole "refill + check + decrement" in **one Lua script**. Redis is single-threaded, so the script runs atomically.
@@ -163,7 +175,11 @@ Rules table (Postgres)
 - Take `now` from Redis `TIME`. Do not trust gateway clocks (clock skew).
 - `MULTI/WATCH` also works, but causes retries under contention. Lua is better.
 
+**Trade-off:** business logic lives in a Redis script (mind deploys/versioning), in exchange for an atomic check in one round trip.
+
 ### 9.3 Distributed consistency and scale
+
+**NFR:** 1M QPS and multi-region without adding latency.
 
 - **Sharding:** consistent hashing on the key `rl:{rule}:{client}`. All state for one client is on one shard, so no cross-shard coordination.
 - **Hot key:** one big client (1 lakh req/sec) will make one shard hot. Fix: a **local token bucket** at the gateway that takes tokens from the central bucket in batches (like 100 tokens at once). A little inaccuracy, but 100x less Redis load.
@@ -172,22 +188,28 @@ Rules table (Postgres)
   - Or count locally + sync async every 1 sec. Going slightly over the limit is possible, tell the interviewer.
 - Do not do a synchronous cross-region check, that adds 100ms+ to every request.
 
+**Trade-off:** local batching and per-region quotas allow ~1–5% over the limit, in exchange for 100x less Redis load and no cross-region calls.
+
 ### 9.4 What if the limiter itself fails? Fail-open vs fail-closed
+
+**NFR:** 99.99% API availability; the limiter must not become a SPOF.
 
 - **Fail-open (default):** if Redis times out (> 5ms), let the request through. The business keeps running. The backend should also have its own capacity protection (load shedding, circuit breaker).
 - **Fail-closed:** for security-sensitive endpoints like `/login`, OTP, payment. Here stopping brute force matters more.
 - Use a **strict timeout + circuit breaker** on the Redis call. If Redis is slow, every request should not wait 5ms. Open the breaker and run a local fallback limiter (per-gateway, approximate).
 
+**Trade-off:** fail-open opens an abuse window during an outage, in exchange for the API not going down.
+
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **API Gateway middleware** | Enforcement in one place, bad traffic never reaches the backend | **Library in every service:** duplicate logic, rules out of sync. **Client-side:** we cannot trust the client |
-| **Token bucket** | Burst + smooth average, state of 2 fields | **Fixed window:** 2x burst at the boundary. **Sliding log:** stores every request, memory heavy |
-| **Redis + Lua** | In-memory, sub-ms, the script is atomic | **Postgres counters:** a disk write on every request, slow. **Local memory only:** count is not shared across servers |
-| **Rules in config service, cached in gateway** | Change rules without a deploy, no extra call on the check path | **Hardcoded rules:** a deploy for every change. **Rules DB call on every request:** latency |
-| **Fail-open default, fail-closed for auth** | Availability > strictness for normal APIs, security endpoints stay safe | **Always fail-closed:** a Redis blip = the whole API is down |
-| **Per-region limits** | No cross-region latency | **Global synchronous counter:** 100ms+ on every request |
+| **API Gateway middleware** | Enforcement in one place, bad traffic never reaches the backend | **Library in every service:** duplicate logic, rules out of sync. **Client-side:** cannot be trusted. Sacrifice: one more dependency on the gateway's critical path |
+| **Token bucket** | Burst + smooth average, state of 2 fields | **Fixed window:** 2x burst at the boundary. **Sliding log:** stores every request. Sacrifice: 2 params to tune |
+| **Redis Cluster + Lua** | 1M checks/sec, sub-ms, the script is atomic | **Postgres counters:** a disk write per request. **Local memory only:** N gateways = N x the limit. Sacrifice: running a ~10–20 shard cluster, counters reset on restart |
+| **Rules in Postgres, gateways poll + cache** | Change rules without a deploy, no extra call on the check path | **Hardcoded rules:** a deploy for every change. **Push-based config service:** an extra service. Sacrifice: a rule change takes ~30 sec to apply |
+| **Fail-open default, fail-closed for auth** | Availability > strictness for normal APIs, security endpoints stay safe | **Always fail-closed:** a Redis blip = the whole API is down. Sacrifice: abuse window during an outage |
+| **Per-region limits** | No cross-region latency | **Global synchronous counter:** 100ms+ on every request. Sacrifice: the global limit is approximate |
 
 ## Step 11: Failures & bottlenecks
 
@@ -196,7 +218,7 @@ Rules table (Postgres)
 | Redis shard down | Keys on that shard cannot be checked | Replica failover (Sentinel/Cluster), fail-open + local limiter in between |
 | Redis slow | Every API gets slow | 5ms timeout + circuit breaker |
 | Hot client key | One shard overloaded | Local token batching, or split the key into sub-keys |
-| Rules service down | New rule changes do not arrive | Gateway keeps the last known rules in memory |
+| Rules DB down | New rule changes do not arrive | Gateway keeps the last known rules in memory |
 | Wrong rule deployed | Genuine users get 429 | Shadow mode first (only log, do not block), then enforce. Alert on 429 rate |
 | Clients retry right away on 429 | Retry storm | `Retry-After` header + exponential backoff with jitter in the client SDK |
 
@@ -208,7 +230,6 @@ Rules table (Postgres)
 - **Adaptive limiting:** if backend latency goes up, tighten limits automatically (load shedding)
 - **Cost-based limits:** a heavy endpoint (export, search) uses 10 tokens per request
 - **Abuse detection:** block IPs that keep getting 429 at the WAF level
-- **Dashboard** per client: how much quota is used and when it resets
 
 ## Step 13: Likely follow-up questions
 
@@ -218,10 +239,11 @@ Rules table (Postgres)
 - "What about clock skew?" → Take the timestamp from Redis `TIME`, not from the gateway
 - "Distributed DoS?" → A rate limiter alone is not enough. You need IP reputation and L3/L4 protection at the CDN/WAF level
 - "What if we need an exact limit, not even one extra?" → Central Redis + Lua, turn off local batching. Accept the cost in latency and hot keys
+- **Senior signal:** raise it yourself: the limiter is now on the critical path of every request, so a slow Redis ruins the p99 of the whole API. Hence a strict 5 ms timeout, a circuit breaker, a local fallback, and an alert on Redis latency from day one.
 
 ## 2-minute recap
 
-> The rate limiter sits as middleware at the API gateway. The algorithm is a token bucket: capacity + refill rate, bursts allowed, and the state is just `tokens` and `last_refill`. State lives in a Redis Cluster with key `rl:{rule}:{client}`, sharded with consistent hashing. Refill + check + decrement run in one Lua script so there is no race condition, and time comes from Redis `TIME`. Rules live in a config service, gateways cache them locally and get a push on change. On reject, return 429 + `Retry-After` + `X-RateLimit-*` headers. If Redis is down, fail-open with a local fallback, but fail-closed for login/OTP. For multi-region, use a per-region quota, no cross-region sync check. For hot clients, use local token batching.
+> The rate limiter sits as middleware at the API gateway. The algorithm is a token bucket: capacity + refill rate, bursts allowed, and the state is just `tokens` and `last_refill`. State lives in a Redis Cluster with key `rl:{rule}:{client}`, sharded with consistent hashing. Refill + check + decrement run in one Lua script so there is no race condition, and time comes from Redis `TIME`. Rules live in Postgres; gateways poll every 30 sec and cache them locally (no separate config service). On reject, return 429 + `Retry-After` + `X-RateLimit-*` headers. If Redis is down, fail-open with a local fallback, but fail-closed for login/OTP. For multi-region, use a per-region quota, no cross-region sync check. For hot clients, use local token batching.
 
 ## Checklist
 

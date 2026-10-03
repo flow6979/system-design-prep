@@ -33,22 +33,26 @@ askedAt: [Google, Amazon, Microsoft, Flipkart, LinkedIn]
 ## Step 2: Requirements
 
 **Functional**
-1. User prefix type kare, top K (5–10) suggestions mile, popularity se sorted
-2. Search logs se suggestions update hon (daily + trending ke liye near real-time)
-3. Offensive/blocked terms kabhi suggest na hon
-4. (Optional) User ki apni recent searches upar aayein
+1. Users prefix type karke top 5–10 suggestions dekh sakein, popularity se sorted
+2. Users ko trending queries ~15 min me suggestions me dikhein (baaki daily update)
+3. Users ko offensive/blocked terms kabhi suggest na hon
+4. (Optional) Logged-in users apni recent searches upar dekh sakein
 
-**Non-functional**
-- **Low latency:** p99 < 100ms (user ko typing ke saath lag na lage)
-- **High availability:** suggestions na aayein to search fir bhi chale, par ye feature down nahi dikhna chahiye
-- **Eventual consistency:** naya trend 15 min late dikhe to chalega
-- **Scale:** extremely read-heavy, writes (log ingestion) async
+**Out of scope:** typo/spell correction, multi-language, search results page, ads.
+
+**Non-functional (priority order)**
+1. **Latency:** p99 < 100ms end-to-end, server side p99 < 10ms
+2. **Availability:** 99.99% suggest reads ke liye. Fail ho to empty list, search fir bhi chale
+3. **Freshness (eventual):** trending ≤ 15 min, baaki ≤ 24 hr
+4. **Scale:** 100M DAU, ~46K QPS avg / 150K peak reads, ~12K search events/sec writes (async)
+
+**CAP choice:** AP. Thoda stale suggestion chalega, suggestion box ka down hona nahi. Isliye replicas + caches, strong consistency kahin nahi.
 
 ## Step 3: Estimation (sirf jo design badle)
 
 - 100M DAU × 10 searches × ~6 keystrokes (debounce ke baad ~4 requests) → **~4B requests/day ≈ 46K QPS** avg, peak ~150K QPS. Isliye multiple cache layers chahiye.
 - Unique queries ~100M. Prefixes (max 20 chars tak) ~1B keys. Har key pe top 10 × ~30 bytes = 300 bytes → **~300 GB**. Ek machine me nahi aayega, **sharding** chahiye. Par sirf top prefixes (jo 90% traffic laate hain) bahut chhote hain, cache me aa jayenge.
-- Logs: 1B searches/day × 50 bytes = **50 GB/day**. Batch aggregation (Spark) easily sambhal lega.
+- Logs: 1B searches/day ≈ **12K events/sec** avg (~35K peak) × 50 bytes = **50 GB/day**. Har search ~20 prefixes ko touch karta hai, isliye live counters = ~250K+ writes/sec. Isliye batch aggregation (Spark), live counting nahi.
 
 > **Bolo:** "Read QPS bahut high hai aur data GB scale ka hai, isliye har prefix ka answer pehle se compute karke KV store me rakhunga. Query ek O(1) lookup ban jayegi."
 
@@ -73,6 +77,8 @@ POST /log/search  {query, userId, ts}         → 202 Accepted (async, fire-and-
 
 ## Step 6: High-level design
 
+**Simple v1 pehle:** Client → Suggest Service → ek Postgres table `query_stats(query, count)` pe `LIKE 'ipl%' ORDER BY count DESC LIMIT 10`, aur har search pe `count+1`. Chhote scale pe FR1–FR3 isse ho jaate hain. Numbers isse todte hain: 150K peak QPS + p99 100ms → precomputed top-K in Redis + CDN. ~300 GB prefix data → sharding. 12K–35K events/sec jinhe do consumers chahiye (archive + trending) → Kafka. FR2 ka 15-min trending → stream aggregator.
+
 ```mermaid
 flowchart LR
   C["Client (debounce + local cache)"] --> CDN["CDN (hot prefixes)"]
@@ -90,14 +96,16 @@ flowchart LR
 ```
 
 **Har component kyun:**
-- **Client debounce + cache:** har keystroke pe call nahi, 150ms ruko. "ip" ka result local cache me ho to dobara mat maango.
-- **CDN:** short prefixes ("a", "ip", "sw") sab users ke liye same hain. CDN pe 5 min cache se 50%+ traffic origin tak aata hi nahi.
-- **Suggest Service:** stateless. Redis se `prefix → top-K` uthata hai, blocklist re-check, optional personalization merge.
-- **Redis/KV (prefix → top-K):** O(1) lookup, sub-ms. Prefix ke hash se sharded.
-- **Kafka:** search logs high volume me aate hain. Decouple karta hai aur replay possible.
-- **Spark batch:** daily poore din ke logs se accurate counts (time decay ke saath).
-- **Stream aggregator (Flink):** last 15 min ka trending ("ipl final score") jaldi push karta hai.
-- **Top-K Builder:** counts se har prefix ka top-K banata hai, blocklist filter lagata hai, aur KV me bulk load karta hai.
+- **Client debounce + cache (NFR latency):** 150ms debounce, "ip" ka result local cache me ho to dobara mat maango. Har keystroke pe call se QPS ~1.5x.
+- **CDN (150K peak QPS):** short prefixes ("a", "ip", "sw") sab users ke liye same. 5 min cache se 50%+ traffic origin tak nahi aata. Sirf server cache se network hop nahi bachta.
+- **Suggest Service:** stateless. Redis lookup, serve-time blocklist, optional personalization merge.
+- **Redis prefix → top-K (p99 100ms):** O(1), sub-ms, prefix hash se sharded. DB `LIKE` + sort har keystroke pe 100ms me nahi hota. RAM mehnga lage to DynamoDB (~5ms) bhi chalega.
+- **Kafka (FR2):** ~12K events/sec, throughput akela reason nahi. Reason: do independent consumers (S3 archiver + Flink trending) aur 7-day replay, taaki aggregation bug pe recount ho sake. Simpler option (Log Service seedha S3 pe batch files likhe) daily ke liye kaafi, par 15-min trending nahi deta.
+- **Spark batch (FR2 daily):** 50 GB/day, 7–30 din ke decayed counts aur ~1B prefix keys generate karna.
+- **Stream aggregator Flink (FR2 trending):** 15-min sliding window spike. Simpler option: Spark har 15 min micro-batch, thoda zyada lag ke saath.
+- **Top-K Builder:** har prefix ka top-K, blocklist filter, versioned bulk load.
+
+**Mapping:** FR1 → Client, CDN, Suggest Service, Redis. FR2 → Log Service, Kafka, Spark, Flink, Builder. FR3 → Builder filter + serve-time blocklist. FR4 → Suggest Service + per-user Redis list.
 
 ## Step 7: Main flow: user "ipl" type karta hai
 
@@ -141,46 +149,61 @@ query_stats (Spark output, Parquet on S3):
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 Trie vs precomputed prefix → top-K
+**NFR:** p99 < 100ms, ~300 GB data.
 - **Trie with top-K per node:** har node pe us prefix ke top 10 cache. Lookup = prefix ki length tak walk = O(L). Memory me compact (shared prefixes). Par trie ek in-memory structure hai, distribute karna aur update karna mushkil.
 - **Precomputed prefix → top-K in KV:** har prefix ek key. Lookup O(1). Easily sharded, replicate, cache. Memory zyada (prefixes repeat), par storage sasta hai.
 
 > **Bolo:** "Concept me ye trie hi hai jisme har node pe top-K hai. Main usse flatten karke KV me rakhta hoon, taaki sharding, replication aur CDN caching free me mil jaye. Builder offline trie bana sakta hai, aur output KV me dump kar sakta hai."
 
-Memory bachane ke liye: prefix length max 20–25 chars, aur bahut rare prefixes (count < threshold) store hi mat karo.
+Memory bachane ke liye: prefix length max 20–25 chars, rare prefixes (count < threshold) store mat karo.
+
+**Trade-off:** O(1) reads aur free sharding, badle me prefixes repeat hone se zyada memory.
 
 ### 9.2 Data collection pipeline aur freshness
+**NFR:** trending ≤ 15 min, baaki ≤ 24 hr.
 - Client har search submit pe event bhejta hai → Log Service → Kafka.
 - **Batch (daily):** Spark last 7–30 din ke logs pe count, **time decay** (`score = Σ count × 0.9^days_ago`) taaki purana trend dheere neeche jaye.
 - **Stream (15 min):** Flink sliding window me sudden spike detect kare (count in last 15 min >> normal). Sirf in trending queries ke prefixes ko update karo, poora rebuild nahi.
 - Builder har prefix ke liye batch top-K aur trending ko merge karta hai.
-- Logs me sampling bhi kar sakte ho (har 10th event) kyunki popularity ke liye exact count zaroori nahi.
+
+**Trade-off:** do pipelines (batch + stream) maintain karni padti hain, badle me sasta accurate batch aur fast trending.
 
 ### 9.3 Latency < 100ms: caching layers
+**NFR:** p99 < 100ms, 150K peak QPS.
 1. **Client:** 150ms debounce, local LRU cache, aur ek response me "ip" ke saath "ipl" ke results bhi prefetch.
 2. **CDN:** 1–3 char prefixes sabse hot hain. `max-age=300` se CDN serve karega.
 3. **Suggest service in-memory cache:** top 1 lakh prefixes service ke RAM me.
 4. **Redis:** baaki sab, sub-ms.
 
-Network ka sabse bada hissa hai, isliye multi-region deploy karo aur user ko nearest region se serve karo.
+Latency ka sabse bada hissa network hai, isliye multi-region deploy, nearest region se serve.
+
+**Trade-off:** CDN/client cache se 5 min tak stale suggestions, badle me origin load 50%+ kam.
 
 ### 9.4 Sharding by prefix
+**NFR:** scale (~300 GB) + 99.99% availability.
 - **Range by first char** ("a–c" ek shard): simple, par skew hoga ("s" bahut bada, "x" chhota).
 - **Hash of full prefix** (consistent hashing): load even. Ek request ko ek hi key chahiye, isliye range query ki zaroorat nahi. Ye choose karo.
 - Hot prefixes ("i", "ip") ko replicate karo + CDN/local cache, taaki ek shard pe load na aaye.
 
+**Trade-off:** hash sharding se range scan nahi kar sakte, par hamein sirf single-key lookup chahiye.
+
 ### 9.5 Personalization aur offensive filter (brief)
+**NFR:** FR3 kabhi violate na ho, personalization latency budget ke andar.
 - **Personalization:** user ki last 50 searches ek chhoti Redis list me. Suggest Service global top-K aur user history (jo prefix se match kare) ko merge karta hai. Personalized response CDN pe cache nahi hota, isliye sirf logged-in users ke liye, aur global part fir bhi cached.
-- **Offensive filter:** Builder stage pe blocklist + ML classifier se filter (offline, isliye cheap). Serve time pe bhi ek fast blocklist check, taaki naya blocked term turant hat jaye bina rebuild ke.
+- **Offensive filter:** Builder stage pe blocklist + ML classifier se filter (offline, isliye cheap). Serve time pe bhi fast blocklist check, taaki naya blocked term bina rebuild ke turant hate.
+
+**Trade-off:** personalized responses CDN pe cache nahi hote, isliye logged-in traffic origin pe zyada.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **Precomputed prefix → top-K in Redis/KV** | O(1) lookup, easy sharding + replication, CDN friendly | **Live trie in app memory:** 300 GB ek box me nahi aata, update aur distribute karna mushkil. **DB `LIKE 'ipl%' ORDER BY count`:** har keystroke pe scan + sort, 100ms me impossible |
-| **Offline batch + small stream layer** | Batch accurate aur sasta, stream sirf trending ke liye | **Har search pe live counter update:** 50K+ writes/sec ek hot key pe, aur read path pe sorting karni padti |
-| **Client debounce + CDN cache** | 60–80% requests origin tak aati hi nahi | **Har keystroke pe server call:** QPS 3–4x, aur purane responses race me aate |
-| **Hash-based sharding** | Even load, single-key lookup | **Range by first letter:** "s" vs "x" ka skew, hot shard |
-| **Versioned rebuild + pointer flip** | Atomic switch, rollback easy | **In-place overwrite:** rebuild ke beech aadha naya aadha purana data |
+| **Precomputed prefix → top-K in Redis/KV** | O(1) lookup, easy sharding + replication, CDN friendly | **Live trie in app memory:** 300 GB ek box me nahi aata, update mushkil. **DB `LIKE 'ipl%' ORDER BY count`:** scan + sort, 100ms me impossible. Sacrifice: ~300 GB RAM ka cost |
+| **Offline batch + small stream layer** | Batch accurate aur sasta, stream sirf trending ke liye | **Har search pe live counter:** ~20 prefixes × 12K/sec = 250K+ writes/sec, hot keys, read path pe sorting. Sacrifice: do pipelines maintain karni |
+| **Kafka for search logs** | Do consumers (archiver + Flink), 7-day replay | **Log Service → S3 files directly:** simpler, par 15-min trending nahi. **SQS:** ek message ek consumer, replay nahi. Sacrifice: Kafka cluster operate karna |
+| **Client debounce + CDN cache** | 60–80% requests origin tak aati hi nahi | **Har keystroke pe server call:** QPS 3–4x, purane responses race me. Sacrifice: 5 min tak stale suggestions |
+| **Hash-based sharding** | Even load, single-key lookup | **Range by first letter:** "s" vs "x" ka skew, hot shard. Sacrifice: range scan nahi |
+| **Versioned rebuild + pointer flip** | Atomic switch, rollback easy | **In-place overwrite:** rebuild ke beech aadha purana data. Sacrifice: rebuild ke time 2x storage |
 | **Elasticsearch completion suggester nahi** | Fixed top-K ke liye KV sasta aur fast | **Elasticsearch:** fuzzy chahiye ho to accha, par is scale pe har keystroke ke liye costly aur latency zyada |
 
 ## Step 11: Failures & bottlenecks
@@ -200,8 +223,6 @@ Network ka sabse bada hissa hai, isliye multi-region deploy karo aur user ko nea
 - **Fuzzy / typo tolerance:** "iplsc" → "ipl score". Edit distance 1 variants offline precompute karo, ya chhota Elasticsearch fallback.
 - **Multi-language + region-wise top-K:** key me region daalo (`in:ipl`), kyunki Mumbai aur US ke trends alag hain.
 - **ML ranking:** frequency ke alawa CTR, freshness, user context ko features banao. Offline model, score KV me.
-- **Prefix compression:** long-tail prefixes ke liye trie snapshot (FST) disk pe, sirf hot prefixes RAM me.
-- **A/B testing:** naye ranking versions ko 5% traffic pe test, version pointer per-bucket.
 - **Abuse protection:** bots fake searches karke kisi term ko trending banayein. Per-user dedup aur rate limit logging pe.
 
 ## Step 13: Interviewer ke likely follow-up sawal
@@ -211,11 +232,11 @@ Network ka sabse bada hissa hai, isliye multi-region deploy karo aur user ko nea
 - "300 GB data RAM me kaise?" → Shard karo, rare prefixes drop karo, ya disk-based KV (RocksDB/DynamoDB) + hot prefix cache
 - "Ek user ke liye alag suggestions?" → Global top-K + user history merge, personalized part CDN cache nahi hota
 - "Offensive term turant hatana ho?" → Serve-time blocklist + CDN purge, next rebuild me permanently filter
-- "Network slow hai to?" → Client prefetch + local cache, aur multi-region serving
+- **Senior signal:** khud bolo ki hot short prefixes ("i", "ip") ek shard aur CDN miss pe stampede banate hain, aur ek bad rebuild poore product me galat/offensive suggestions bhej sakta hai. Isliye request coalescing + replicas, aur rebuild pe sanity checks + one-step version rollback.
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> Typeahead extremely read-heavy hai aur 100ms ke andar chahiye, isliye read path pe kuch compute nahi hota. Har prefix ka top-K pehle se compute karke Redis/KV me rakhte hain (concept trie with top-K per node, par KV me flattened). Lookup O(1). Prefix hash se sharding, hot prefixes ke liye CDN + in-memory cache. Client 150ms debounce aur local cache karta hai. Write side: search logs → Kafka → S3 → Spark daily batch (time decay) + Flink 15-min trending → Top-K Builder (blocklist filter) → versioned KV keys aur atomic pointer flip. Personalization = global top-K + user history merge. Offensive terms builder pe filter, serve time pe bhi blocklist.
+> Typeahead extremely read-heavy hai aur 100ms ke andar chahiye, isliye read path pe kuch compute nahi hota. Har prefix ka top-K pehle se compute karke Redis/KV me rakhte hain (concept trie with top-K per node, par KV me flattened). Lookup O(1). Prefix hash se sharding, hot prefixes ke liye CDN + in-memory cache. Client 150ms debounce aur local cache karta hai. Write side: search logs (~12K/sec) → Kafka (do consumers + replay) → S3 → Spark daily batch (time decay) + Flink 15-min trending → Top-K Builder (blocklist filter) → versioned KV keys aur atomic pointer flip. Personalization = global top-K + user history merge. Offensive terms builder pe filter, serve time pe bhi blocklist.
 
 ## Checklist
 

@@ -32,22 +32,27 @@ askedAt: [Flipkart, Amazon, Meesho, Myntra, Alibaba, Walmart]
 ## Step 2: Requirements
 
 **Functional**
-1. Sale start se pehle product page dikhe, countdown ke saath
-2. Sale start pe user "Buy" kare, agar stock hai to unit reserve ho
-3. Reserved user 10 min me pay kare, warna unit wapas pool me
-4. Per user 1 unit, sold out hone pe turant "Sold out" dikhe
+1. Users should be able to sale se pehle product page countdown ke saath dekh sakein
+2. Users should be able to sale start pe "Buy" karke unit reserve kar sakein (max 1 per user)
+3. Users should be able to 10 min me pay karke order confirm kar sakein, warna unit wapas pool me
+4. Users should be able to sold out hote hi turant "Sold out" dekh sakein
 
-**Non-functional**
-- **Correctness:** zero oversell (sabse important)
-- **Availability:** site down nahi honi chahiye, chahe sale ka path throttle ho
-- **Fairness:** roughly first-come-first-served, bots ko advantage nahi
-- **Latency:** user ko 1–2 sec me jawab (mila / waiting / sold out)
+**Out of scope:** catalog, search, recommendations, multi-item cart, returns.
+
+**Non-functional (priority order me)**
+1. **Correctness:** zero oversell, per user 1 unit (sabse important)
+2. **Availability:** site 99.99% up, sale path throttle ho sakta hai par crash nahi
+3. **Latency:** user ko p99 < 2 sec me jawab (mila / waiting / sold out)
+4. **Fairness:** roughly FIFO, bots ko advantage nahi
+5. **Scale:** 10 lakh users ek minute me, ~5 lakh page QPS, ~2 lakh buy QPS, sirf 1,000 units
+
+**CAP choice:** inventory pe consistency: stock Redis primary down ho to sale pause karo, oversell risk mat lo. Product page aur queue position pe availability: stale countdown ya position chalega.
 
 ## Step 3: Estimation (sirf jo design badle)
 
 - 10 lakh users × kai refresh → page pe **~5 lakh QPS** sale start pe. Ye sirf CDN sambhal sakta hai.
 - "Buy" clicks: ~2 lakh QPS pehle 10 sec me. Ek Redis key ~1 lakh ops/sec. Isliye pehle waiting room / rate limit se filter.
-- Actual orders: sirf **1,000**. DB ke liye ye kuch bhi nahi.
+- Actual reservations/orders: sirf **1,000** . Postgres ke liye kuch nahi, isliye winners ko **seedha sync insert**, beech me queue ki zarurat nahi.
 
 > **Bolo:** "Funnel aisa hoga: 5 lakh QPS CDN pe, 2 lakh buy clicks gateway pe, waiting room se kuch hazaar Redis tak, aur sirf 1,000 DB tak. Har layer pe load 10–100x kam."
 
@@ -71,6 +76,8 @@ POST /orders {reservationId, paymentToken}
 
 ## Step 6: High-level design
 
+**Simple v1 pehle:** app server + Postgres: `UPDATE sales SET sold = sold + 1 WHERE id=? AND sold < total_stock` + reservation insert. Normal sale ke liye kaafi. Numbers isko todte hain: 5 lakh page QPS (→ CDN), ek row pe 2 lakh buy QPS (→ Redis Lua), fairness + single-key ~1 lakh ops/sec limit (→ waiting room). 1,000 winners ka DB write v1 jaisa hi rehta hai.
+
 ```mermaid
 flowchart LR
   U["Users"] --> CDN["CDN product page"]
@@ -79,21 +86,21 @@ flowchart LR
   WR --> RQ[("Redis queue ZSET")]
   G --> RS["Reservation Service"]
   RS --> RI[("Redis stock + Lua")]
-  RS --> K[["Kafka reservations"]]
-  K --> OS["Order Service"]
-  OS --> DB[("Postgres orders")]
+  RS --> DB[("Postgres sales, reservations, orders")]
+  G --> OS["Order Service"]
+  OS --> DB
   OS --> PG["Payment Gateway"]
   EX["Expiry worker"] --> DB
   EX --> RI
 ```
 
-**Har component kyun:**
-- **CDN:** product page, images, countdown static. Sale start pe 5 lakh QPS origin tak na aaye.
-- **API Gateway + Bot filter:** per-user / per-IP rate limit, CAPTCHA, device fingerprint.
-- **Waiting Room:** sab ko token, Redis sorted set me line, ek rate pe admit.
-- **Reservation Service + Redis Lua:** atomic "stock check + decrement + user dedup".
-- **Kafka → Order Service:** jeete hue users ko async DB me likho, DB ko spike se bachao.
-- **Expiry worker:** 10 min me payment nahi hua to reservation expire, stock wapas.
+**Har component kyun:** (FR1 → CDN, FR2 → Waiting Room + Reservation + Redis Lua, FR3 → Order Service + Payment + Expiry worker, FR4 → sold-out flag at gateway/CDN)
+- **CDN:** 5 lakh page QPS origin tak na aaye; app servers 30 sec me 100x autoscale nahi hote.
+- **API Gateway + Bot filter:** per-user / per-IP rate limit, CAPTCHA, device fingerprint (fairness).
+- **Waiting Room (Redis ZSET):** 2 lakh buy QPS > ek Redis key ka ~1 lakh ops/sec, aur FIFO fairness. Sirf rate limit random hai, fair nahi.
+- **Reservation Service + Redis Lua:** atomic "stock check + decrement + user dedup"; DB row pe 2 lakh QPS lock contention hota.
+- **Postgres (sync insert):** winner ka reservation seedha DB me. Kul ~1,000 rows, isliye **Kafka nahi**: spike DB tak pahunchta hi nahi, queue sirf lag aur ops laati.
+- **Expiry worker (cron, har 30 sec):** unpaid reservation expire, stock wapas. 1,000 rows ke liye DB scan kaafi.
 
 ## Step 7: Main flow: buy click se order tak
 
@@ -103,7 +110,7 @@ sequenceDiagram
   participant W as Waiting Room
   participant R as Reservation Svc
   participant RD as Redis
-  participant K as Kafka
+  participant DB as Postgres
   participant O as Order Svc
   U->>W: POST /enter
   W-->>U: queueToken, position 4512
@@ -111,11 +118,10 @@ sequenceDiagram
   U->>R: POST /reserve buyToken
   R->>RD: EVAL lua - check user, DECR stock
   RD-->>R: OK, left 312
-  R->>K: ReservationCreated
+  R->>DB: INSERT reservation UNIQUE sale_id user_id
   R-->>U: reserved, pay in 10 min
-  K->>O: consume
-  O->>O: INSERT reservation UNIQUE sale_id user_id
   U->>O: POST /orders with paymentToken
+  O->>DB: UPDATE reservation PAID WHERE status RESERVED
   O-->>U: order CONFIRMED
 ```
 
@@ -129,12 +135,13 @@ reservations(id PK, sale_id, user_id, status, expires_at,
 orders(id PK, reservation_id UNIQUE, payment_id UNIQUE, status)
 ```
 
-- **Redis** = fast gatekeeper. **Postgres** = final truth.
+- **Redis** = fast gatekeeper. **Postgres** = final truth. Reservation insert + `sold = sold + 1` ek transaction me; fail ho to Redis `INCR` se unit wapas.
 - `CHECK (sold <= total_stock)` aur `UNIQUE(sale_id, user_id)` DB level pe oversell aur double purchase rokte hain, chahe Redis me kuch gadbad ho.
 
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 Inventory atomic kaise ghatayenge?
+**NFR:** zero oversell, 2 lakh buy QPS pe bhi.
 DB row `UPDATE ... SET stock = stock - 1` pe 2 lakh QPS = row lock contention, DB mar jaayega. Isliye Redis me ek **Lua script** (single-threaded, atomic):
 ```lua
 if redis.call('SISMEMBER', KEYS[2], ARGV[1]) == 1 then return -2 end  -- already bought
@@ -146,41 +153,48 @@ return s - 1
 - Sirf `DECR` bhi chalta hai (negative aaye to `INCR` wapas), par Lua me user dedup bhi saath ho jaata hai.
 - Stock 0 hote hi ek flag `soldout:{saleId}` set karo. Gateway/CDN wo flag padh ke turant "Sold out" dikhaye, Redis tak bhi na aaye.
 - Ek key bahut hot ho to **stock split**: 1,000 units ko 10 keys me 100-100 baanto, user hash se key chuno. Ek key khatam to dusri try.
+- **Trade-off:** Redis fast hai par failover me last writes kho sakta hai; isliye DB constraint safety net, aur kuch undersell accept.
 
 ### 9.2 Virtual waiting room aur queue admission
+**NFR:** fairness + site crash na ho (fixed load).
 - `/enter` pe user ko token do, `ZADD queue:{saleId} <timestamp> <userId>`.
 - Admission worker har second N users (jaise 2,000) ko `buyToken` (signed, 2 min valid) deta hai.
 - Client position poll kare (ya SSE). Stock 0 ho gaya to queue me sabko turant "Sold out".
 - Fayda: Reservation service pe load fixed rate pe aata hai, spike nahi.
+- **Trade-off:** user ko kuch second wait aur ek extra service; badle me predictable load aur fairness.
 
 ### 9.3 Payment timeout aur stock release
+**NFR:** correctness (paid unit kabhi double na bike) + undersell kam.
 - Reservation 10 min TTL. Expiry worker har 30 sec: `status=RESERVED AND expires_at < now()` → `EXPIRED`, aur Redis me `INCR stock`, user ko set se hatao.
 - Release wali units queue me waiting users ko mil jaati hain.
 - Race: payment aur expiry ek saath? `UPDATE reservations SET status='PAID' WHERE id=? AND status='RESERVED'`. Jo pehle jeete wahi. Expiry jeeti aur payment late aaya to **auto refund**.
+- **Trade-off:** 10 min TTL me unit block rehti hai; chhota TTL = kam undersell par genuine slow payers fail.
 
 ### 9.4 Bot protection
+**NFR:** fairness, asli users ko maal mile.
 - Sale se pehle login + verified phone zaroori. Naye accounts ko block ya low priority.
 - Gateway pe per-user, per-IP, per-device rate limit. CAPTCHA `/enter` pe.
 - `buyToken` signed aur user-bound, share ya replay nahi ho sakta.
 - Same address / payment card pe multiple accounts → post-sale fraud check, order cancel.
+- **Trade-off:** har check friction badhata hai, kuch genuine users bhi rukte hain.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **Redis Lua** for stock decrement | Atomic, ~1 lakh ops/sec, user dedup bhi saath | **DB row update:** ek row pe lakhs lock waits, DB crash. **Optimistic locking:** almost har request conflict karegi, retry storm |
-| **DB CHECK + UNIQUE constraint** | Final safety net, Redis fail ho tab bhi oversell nahi | **Sirf Redis pe bharosa:** failover me last writes kho sakte hain, oversell ho jaayega |
-| **Virtual waiting room** | Load fixed rate, fair FIFO, UX me position dikhta hai | **Sirf autoscaling:** 30 sec me 100x scale nahi hota, aur bottleneck single key hai |
-| **Kafka** between reserve aur order | Spike ko DB se door rakhta hai, retry safe | **Sync DB insert:** spike seedha DB pe |
-| **CDN** for product page | 5 lakh QPS edge pe, origin safe | **App servers se serve:** bekaar compute, origin down |
-| **TTL reservation + expiry worker** | Unpaid units wapas, undersell kam | **Payment ke baad hi decrement:** 1,000 se zyada log pay kar denge, refunds ka dher |
+| **Redis Lua** for stock decrement | Atomic, ~1 lakh ops/sec, user dedup saath | **DB row update:** lakhs lock waits. **Optimistic locking:** retry storm. Sacrifice: failover pe kuch writes kho sakte hain |
+| **DB CHECK + UNIQUE constraint** | Safety net, Redis fail ho tab bhi oversell nahi | **Sirf Redis:** failover me oversell. Sacrifice: kabhi Redis "haan", DB "na" = user ko error |
+| **Virtual waiting room** | Fixed-rate load, fair FIFO | **Sirf rate limit + autoscaling:** unfair, single key bottleneck. Sacrifice: extra service, user wait |
+| **Sync DB insert** for winners | ~1,000 inserts, DB turant truth | **Kafka/SQS:** spike DB tak aata hi nahi, queue bekaar lag + ops. Sacrifice: DB down = sale pause |
+| **CDN** for product page | 5 lakh QPS edge pe | **App servers:** origin down. Sacrifice: countdown/badge thoda stale |
+| **TTL reservation + cron expiry** | Unpaid units wapas | **Payment ke baad decrement:** 1,000+ log pay karenge, refunds. **Delay queue:** overkill. Sacrifice: ~30 sec release delay |
 
 ## Step 11: Failures & bottlenecks
 
 | Kya fail hua | Kya hoga | Handle kaise |
 |---|---|---|
 | Redis primary crash | Kuch decrements kho sakte hain | DB constraint oversell rokega. AOF `everysec` + replica. Sale ke liye dedicated Redis |
-| Kafka consumer lag | Reservation DB me late | User ko Redis result se response already mil gaya. Consumer scale karo |
+| Postgres slow/down | Lua jeeta par insert fail | Redis `INCR` se unit wapas, user ko "retry"; DB down ho to sale pause (correctness > availability) |
 | Payment gateway slow | Reservations expire ho rahi | Sale ke liye TTL thoda badhao, gateway se dedicated capacity lo |
 | Hot key | Ek Redis shard 100% CPU | Stock split across keys, sold-out flag edge pe |
 | Bots | Asli users ko kuch nahi milta | CAPTCHA, signed tokens, rate limit, fraud check |
@@ -192,7 +206,6 @@ return s - 1
 - **Load test + game day:** sale se pehle 2x expected traffic se rehearsal
 - **Graceful degradation:** sale ke time recommendations, reviews jaise non-critical features off
 - **Multi-region:** product page har region CDN se, par inventory ek primary Redis cluster me
-- Post-sale **analytics stream**: kitne bots block hue, kitna undersell, conversion
 
 ## Step 13: Interviewer ke likely follow-up sawal
 
@@ -201,10 +214,12 @@ return s - 1
 - "Payment success par reservation expire ho chuka tha?" → conditional update fail, auto refund
 - "1 crore users aa gaye?" → waiting room ka Redis ZSET shard karo, ya pre-registration lottery
 - "Fairness kaise prove karoge?" → queue timestamp FIFO, aur admission logs audit ke liye
+- "Kafka kyun nahi lagaya?" → DB tak sirf ~1,000 writes aate hain; funnel ne spike pehle hi khatam kar diya
+- **Senior signal:** khud bolo: asli single point stock wali Redis key hai. Failover (last writes loss) aur hot-shard CPU pehle se plan karo: dedicated Redis, stock split, edge pe sold-out flag, DB constraint backstop.
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> Flash sale me problem contention hai, throughput nahi. Funnel banao: CDN product page serve karta hai, gateway bots aur rate limit filter karta hai, waiting room (Redis ZSET) users ko fixed rate pe admit karta hai, aur Reservation service Redis Lua script se atomically user dedup + stock decrement karti hai. Sold out hote hi flag set, baaki requests edge pe hi reject. Jeete hue users Kafka se Order service tak, jo Postgres me `CHECK(sold <= total)` aur `UNIQUE(sale_id, user_id)` ke saath likhti hai, taaki Redis fail ho tab bhi oversell na ho. Reservation 10 min TTL, expiry worker stock wapas karta hai, aur late payment pe auto refund. Bots ke liye CAPTCHA, signed buy tokens, per-device limits.
+> Flash sale me problem contention hai, throughput nahi. Funnel banao: CDN product page serve karta hai, gateway bots aur rate limit filter karta hai, waiting room (Redis ZSET) users ko fixed rate pe admit karta hai, aur Reservation service Redis Lua script se atomically user dedup + stock decrement karti hai. Sold out hote hi flag set, baaki requests edge pe hi reject. Jeete hue ~1,000 users ka reservation seedha (sync) Postgres me jaata hai, kyunki itne kam writes ke liye queue bekaar hai. Postgres `CHECK(sold <= total)` aur `UNIQUE(sale_id, user_id)` ke saath, taaki Redis fail ho tab bhi oversell na ho. Reservation 10 min TTL, expiry worker stock wapas karta hai, aur late payment pe auto refund. Bots ke liye CAPTCHA, signed buy tokens, per-device limits.
 
 ## Checklist
 

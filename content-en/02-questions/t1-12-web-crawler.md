@@ -32,19 +32,22 @@ askedAt: [Google, Amazon, Microsoft, Meta, Atlassian]
 
 ## Step 2: Requirements
 
-**Functional**
-1. Start from seed URLs and fetch pages
-2. Parse HTML, extract new links and put them in the frontier
-3. Store raw HTML + metadata (for the indexer)
-4. Follow robots.txt and crawl-delay
-5. Recrawl pages periodically
+**Functional** (the user here is the search/indexing team)
+1. The team should be able to give seed URLs, and the crawler fetches pages, extracts links and keeps crawling
+2. The indexer should be able to read raw HTML + metadata
+3. Site owners' robots.txt and crawl-delay are always followed
+4. Pages are recrawled based on how often they change
 
-**Non-functional**
-- **Scale:** 1B pages, horizontally scalable
-- **Politeness:** max ~1 request/sec per domain (or the crawl-delay from robots.txt)
-- **Robustness:** no crashes from bad HTML, timeouts, traps, server errors
-- **Efficiency:** skip duplicate URLs and duplicate content
-- **Extensibility:** new content types / processors can be plugged in
+**Out of scope:** JS rendering, images/PDF, login-walled pages, indexing/ranking itself.
+
+**Non-functional (in priority order)**
+1. **Politeness (hard rule):** max ~1 request/sec per domain, or the robots.txt crawl-delay
+2. **Throughput:** 1B pages / 30 days ≈ 400 pages/sec avg, ~1K peak, horizontally scalable
+3. **Efficiency:** duplicate URL fetches < ~1%, duplicate content is not stored/indexed
+4. **Robustness:** bad HTML, traps or a fetcher crash don't stop the crawl, no URL is lost (lease)
+5. **Freshness:** news pages ~15 min, the rest ~1 month
+
+**CAP choice:** AP. Crawling a URL twice or a bit late is fine, a stopped crawl is not. Strong consistency only for politeness, which stays local to one node thanks to domain sharding.
 
 ## Step 3: Estimation (only what changes the design)
 
@@ -53,6 +56,7 @@ askedAt: [Google, Amazon, Microsoft, Meta, Atlassian]
 - One fetch takes ~500ms–2s (network bound). One machine handles ~500 concurrent async connections → ~300 pages/sec. **~5–10 fetcher machines** are enough, 20 for safety.
 - URL dedup: 1B+ URLs (and ~10B seen links). An exact set needs 10B × 50 bytes = 500 GB. A **Bloom filter** (1% false positive) ≈ 10 bits/URL → ~12 GB. It fits in RAM.
 - Bandwidth: 400 × 100 KB = **40 MB/s ≈ 320 Mbps**.
+- Metadata: ~10B known URLs × ~100 bytes ≈ **1 TB**, ~2–5K writes/sec (crawl updates + new URLs), key lookups only.
 
 > **Say:** "The bottleneck is not CPU, it is network and politeness. So I use async I/O fetchers, and a Bloom filter for URL dedup because the exact set is too big."
 
@@ -79,6 +83,8 @@ Event: page.fetched  {urlHash, s3Path, contentHash}    → Kafka topic for index
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** one machine: an in-memory queue, a `seen` hash set, a fetch → parse loop, files on disk. Up to ~1M pages this covers FR1–FR4. The numbers break it: 400–1K pages/sec → many async fetchers. Politeness across machines → frontier sharded by domain hash. 10B seen URLs (500 GB exact set) → Bloom filter. 100 TB of HTML → S3. ~1 TB of metadata → a KV store. Two consumers (parser + indexer) and the need to re-parse → Kafka.
+
 ```mermaid
 flowchart LR
   SD["Seed URLs"] --> F["URL Frontier (priority + per-domain queues)"]
@@ -97,16 +103,17 @@ flowchart LR
 ```
 
 **Why each component:**
-- **URL Frontier:** what to crawl and when. Priority (important pages first) + politeness (only one fetch per domain at a time).
-- **Fetcher workers:** async HTTP (thousands of connections on one machine). Timeout, max size (e.g. 5 MB), redirect limit.
-- **DNS cache:** a DNS lookup can take 10–200ms and becomes a bottleneck. Local cache with TTL.
-- **robots.txt cache:** fetch each domain's robots.txt once and cache it for ~24 hr.
-- **S3:** cheap and durable for 100 TB of raw HTML.
-- **Kafka:** decouples fetch and parse. If the parser is slow, the fetcher doesn't stop.
-- **Parser:** extracts links from HTML, makes relative URLs absolute, normalizes them.
-- **URL Filter + Bloom:** removes URLs that are already seen, blocked, or trap-like.
+- **URL Frontier (FR1, FR3, FR4):** what to crawl and when. Priority + politeness. Sharded by domain hash, disk-backed (RocksDB). A single FIFO queue would hammer one site.
+- **Fetcher workers (400–1K pages/sec):** async HTTP, ~500 connections per machine. Timeout, max size (5 MB), redirect limit.
+- **DNS cache + robots.txt cache:** DNS can take 10–200ms, robots.txt cached ~24 hr. Looking them up on every fetch = idle fetchers.
+- **S3 (100 TB):** cheap, durable, the indexer reads in batch. HTML blobs in a DB are costly and bloat it.
+- **Kafka `page-fetched` (FR2):** only ~1K small events/sec, so throughput is not the reason. The reason: two independent consumer groups (parser + indexer) and 7-day replay, so after a parser bug fix we re-parse without re-fetching. Simpler option: SNS → two SQS queues, but no replay.
+- **Parser:** extracts links, makes them absolute + normalized.
+- **URL Filter + Bloom:** drops seen, blocked and trap-like URLs. The Bloom filter is domain-sharded alongside the frontier nodes (~12 GB / N nodes), no separate Redis.
 - **Content Dedup:** the same/near-same content is not stored/indexed again.
-- **Metadata DB (Cassandra):** billions of URL records, write-heavy, simple key lookups.
+- **Metadata DB Cassandra (~1 TB, 2–5K writes/sec):** key lookups only, no joins/transactions, built-in sharding + replication. Sharded Postgres would also work, but sharding 10B rows is manual.
+
+**Mapping:** FR1 → Frontier, Fetchers, Parser, URL Filter. FR2 → S3, Kafka, Metadata DB. FR3 → robots cache + per-domain queues. FR4 → `next_crawl_at` + Frontier priority.
 
 ## Step 7: Main flow: crawling one URL
 
@@ -139,7 +146,7 @@ sequenceDiagram
 url_records (Cassandra, partition key = url_hash):
   url_hash, url, domain, priority, depth, status, last_crawled_at, next_crawl_at, content_hash
 
-domains (Cassandra / Redis):
+domains (Cassandra, next_allowed_fetch_at in the frontier node's memory):
   domain, robots_txt, crawl_delay_ms, next_allowed_fetch_at
 
 S3 layout:
@@ -148,11 +155,12 @@ S3 layout:
 
 - **Cassandra:** billions of rows, write-heavy (update on every crawl), lookup by key. No joins needed.
 - **S3:** raw content. Write it in batches into big WARC files (small files are expensive on S3).
-- **Bloom filter:** Redis (RedisBloom) or in-memory on each frontier node, with periodic checkpoints.
+- **Bloom filter:** in-memory on each frontier node (only its own domains), snapshot to S3 every hour.
 
 ## Step 9: Deep dives (the interviewer will push here)
 
 ### 9.1 URL Frontier: priority + politeness
+**NFR:** politeness (hard rule) + throughput.
 Two levels of queues (Mercator design):
 1. **Front queues (priority):** put each URL into high/medium/low queues based on its priority score (PageRank, domain importance, freshness need). The selector picks from the high queue more often.
 2. **Back queues (politeness):** each domain has its own FIFO queue. A **min-heap** keeps `(next_allowed_time, domain)`. The fetcher takes the domain whose time has come from the heap, fetches one URL, and sets `next_allowed_time = now + crawl_delay`.
@@ -174,41 +182,55 @@ flowchart LR
 ```
 
 - Distribute: shard the frontier by the **hash of the domain**. A domain always lives on one node, so politeness is enforced locally and no distributed lock is needed.
-- The frontier is very big (billions of URLs), so queues are disk-backed (RocksDB/Kafka), with only the head in memory.
+- The frontier is very big (billions of URLs), so queues are disk-backed (RocksDB), with only the head in memory. Kafka doesn't fit here: we need millions of per-domain queues.
+
+**Trade-off:** a big domain (wikipedia) stays on its own node, so load is somewhat uneven.
 
 ### 9.2 URL dedup: Bloom filter
+**NFR:** efficiency (duplicate fetches < ~1%).
 - First **normalize**: lowercase the host, remove the default port, remove the fragment (`#...`), sort query params, remove tracking params (`utm_*`).
 - Then `bloom.mightContain(url)`. Not there → definitely new, enqueue it. There → maybe seen, skip it.
 - A false positive means some new URLs will be missed (~1%). That is acceptable for a crawler. There is never a false negative.
 - If you need an exact check, look it up in Cassandra on a Bloom positive (two-step).
 
+**Trade-off:** ~1% of new URLs are missed, in return for ~12 GB of RAM instead of 500 GB.
+
 ### 9.3 Content dedup: hash and simhash
+**NFR:** efficiency (duplicate content is not stored/indexed).
 - **Exact duplicate:** SHA-256 / MD5 of the body. If the same hash already exists → don't store it, just link the URL to the canonical one. ~30% of pages on the web are duplicates/mirrors.
 - **Near duplicate:** the same article with different ads/timestamp. **SimHash** (64-bit fingerprint): fingerprints of similar docs differ in only a few bits. Hamming distance ≤ 3 → treat as a duplicate.
 - Also respect `<link rel="canonical">`.
 
+**Trade-off:** the SimHash threshold can sometimes mark different pages as "duplicates".
+
 ### 9.4 Crawler traps and bad sites
+**NFR:** robustness.
 - **Infinite URLs:** calendars (`/2026/10/04`, `/2026/10/05`...), session IDs, `?page=1..∞`. To stop them: **max depth** per domain, **max URL length** (~2,000 chars), **max pages per domain** per crawl cycle, and detect repeating path segments (`/a/b/a/b/a/b`).
 - **Spider traps / slow servers:** strict timeout (10s), max response size, and back off a domain if its error rate is high.
 - A blocklist for spam/malicious domains.
 
+**Trade-off:** max depth/pages limits also drop some genuine deep pages.
+
 ### 9.5 Recrawl and freshness
+**NFR:** freshness (news ~15 min, the rest ~1 month).
 - Each URL has a `next_crawl_at`. A news homepage every 15 min, a blog post every month.
 - **Adaptive:** if the content_hash is the same on recrawl → double the interval. If it changed → halve the interval.
 - **Conditional GET** (`If-Modified-Since`, `ETag`) → 304 Not Modified, which saves bandwidth.
 - The scheduler puts due URLs back into the frontier with a priority. Sitemaps (`lastmod` in `sitemap.xml`) also give signals.
 
+**Trade-off:** recrawl bandwidth competes with new pages, so split the budget between freshness and coverage.
+
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Two-level frontier (priority + per-domain queues)** | Important pages first, and politeness is guaranteed | **Single FIFO queue:** thousands of URLs from one domain line up, hammering the site, and no priority |
-| **Shard frontier by domain hash** | A domain's politeness lives on one node, no lock | **Shard by URL hash:** a domain's URLs spread across all nodes, needing a distributed lock/rate limit for politeness |
-| **Bloom filter for URL seen** | 10B URLs in ~12 GB, O(1) | **Exact hash set:** ~500 GB RAM. **DB lookup on every link:** billions of reads, slow |
-| **SimHash for near-dup** | Catches duplicates even when ads/timestamps differ | **Only exact hash:** misses near duplicates, wastes storage and index |
-| **S3 for raw HTML** | 100 TB cheap and durable, the indexer can read it in batch | **HTML blob in a database:** costly, DB bloat, slow scans |
-| **Cassandra for URL metadata** | Write-heavy, billions of rows, key lookups | **Postgres:** manual sharding at this scale and limited write throughput. No need for transactions |
-| **Kafka between fetch and parse** | Decoupling, backpressure, replay | **Parse inside the fetcher:** if the parser is slow or crashes, fetching stops |
+| **Two-level frontier (priority + per-domain queues)** | Important pages first, politeness guaranteed | **Single FIFO queue:** thousands of URLs from one domain line up and hammer the site. Sacrifice: more complex frontier logic |
+| **Shard frontier by domain hash** | A domain's politeness lives on one node, no lock | **Shard by URL hash:** needs a distributed lock/rate limit for politeness. Sacrifice: uneven load from big domains |
+| **Bloom filter for URL seen** | 10B URLs in ~12 GB, O(1) | **Exact hash set:** ~500 GB RAM. **DB lookup on every link:** billions of reads. Sacrifice: ~1% of new URLs missed |
+| **SimHash for near-dup** | Catches duplicates even when ads/timestamps differ | **Only exact hash:** misses near duplicates. Sacrifice: occasional false duplicates |
+| **S3 for raw HTML** | 100 TB cheap and durable, the indexer reads in batch | **HTML blob in a database:** costly, DB bloat. Sacrifice: small files are expensive, so WARC batching |
+| **Cassandra for URL metadata** | ~1 TB, 2–5K writes/sec, key lookups, built-in sharding | **Sharded Postgres:** works, but manual sharding of 10B rows, and we need no transactions. Sacrifice: no ad-hoc queries/joins |
+| **Kafka between fetch and parse** | Two consumer groups (parser + indexer), 7-day replay for re-parse | **Parse inside the fetcher:** slow/crashed parser = fetching stops. **SQS:** no replay. Sacrifice: operating a cluster for ~1K events/sec |
 
 ## Step 11: Failures & bottlenecks
 
@@ -229,22 +251,19 @@ flowchart LR
 - **Geo-distributed fetchers:** fetch from near the site's region, lower latency and bandwidth.
 - **Smarter priority:** ML-based crawl scheduling from PageRank + click data + change rate.
 - **WARC format + compaction:** pack small pages into big files to cut S3 cost.
-- **Observability:** dashboards for pages/sec, per-domain error rate, frontier size, dedup ratio.
-- **Ethics/legal:** sitemap-first crawling, opt-out handling, filters for PII.
 
 ## Step 13: Likely follow-up questions
 
 - "How will you avoid overloading a site?" → Per-domain back queue + min-heap next_allowed_time + robots crawl-delay (Step 9.1)
 - "How do you avoid crawling the same URL again?" → Normalize + Bloom filter (Step 9.2)
-- "Isn't the Bloom filter's false positive a problem?" → ~1% of new URLs will be missed, acceptable for a crawler, and there is never a false negative
 - "Duplicate content from mirror sites?" → SHA hash for exact, SimHash for near-dup
 - "Infinite calendar pages?" → Max depth, max pages per domain, URL length limit
-- "How many machines do we need?" → ~400 pages/sec, one async fetcher does ~300/sec, so 5–10 + headroom
 - "What if a page is updated?" → Adaptive recrawl + conditional GET
+- **Senior signal:** raise on your own that the bottleneck is not CPU but politeness + DNS: one big domain makes its frontier node hot, and a frontier node crash stalls its domains. So a leased dequeue (no ack → URL goes back), disk-backed queues + reassignment with consistent hashing, and automatic back-off on per-domain error rate.
 
 ## 2-minute recap
 
-> A crawler is a pipeline: seed URLs → frontier → fetchers → S3 → Kafka → parser → dedup → back to the frontier. 1B pages/month ≈ 400 pages/sec, 100 TB of HTML, and the bottleneck is network and politeness. The frontier has two levels: priority queues (important first) and per-domain back queues with a min-heap (crawl-delay per domain). The frontier is sharded by domain hash, so politeness stays local. DNS and robots.txt are cached. URL dedup is normalize + Bloom filter (~12 GB), content dedup is SHA hash + SimHash. For traps: max depth, max URL length, max pages per domain. Metadata in Cassandra, raw HTML in S3. Recrawl uses adaptive intervals + conditional GET.
+> A crawler is a pipeline: seed URLs → frontier → fetchers → S3 → Kafka (parser + indexer consumers, replay) → parser → dedup → back to the frontier. 1B pages/month ≈ 400 pages/sec, 100 TB of HTML, and the bottleneck is network and politeness. The frontier has two levels: priority queues (important first) and per-domain back queues with a min-heap (crawl-delay per domain). The frontier is sharded by domain hash, so politeness stays local. DNS and robots.txt are cached. URL dedup is normalize + Bloom filter (~12 GB, domain-sharded on the frontier nodes), content dedup is SHA hash + SimHash. For traps: max depth, max URL length, max pages per domain. Metadata in Cassandra, raw HTML in S3. Recrawl uses adaptive intervals + conditional GET.
 
 ## Checklist
 

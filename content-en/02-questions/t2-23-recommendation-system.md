@@ -32,18 +32,21 @@ askedAt: [Netflix, Spotify, Google, Meta, Amazon, Flipkart]
 ## Step 2: Requirements
 
 **Functional**
-1. A personalized list for the user on the home page (top 50 items)
-2. "Up next" / similar items while watching an item
-3. User actions (play, skip, like, watch time) are recorded and affect recommendations
-4. Trending / new content also shows up in the list
-5. Sensible recommendations even for a new user and a new item
+1. Users should be able to see a personalized list (top 50 items) on the home page
+2. Users should be able to see "Up next" / similar items while watching an item
+3. Users' actions (play, skip, like, watch time) should be recorded and change recommendations within the same session
+4. New users and new / trending items should also get sensible recommendations (cold start)
 
-**Non-functional**
-- **Low latency:** p99 < 200ms for the home feed
-- **High availability:** even if reco fails, the page must not look empty (fallback to popular)
-- **Freshness:** user actions take effect in minutes, model refreshes daily/hourly
-- **Scale:** 200M DAU, billions of events/day
-- **Eventual consistency is fine:** slightly stale recommendations do no harm
+**Out of scope:** ML model internals, search, ads ranking, content moderation, creator analytics.
+
+**Non-functional (in priority order)**
+1. **Latency:** home feed p99 < 200ms at ~40K peak QPS
+2. **Availability:** 99.95%, the page must never look empty even if reco fails (popular-items fallback)
+3. **Freshness:** session actions take effect in < 1 min (features), model refreshes daily
+4. **Scale:** 200M DAU, ~115K events/sec avg, ~300K peak
+5. **Consistency:** eventual is fine, a slightly stale list does no harm
+
+**CAP choice:** **AP** everywhere. A stale or slightly wrong list is fine, an empty page is not. There is no data here that needs strong consistency (money, bookings).
 
 ## Step 3: Estimation (only what changes the design)
 
@@ -75,6 +78,8 @@ POST /events  [{userId, itemId, type, watchMs, ts, requestId}]   → 202 Accepte
 
 ## Step 6: High-level design
 
+**Start with a simple v1:** client → Reco Service → one Postgres. Events go to a table, a nightly batch job writes each user's top 50 to a table, and the Reco Service reads it. FR1 works. But three numbers break it: **~300K events/sec peak** (beyond one DB's write limit), **session freshness < 1 min** (a nightly batch is not enough), and **10M items** (we cannot score them per request). Every add-on below exists because of one of these.
+
 ```mermaid
 flowchart LR
   C["Client app"] --> G["API Gateway"]
@@ -95,14 +100,17 @@ flowchart LR
 ```
 
 **Why each component:**
-- **Event Collector + Kafka:** absorbs 300K events/sec. Multiple consumers (stream, data lake, analytics) can read the same events.
-- **Stream processor (Flink):** builds real-time features: "last 10 items played", "skips today", trending counts.
-- **Data Lake (S3):** the full history. Offline training reads from here.
-- **Offline Training:** daily/hourly batch job. Builds embeddings, the ranking model, and each user's precomputed list.
-- **Vector Index (FAISS/ScaNN/Milvus):** finds "items near this user embedding" with ANN in milliseconds.
-- **Feature Store:** the same features for both training and serving. Online part in Redis, offline part in the data lake.
+- **Event Collector + Kafka:** ~300K events/sec peak (NFR4). Kafka because **three consumer groups** (Flink, S3 sink, analytics) read the same stream and we need **7-day replay** to backfill features. SQS has neither replay nor multi-consumer. The collector only validates + batches.
+- **Stream processor (Flink):** real-time features for session freshness < 1 min (NFR3): "last 10 items played", "skips today", trending counts. A simpler 15-min batch job would not show an effect within the session.
+- **Data Lake (S3):** ~1TB/day of events (10B × ~100 bytes). Cheap storage for training history.
+- **Offline Training:** daily batch job. Builds embeddings, the ranking model, and precomputed lists for active users.
+- **Vector Index (FAISS/ScaNN/Milvus):** FR2 and 10M items. "Items near this vector" via ANN in ~5ms. SQL / exact search over 10M vectors is slow.
+- **Precomputed recs (Redis):** 40K peak QPS, ~160GB, reads < 5ms. Postgres would also work, but at this QPS Redis safely fits the 30ms retrieval budget.
+- **Feature Store (online Redis):** the same features in training and serving (no skew). Features for 500 items are read in a batch per request, so in-memory.
 - **Reco Service:** collects candidates, filters them, sends them to ranking, handles fallback.
-- **Ranking Service:** a heavy model (GBDT / neural net) scores the 500 candidates.
+- **Ranking Service (separate):** a heavy model (GBDT / neural net) scores the 500 candidates. Separate because it needs GPU/large-memory machines and its own model deploys. At small scale, a library inside the Reco Service is enough.
+
+**FR → component:** FR1 → Reco Service + Precomputed Redis + Ranking. FR2 → Vector Index. FR3 → Kafka + Flink + Feature Store. FR4 → trending (Flink) + content embeddings + exploration slot.
 
 ## Step 7: Main flow: serving the home feed
 
@@ -156,13 +164,12 @@ item catalog (Postgres / Cassandra) → metadata
 vector index (FAISS / Milvus)       → item_id → 128-dim embedding
 ```
 
-- Events are **append-only and huge** → Kafka + S3 Parquet. Not in a DB.
-- Online features are **key-value, low latency** → Redis (or Cassandra if very large).
-- Embeddings → a specialized **ANN index**, because SQL has no "nearest vector" query.
+- Events are append-only and huge → Kafka + S3 Parquet. Online features are key-value → Redis. Embeddings → an ANN index (SQL has no "nearest vector" query).
 
 ## Step 9: Deep dives (where the interviewer will push)
 
 ### 9.1 Two-stage: candidate generation → ranking
+**NFR:** p99 < 200ms with 10M items.
 - **Candidate generation (recall):** cheap, fast, ~500 items from multiple sources. Sources:
   - **Collaborative filtering:** "people who watched what you watched also watched this". Learns from user-item interactions, no need to understand the content.
   - **Content-based:** "you listened to Arijit's songs, this is also by Arijit". Matches on the item's tags/genre/audio features.
@@ -173,13 +180,19 @@ vector index (FAISS / Milvus)       → item_id → 128-dim embedding
 
 > **Say:** "Retrieval's job is to not miss good items (recall). Ranking's job is the right order (precision). They have different cost profiles, so they are separate stages."
 
+**Trade-off:** an item missed by retrieval is never seen by ranking. We keep multiple sources for recall.
+
 ### 9.2 Embeddings + ANN search
+**NFR:** retrieval < 30ms over 10M items (FR2 + FR1).
 - In training, every user and every item gets a vector (128 numbers). A user's vector ends up close to the vectors of items they like (two-tower model).
 - At serving time: take the user vector and find the **approximate nearest neighbours** in the vector index. Exact search over 10M items is slow; ANN (HNSW / IVF) gives the top 200 in ~5ms, in exchange for a little accuracy.
 - For "similar items": items near the item's vector. This can also be precomputed and cached.
 - Item embeddings change on every training run. Build a new index, then do an **atomic swap** (blue-green), so serving does not break midway.
 
+**Trade-off:** ~5ms latency in exchange for a little recall loss (ANN misses some true neighbours).
+
 ### 9.3 Offline vs online, precompute vs real-time
+**NFR:** latency and session freshness together.
 | Approach | How | Benefit | Drawback |
 |---|---|---|---|
 | **Full precompute** | Nightly batch job puts each user's top 100 in Redis | Super fast serving, cheap | Stale. Ignores today's session |
@@ -189,7 +202,10 @@ vector index (FAISS / Milvus)       → item_id → 128-dim embedding
 - For inactive users (who come once a month), precompute is wasted. Precompute **only for active users**, and on-demand for the rest.
 - The **feature store**'s main job: the **same feature logic** in training and serving. Otherwise you get "training-serving skew": the model looks good offline but does badly in production.
 
+**Trade-off:** hybrid means maintaining two code paths (batch + online), in return for both speed and freshness.
+
 ### 9.4 Cold start, freshness and feedback loop
+**NFR:** freshness < 1 min, plus FR4 (new users/items).
 - **New user:** no history. Ask for genre/language at signup, show regional trending, then build a session embedding from the first 5–10 clicks.
 - **New item:** no interactions, so CF will not work. Start with a **content-based embedding** (title, tags, audio/video features), and give it an **exploration slot**: 5–10% of every feed goes to new items (bandit style), so they get data.
 - **Trending:** per-region play counts in a Flink sliding window (last 1 hour), top-K in Redis. It becomes one candidate source.
@@ -205,23 +221,30 @@ flowchart LR
   X["Exploration 5 to 10 percent"] --> S
 ```
 
+**Trade-off:** the exploration slot lowers short-term watch time a little, in return for a healthy catalog.
+
 ### 9.5 A/B testing
+**NFR:** availability, a bad model must not drop watch time.
 - The experiment service hashes the user and assigns a variant (`hash(userId) % 100 < 5` → model B).
 - The Reco Service picks the model version based on the variant. Every event logs `requestId` + `variant`.
 - Metrics: watch time per user, CTR, skip rate, 7-day retention. Do not look only at CTR, or clickbait will win.
 - A new model runs first in **shadow mode** (score, but do not show), then a 1% → 5% → 50% rollout.
 
+**Trade-off:** a slow rollout means a good model reaches everyone later, but a bad model's blast radius stays small.
+
 ## Step 10: Decision table (what we chose, why, what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Two-stage** (retrieval → ranking) | A heavy model on 10M items is impossible, on 500 it is easy | **A single model on everything:** latency and cost both out of control |
-| **Hybrid precompute + online** | Speed from precompute, session freshness from online | **Batch only:** stale. **Real-time only:** expensive |
-| **Kafka** for events | Absorbs 300K/sec, multiple consumers, replay possible | **Direct DB writes:** cannot handle this write load, no replay |
-| **ANN vector index** | Nearest neighbours in ms, 10M+ items | **Exact search / SQL:** brute force is slow |
-| **Feature store** | Same features for training and serving, low-latency lookup | **Each service with its own feature code:** skew, bugs |
-| **Popular-items fallback** | The page stays full even if reco is down | **Showing an error:** the user gets an empty home page |
-| **Exploration slot** | Gives data to cold start items, breaks the feedback loop | **Pure exploitation:** new content never rises to the top |
+| **Two-stage** (retrieval → ranking) | A heavy model on 10M items is impossible, on 500 it is easy | **A single model on everything:** latency and cost out of control. Sacrifice: an item missed by retrieval is never ranked |
+| **Hybrid precompute + online** | Speed from precompute, session freshness from online | **Batch only:** stale. **Real-time only:** expensive at 40K QPS. Sacrifice: two code paths |
+| **Kafka** for events | ~300K/sec peak, 3 consumer groups, 7-day replay | **Direct DB writes:** cannot take the load. **SQS:** no replay, no multi-consumer. Sacrifice: Kafka cluster ops |
+| **Flink** real-time features | Session actions take effect in < 1 min | **15-min batch job:** no effect within the session. Sacrifice: complexity of a stateful stream job |
+| **Redis** for precomputed recs + online features | 40K QPS, ~160GB, < 5ms reads | **Postgres:** p99 budget is risky. **Cassandra:** cheaper but slower tail. Sacrifice: RAM cost, rebuild after a Redis restart |
+| **S3 data lake** | ~1TB/day of history, cheap, Spark reads it directly | **Raw events in a warehouse/DB:** very expensive. Sacrifice: batch latency for queries |
+| **ANN vector index** | Nearest neighbours in ms, 10M+ items | **Exact search / SQL:** brute force is slow. Sacrifice: a little recall |
+| **Feature store** | Same features for training and serving | **Each service with its own feature code:** skew, bugs. Sacrifice: one more platform to maintain |
+| **Popular-items fallback + exploration slot** | The page is never empty, new items get data | **Showing an error / pure exploitation:** empty page, new content never rises. Sacrifice: slightly less personalised |
 
 ## Step 11: Failures & bottlenecks
 
@@ -240,8 +263,6 @@ flowchart LR
 - A **session-based sequence model** (transformer) that predicts the next item from the last 20 actions
 - **Multi-objective ranking:** watch time + likes + creator fairness together
 - **Incremental update** of embeddings (hourly) so new items show up sooner
-- **Explainability:** show a reason like "Because you watched X"
-- Popular lists in a regional **edge cache**, to cut latency further
 
 ## Step 13: Likely follow-up questions
 
@@ -249,9 +270,9 @@ flowchart LR
 - "A new song was uploaded, how will it get recommended?" → content embedding + exploration slot (Step 9.4)
 - "The user just skipped 3 songs, will the next reco change?" → yes, Flink updates the real-time feature `recent_skips`, and ranking uses it
 - "How do you remove already-watched items?" → the user's recently watched set in Redis/a bloom filter, filtered during re-ranking
-- "How often is the model trained?" → ranking daily, embeddings daily, trending every minute. A cost vs freshness trade-off
 - "How do you know the new model is better?" → offline metrics (AUC, recall@K) first, then the online A/B test is the real judge
 - "How does it fit in 200ms?" → latency budget table, parallel calls, batched feature fetch, timeouts + fallback
+- **Senior signal:** raise on your own that the real bottleneck is ranking compute: 40K QPS × 500 candidates = **20M item-scorings/sec** and as many feature lookups. The plan: cut candidates 500 → 300, cache hot item features locally, fall back to the precomputed order on ranking timeout, and stop precomputing for inactive users.
 
 ## 2-minute recap (read this before the interview)
 
