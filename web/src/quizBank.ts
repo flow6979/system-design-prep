@@ -9,7 +9,7 @@ import { allPages, pageBySlug, type Page } from './content'
 import { generateJson } from './gemini'
 import { readLocal, writeLocal } from './store'
 
-export type Section = 'hld' | 'lld' | 'java' | 'agents'
+export type Section = 'hld' | 'lld' | 'java' | 'db' | 'agents'
 type T2 = { hi: string; en: string }
 
 export interface QuizQuestion {
@@ -24,13 +24,13 @@ export interface QuizQuestion {
   ai?: boolean
 }
 
-export const SECTIONS: Section[] = ['hld', 'lld', 'java', 'agents']
+export const SECTIONS: Section[] = ['hld', 'lld', 'java', 'db', 'agents']
 
 const seedFiles = import.meta.glob('../../content/quiz/*.json', { eager: true, import: 'default' }) as Record<string, unknown>
 export const SEED: QuizQuestion[] = Object.values(seedFiles).flatMap((v) => (Array.isArray(v) ? (v as QuizQuestion[]) : []))
 
 export function sectionOf(page: Page): Section {
-  return page.kind === 'lld' ? 'lld' : page.kind === 'java' ? 'java' : page.kind === 'agent' ? 'agents' : 'hld'
+  return page.kind === 'lld' ? 'lld' : page.kind === 'java' ? 'java' : page.kind === 'db' ? 'db' : page.kind === 'agent' ? 'agents' : 'hld'
 }
 
 export const topicsOf = (section: Section) => allPages.filter((p) => sectionOf(p) === section && !(p.kind === 'agent' && p.slug === 'agents-general'))

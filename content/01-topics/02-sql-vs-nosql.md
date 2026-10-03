@@ -9,6 +9,8 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-04-whatsapp-chat, t1-05-bookmy
 
 **Ek line me:** SQL tab lo jab relations, transactions aur strong consistency chahiye. NoSQL tab lo jab bahut zyada scale, simple access pattern ya flexible schema chahiye.
 
+> **Detail me padho (Databases section):** [Choosing a Database](../05-db/01-choosing-a-database.md), [SQL](../05-db/02-relational-sql.md), [Key-Value](../05-db/05-key-value.md), [Document](../05-db/06-document.md), [Wide-column](../05-db/07-wide-column.md)
+
 > **Example:** Paytm wallet ka balance aur transactions Postgres me (paisa galat nahi hona chahiye). WhatsApp ke billions messages Cassandra me (bas likhna hai aur chat_id se time order me padhna hai, joins ki zarurat nahi).
 
 ## SQL (relational)

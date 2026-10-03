@@ -9,6 +9,8 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-04-whatsapp-chat, t1-06-uber, 
 
 **Ek line me:** jab data ya writes ek DB machine me fit na hon, to data ko key ke basis pe kai machines (shards) me baant do. Consistent hashing se shard add/remove karne pe kam se kam data move hota hai.
 
+> **Detail me padho (Databases section):** [Scaling Databases](../05-db/14-scaling-databases.md), [Wide-column](../05-db/07-wide-column.md)
+
 > **Example:** WhatsApp ke paas har din 100 billion messages. Ek Postgres pe ye impossible hai. `chat_id` ke hash se messages 1000 shards me baante jaate hain. Ek chat ke saare messages ek hi shard pe, isliye chat kholna fast.
 
 ## Kyun shard karo

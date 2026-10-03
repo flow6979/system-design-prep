@@ -9,6 +9,8 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-04-whatsapp-chat, t1-06-uber, 
 
 **In one line:** When the data or writes don't fit on one DB machine, split the data across many machines (shards) based on a key. Consistent hashing makes sure the least data moves when you add or remove a shard.
 
+> **Go deeper (Databases section):** [Scaling Databases](../05-db/14-scaling-databases.md), [Wide-column](../05-db/07-wide-column.md)
+
 > **Example:** WhatsApp has 100 billion messages every day. That is impossible on one Postgres. Messages are split across 1000 shards by the hash of `chat_id`. All messages of one chat sit on the same shard, so opening a chat is fast.
 
 ## Why shard

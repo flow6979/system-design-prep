@@ -1,6 +1,6 @@
 import { parse as parseYaml } from 'yaml'
 
-export type Kind = 'topic' | 'question' | 'lld' | 'java' | 'agent'
+export type Kind = 'topic' | 'question' | 'lld' | 'java' | 'db' | 'agent'
 
 export interface ChecklistItem {
   id: string
@@ -37,6 +37,12 @@ const lldFiles = import.meta.glob('../../content/03-lld/*.md', {
 }) as Record<string, string>
 
 const javaFiles = import.meta.glob('../../content/04-java/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
+
+const dbFiles = import.meta.glob('../../content/05-db/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -114,6 +120,7 @@ export const topics = build(topicFiles, 'topic')
 export const questions = build(questionFiles, 'question')
 export const lld = build(lldFiles, 'lld')
 export const java = build(javaFiles, 'java')
+export const db = build(dbFiles, 'db')
 
 // ---- Agentic AI (the labs that used to be the separate Agent Lab site) ----
 type T2 = { hi: string; en: string }
@@ -268,7 +275,7 @@ export function agentPageFor(path: string): Page {
   return match ?? agentGeneral
 }
 
-export const allPages = [...topics, ...questions, ...lld, ...java, ...agentPages]
+export const allPages = [...topics, ...questions, ...lld, ...java, ...db, ...agentPages]
 export const pageBySlug = new Map(allPages.map((p) => [p.slug, p]))
 
 const enBySlug = new Map<string, Page>(build(enFiles, 'topic').map((p) => [p.slug, p] as const))
@@ -302,7 +309,7 @@ export const allItems = allPages.flatMap((p) => p.checklist)
 
 export function route(p: Pick<Page, 'kind' | 'slug' | 'path'>): string {
   if (p.kind === 'agent') return `#${p.path ?? '/agents'}`
-  return `#/${{ topic: 'topic', question: 'q', lld: 'lld', java: 'java' }[p.kind as 'topic' | 'question' | 'lld' | 'java']}/${p.slug}`
+  return `#/${{ topic: 'topic', question: 'q', lld: 'lld', java: 'java', db: 'db' }[p.kind as 'topic' | 'question' | 'lld' | 'java' | 'db']}/${p.slug}`
 }
 
 /** Map a relative .md link inside content to an in-app hash route */
@@ -320,6 +327,7 @@ const REVISION_HEADINGS: Record<Kind, RegExp> = {
   // LLD: only the starred (most-asked) patterns
   lld: /^## ⭐/,
   java: /^## ⭐/,
+  db: /^## ⭐/,
   agent: /^$/,
 }
 

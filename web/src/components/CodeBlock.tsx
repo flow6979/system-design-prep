@@ -7,6 +7,8 @@ import sql from 'highlight.js/lib/languages/sql'
 import http from 'highlight.js/lib/languages/http'
 import json from 'highlight.js/lib/languages/json'
 import bash from 'highlight.js/lib/languages/bash'
+import python from 'highlight.js/lib/languages/python'
+import yaml from 'highlight.js/lib/languages/yaml'
 
 hljs.registerLanguage('java', java)
 hljs.registerLanguage('cpp', cpp)
@@ -15,6 +17,11 @@ hljs.registerLanguage('sql', sql)
 hljs.registerLanguage('http', http)
 hljs.registerLanguage('json', json)
 hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('yaml', yaml)
+hljs.registerLanguage('cql', sql)
+hljs.registerLanguage('promql', sql)
+hljs.registerLanguage('cypher', sql)
 
 export type CodeLang = 'java' | 'cpp'
 export const CODE_LANGS: { id: CodeLang; label: string }[] = [

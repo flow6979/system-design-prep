@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { agentPages, java, lld, localize, questions, route, topics, type Page } from '../content'
+import { agentPages, db, java, lld, localize, questions, route, topics, type Page } from '../content'
 import { readLocal, useStore, writeLocal } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
@@ -90,6 +90,12 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
           Java
         </a>
       )}
+      {db[0] && (
+        <a href={route(db[0])} className={`side-item home ${db.some((p) => p.slug === current) ? 'active' : ''}`}>
+          <Icon name="db" size={17} />
+          Databases
+        </a>
+      )}
       <a href="#/agents" className={`side-item home ${current.startsWith('agents') ? 'active' : ''}`}>
         <Icon name="bot" size={17} />
         Agentic AI
@@ -105,6 +111,7 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
       <Group label="Topics" pages={topics} current={current} match={match} filtering={!!f} />
       <Group label="Questions · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} filtering={!!f} />
       <Group label="LLD · Design patterns" pages={lld} current={current} match={match} filtering={!!f} />
+      <Group label="Databases" pages={db} current={current} match={match} filtering={!!f} />
       <Group label="Java" pages={java} current={current} match={match} filtering={!!f} />
       <Group label="Questions · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} filtering={!!f} />
       <Group label="Agentic AI" pages={agentPages} current={current} match={match} filtering={!!f} />

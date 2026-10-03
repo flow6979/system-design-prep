@@ -1,0 +1,1858 @@
+[
+  {
+    "id": "db-01-choosing-a-database-01",
+    "section": "db",
+    "topic": "01-choosing-a-database",
+    "level": "easy",
+    "q": {
+      "hi": "Paytm wallet me money transfer: ek account se debit aur doosre me credit dono ek saath hone chahiye, ya dono fail. Primary DB kaunsa?",
+      "en": "Paytm wallet transfer: debit one account and credit another, both must succeed or both fail. Which primary DB?"
+    },
+    "options": {
+      "hi": [
+        "PostgreSQL / MySQL (relational, ACID transactions)",
+        "Redis (in-memory, fast)",
+        "Elasticsearch (fast search)",
+        "Cassandra with consistency ONE"
+      ],
+      "en": [
+        "PostgreSQL / MySQL (relational, ACID transactions)",
+        "Redis (in-memory, fast)",
+        "Elasticsearch (fast search)",
+        "Cassandra with consistency ONE"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Money movement me multi-row atomic transaction chahiye. Relational DB ka ACID ye seedha deta hai; baaki options me ye guarantee nahi milti.",
+      "en": "Money movement needs an atomic multi-row transaction. Relational ACID gives this directly; the other options do not guarantee it."
+    }
+  },
+  {
+    "id": "db-01-choosing-a-database-02",
+    "section": "db",
+    "topic": "01-choosing-a-database",
+    "level": "medium",
+    "q": {
+      "hi": "Swiggy app me \"panner tikka\" (typo) search karne pe bhi \"Paneer Tikka\" dishes aani chahiye, relevance ranking ke saath. Kya use karoge?",
+      "en": "In Swiggy, searching \"panner tikka\" (typo) should still return \"Paneer Tikka\" dishes with relevance ranking. What do you use?"
+    },
+    "options": {
+      "hi": [
+        "PostgreSQL me WHERE name = ? exact match",
+        "Elasticsearch (fuzzy match + BM25 scoring), source of truth alag DB me",
+        "Redis HASH me dish name as key",
+        "DynamoDB Scan with contains() filter"
+      ],
+      "en": [
+        "PostgreSQL WHERE name = ? exact match",
+        "Elasticsearch (fuzzy match + BM25 scoring), source of truth in a separate DB",
+        "Redis HASH keyed by dish name",
+        "DynamoDB Scan with a contains() filter"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Typo tolerance aur relevance ranking search engine ka kaam hai (inverted index, fuzziness, scoring). ES ko secondary index ki tarah sync karo.",
+      "en": "Typo tolerance and relevance ranking are a search engine job (inverted index, fuzziness, scoring). Keep ES as a synced secondary index."
+    }
+  },
+  {
+    "id": "db-01-choosing-a-database-03",
+    "section": "db",
+    "topic": "01-choosing-a-database",
+    "level": "medium",
+    "q": {
+      "hi": "Uber: lakhon drivers har 4 second me location bhejte hain aur rider ke paas \"nearby drivers\" chahiye. Live location ke liye best fit?",
+      "en": "Uber: lakhs of drivers send location every 4 seconds and riders need \"nearby drivers\". Best fit for live location?"
+    },
+    "options": {
+      "hi": [
+        "Neo4j graph me driver nodes",
+        "S3 me har update ek naya object",
+        "Redis GEO (GEOADD / GEOSEARCH), in-memory, latest location overwrite",
+        "Har update ke liye Postgres me naya row INSERT karke full table scan"
+      ],
+      "en": [
+        "Neo4j graph with driver nodes",
+        "A new S3 object per update",
+        "Redis GEO (GEOADD / GEOSEARCH), in-memory, latest location overwritten",
+        "INSERT a new Postgres row per update and full-scan the table"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Bahut high write rate, sirf latest value chahiye, aur radius query: in-memory geo index (Redis GEO) ye sab sasta deta hai. History chahiye to alag se stream/TSDB me daalo.",
+      "en": "Very high write rate, only latest value matters, plus radius queries: an in-memory geo index (Redis GEO) does this cheaply. Send history to a stream/TSDB separately."
+    }
+  },
+  {
+    "id": "db-01-choosing-a-database-04",
+    "section": "db",
+    "topic": "01-choosing-a-database",
+    "level": "hard",
+    "q": {
+      "hi": "Interview me \"naye product ke liye DB choose karo\" pe sabse strong approach kaunsi hai?",
+      "en": "In an interview, what is the strongest approach to \"choose a DB for a new product\"?"
+    },
+    "options": {
+      "hi": [
+        "MongoDB lo kyunki schema-less hai, future changes easy honge",
+        "Cassandra lo kyunki aage chal ke scale chahiye hoga",
+        "Ek hi DB sab kaam ke liye, kabhi doosra DB mat jodo",
+        "Pehle access patterns, consistency need, read/write ratio aur scale likho; default relational, specific need pe specialised DB add karo"
+      ],
+      "en": [
+        "Pick MongoDB because schema-less makes future changes easy",
+        "Pick Cassandra because you will need scale later",
+        "Use one DB for everything and never add another",
+        "First list access patterns, consistency needs, read/write ratio and scale; default to relational, add a specialised DB for a specific need"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "DB choice access patterns aur guarantees se nikalti hai, trend se nahi. Postgres sensible default hai; search, cache, analytics jaise needs ke liye purpose-built store jodo.",
+      "en": "DB choice follows access patterns and guarantees, not trends. Postgres is a sensible default; add purpose-built stores for needs like search, cache, analytics."
+    }
+  },
+  {
+    "id": "db-02-relational-sql-01",
+    "section": "db",
+    "topic": "02-relational-sql",
+    "level": "easy",
+    "q": {
+      "hi": "orders table rows (id, amount): (1,100), (2,200), (3,50), (4,NULL). Output of: SELECT COUNT(*), COUNT(amount), SUM(amount) FROM orders;",
+      "en": "orders table rows (id, amount): (1,100), (2,200), (3,50), (4,NULL). Output of: SELECT COUNT(*), COUNT(amount), SUM(amount) FROM orders;"
+    },
+    "options": {
+      "hi": [
+        "4, 4, 350",
+        "4, 3, 350",
+        "3, 3, 350",
+        "4, 3, NULL"
+      ],
+      "en": [
+        "4, 4, 350",
+        "4, 3, 350",
+        "3, 3, 350",
+        "4, 3, NULL"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "COUNT(*) saari rows ginta hai (4). COUNT(amount) aur SUM NULL ko ignore karte hain: 3 aur 350.",
+      "en": "COUNT(*) counts all rows (4). COUNT(amount) and SUM ignore NULLs: 3 and 350."
+    }
+  },
+  {
+    "id": "db-02-relational-sql-02",
+    "section": "db",
+    "topic": "02-relational-sql",
+    "level": "medium",
+    "q": {
+      "hi": "users: 1,2,3. orders: user 1 ke 2 orders, user 2 ka 1, user 3 ka koi nahi. SELECT u.id, COUNT(o.id) FROM users u LEFT JOIN orders o ON o.user_id = u.id GROUP BY u.id; output?",
+      "en": "users: 1,2,3. orders: user 1 has 2, user 2 has 1, user 3 has none. SELECT u.id, COUNT(o.id) FROM users u LEFT JOIN orders o ON o.user_id = u.id GROUP BY u.id; output?"
+    },
+    "options": {
+      "hi": [
+        "2 rows: 1→2, 2→1",
+        "3 rows: 1→2, 2→1, 3→1",
+        "3 rows: 1→2, 2→1, 3→0",
+        "3 rows: 1→2, 2→1, 3→NULL"
+      ],
+      "en": [
+        "2 rows: 1→2, 2→1",
+        "3 rows: 1→2, 2→1, 3→1",
+        "3 rows: 1→2, 2→1, 3→0",
+        "3 rows: 1→2, 2→1, 3→NULL"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "LEFT JOIN user 3 ko rakhta hai with o.id = NULL. COUNT(o.id) NULL nahi ginta, isliye 0. COUNT(*) likhte to 1 aata.",
+      "en": "LEFT JOIN keeps user 3 with o.id = NULL. COUNT(o.id) skips NULL, so 0. COUNT(*) would give 1."
+    }
+  },
+  {
+    "id": "db-02-relational-sql-03",
+    "section": "db",
+    "topic": "02-relational-sql",
+    "level": "medium",
+    "q": {
+      "hi": "PostgreSQL me ek table pe bahut UPDATE hote hain aur table ka size badhta jaata hai jabki row count same hai. Kyu?",
+      "en": "In PostgreSQL a table gets many UPDATEs and keeps growing while the row count stays the same. Why?"
+    },
+    "options": {
+      "hi": [
+        "WAL file table ke andar merge hoti rehti hai",
+        "B-tree index ka rebalancing fail ho jaata hai",
+        "Postgres in-place update karta hai jisse fragmentation hota hai",
+        "MVCC har UPDATE pe naya row version likhta hai; purane dead tuples VACUUM hone tak jagah lete hain"
+      ],
+      "en": [
+        "The WAL file keeps getting merged into the table",
+        "B-tree index rebalancing fails",
+        "Postgres updates in place, which causes fragmentation",
+        "MVCC writes a new row version on every UPDATE; old dead tuples take space until VACUUM"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Postgres MVCC me UPDATE = naya tuple + purana dead. Autovacuum dead tuples reclaim karta hai; agar wo peeche reh jaaye to bloat hota hai.",
+      "en": "In Postgres MVCC, UPDATE = new tuple + old one dead. Autovacuum reclaims dead tuples; if it falls behind, you get bloat."
+    }
+  },
+  {
+    "id": "db-02-relational-sql-04",
+    "section": "db",
+    "topic": "02-relational-sql",
+    "level": "easy",
+    "q": {
+      "hi": "SELECT user_id, SUM(amount) FROM orders WHERE SUM(amount) > 1000 GROUP BY user_id; kya hoga?",
+      "en": "SELECT user_id, SUM(amount) FROM orders WHERE SUM(amount) > 1000 GROUP BY user_id; what happens?"
+    },
+    "options": {
+      "hi": [
+        "Error: aggregate WHERE me allowed nahi; HAVING SUM(amount) > 1000 use karo",
+        "Sahi chalega, 1000 se zyada spend wale users aayenge",
+        "Har row ka apna SUM check hoga",
+        "Empty result aayega bina error ke"
+      ],
+      "en": [
+        "Error: aggregates are not allowed in WHERE; use HAVING SUM(amount) > 1000",
+        "Works fine and returns users who spent over 1000",
+        "Each row is checked against its own SUM",
+        "Returns an empty result with no error"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "WHERE grouping se pehle rows filter karta hai, tab tak SUM bana hi nahi. Group ke baad filter HAVING se hota hai.",
+      "en": "WHERE filters rows before grouping, when SUM does not exist yet. Filtering after grouping is done with HAVING."
+    }
+  },
+  {
+    "id": "db-03-transactions-acid-01",
+    "section": "db",
+    "topic": "03-transactions-acid",
+    "level": "easy",
+    "q": {
+      "hi": "T1 ne balance 500 padha. T2 ne balance 300 kiya aur commit kiya. T1 same transaction me dobara padhta hai to 300 milta hai. Ye anomaly kya hai?",
+      "en": "T1 reads balance 500. T2 sets it to 300 and commits. T1 reads again in the same transaction and gets 300. What anomaly is this?"
+    },
+    "options": {
+      "hi": [
+        "Dirty read",
+        "Phantom read",
+        "Non-repeatable read",
+        "Lost update"
+      ],
+      "en": [
+        "Dirty read",
+        "Phantom read",
+        "Non-repeatable read",
+        "Lost update"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Same row dobara padhne pe committed change dikhna non-repeatable read hai. Dirty read uncommitted data hota; phantom naye rows ka aana hai.",
+      "en": "Seeing a committed change when re-reading the same row is a non-repeatable read. Dirty read is uncommitted data; phantom is new rows appearing."
+    }
+  },
+  {
+    "id": "db-03-transactions-acid-02",
+    "section": "db",
+    "topic": "03-transactions-acid",
+    "level": "hard",
+    "q": {
+      "hi": "Hospital on-call: rule hai kam se kam 1 doctor on-call. Do doctors ek saath check karte hain (count = 2) aur dono khud ko off kar dete hain, dono commit. Postgres me kaunsa isolation level isse rokega?",
+      "en": "Hospital on-call: at least 1 doctor must stay on call. Two doctors concurrently check (count = 2) and both take themselves off, both commit. Which Postgres isolation level prevents this?"
+    },
+    "options": {
+      "hi": [
+        "REPEATABLE READ (snapshot isolation)",
+        "READ COMMITTED",
+        "READ UNCOMMITTED",
+        "SERIALIZABLE"
+      ],
+      "en": [
+        "REPEATABLE READ (snapshot isolation)",
+        "READ COMMITTED",
+        "READ UNCOMMITTED",
+        "SERIALIZABLE"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Ye write skew hai: dono alag rows likhte hain, isliye snapshot isolation conflict nahi pakadta. Postgres SERIALIZABLE (SSI) ise detect karke ek ko abort karta hai; ya SELECT ... FOR UPDATE se lock lo.",
+      "en": "This is write skew: each writes a different row, so snapshot isolation sees no conflict. Postgres SERIALIZABLE (SSI) detects it and aborts one; or lock with SELECT ... FOR UPDATE."
+    }
+  },
+  {
+    "id": "db-03-transactions-acid-03",
+    "section": "db",
+    "topic": "03-transactions-acid",
+    "level": "medium",
+    "q": {
+      "hi": "Default isolation levels ke baare me kaunsa sahi hai?",
+      "en": "Which statement about default isolation levels is correct?"
+    },
+    "options": {
+      "hi": [
+        "PostgreSQL ka default READ COMMITTED, MySQL InnoDB ka REPEATABLE READ",
+        "Dono ka default SERIALIZABLE",
+        "PostgreSQL ka REPEATABLE READ, MySQL ka READ COMMITTED",
+        "Dono ka default READ UNCOMMITTED"
+      ],
+      "en": [
+        "PostgreSQL defaults to READ COMMITTED, MySQL InnoDB to REPEATABLE READ",
+        "Both default to SERIALIZABLE",
+        "PostgreSQL defaults to REPEATABLE READ, MySQL to READ COMMITTED",
+        "Both default to READ UNCOMMITTED"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Postgres default READ COMMITTED hai; MySQL InnoDB default REPEATABLE READ (next-key locks ke saath). Interview me ye fark poocha jaata hai.",
+      "en": "Postgres defaults to READ COMMITTED; MySQL InnoDB to REPEATABLE READ (with next-key locks). Interviewers ask about this difference."
+    }
+  },
+  {
+    "id": "db-03-transactions-acid-04",
+    "section": "db",
+    "topic": "03-transactions-acid",
+    "level": "medium",
+    "q": {
+      "hi": "READ COMMITTED me do requests ek saath balance 500 padhti hain, app 100 ghata ke dono 400 likhti hain. Sahi fix?",
+      "en": "Under READ COMMITTED two requests both read balance 500, the app subtracts 100 and both write 400. Correct fix?"
+    },
+    "options": {
+      "hi": [
+        "wallet id pe index bana do",
+        "Atomic UPDATE wallet SET balance = balance - 100 WHERE id = ? AND balance >= 100 (ya SELECT ... FOR UPDATE)",
+        "Connection pool size badha do",
+        "READ UNCOMMITTED kar do taaki latest value dikhe"
+      ],
+      "en": [
+        "Add an index on wallet id",
+        "Atomic UPDATE wallet SET balance = balance - 100 WHERE id = ? AND balance >= 100 (or SELECT ... FOR UPDATE)",
+        "Increase the connection pool size",
+        "Switch to READ UNCOMMITTED to see the latest value"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Ye lost update hai (read-modify-write race). DB ke andar atomic update ya row lock se dono debit sahi lagte hain; affected rows 0 = insufficient balance.",
+      "en": "This is a lost update (read-modify-write race). An atomic in-DB update or a row lock applies both debits; 0 affected rows = insufficient balance."
+    }
+  },
+  {
+    "id": "db-04-indexes-01",
+    "section": "db",
+    "topic": "04-indexes",
+    "level": "medium",
+    "q": {
+      "hi": "Index hai (city, cuisine, rating). Kaunsi query ko leftmost-prefix rule ke hisaab se index seek ka fayda NAHI milega?",
+      "en": "Index on (city, cuisine, rating). Which query does NOT get an index seek under the leftmost-prefix rule?"
+    },
+    "options": {
+      "hi": [
+        "WHERE city = 'Pune'",
+        "WHERE city = 'Pune' AND cuisine = 'Chinese'",
+        "WHERE city = 'Pune' AND cuisine = 'Chinese' AND rating > 4",
+        "WHERE cuisine = 'Chinese' AND rating > 4"
+      ],
+      "en": [
+        "WHERE city = 'Pune'",
+        "WHERE city = 'Pune' AND cuisine = 'Chinese'",
+        "WHERE city = 'Pune' AND cuisine = 'Chinese' AND rating > 4",
+        "WHERE cuisine = 'Chinese' AND rating > 4"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Composite B-tree pehle city se sorted hai. city skip karoge to seek ke liye starting point nahi milta (skip-scan jaise special cases chhod ke).",
+      "en": "A composite B-tree is sorted by city first. Skip city and there is no starting point to seek from (special cases like skip scan aside)."
+    }
+  },
+  {
+    "id": "db-04-indexes-02",
+    "section": "db",
+    "topic": "04-indexes",
+    "level": "easy",
+    "q": {
+      "hi": "email pe index hai, phir bhi WHERE LOWER(email) = 'a@b.com' slow hai aur EXPLAIN seq scan dikhata hai. Kyu?",
+      "en": "There is an index on email, but WHERE LOWER(email) = 'a@b.com' is slow and EXPLAIN shows a seq scan. Why?"
+    },
+    "options": {
+      "hi": [
+        "Column pe function lagaya hai; index raw email ka hai. Expression index LOWER(email) banao",
+        "Index corrupt ho gaya hai, REINDEX karo",
+        "Email column pe index ban hi nahi sakta",
+        "Query me LIMIT nahi hai isliye index skip hua"
+      ],
+      "en": [
+        "A function wraps the column; the index stores raw email. Create an expression index on LOWER(email)",
+        "The index is corrupt, run REINDEX",
+        "Indexes cannot be built on an email column",
+        "The query has no LIMIT so the index is skipped"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Index sorted values store karta hai; LOWER(email) alag value hai. Expression/functional index ya data ko lowercase me store karna fix hai.",
+      "en": "The index stores sorted raw values; LOWER(email) is a different value. Fix with an expression index or store emails lowercased."
+    }
+  },
+  {
+    "id": "db-04-indexes-03",
+    "section": "db",
+    "topic": "04-indexes",
+    "level": "medium",
+    "q": {
+      "hi": "orders.status pe index hai; 90% rows 'DELIVERED' hain. WHERE status = 'DELIVERED' pe planner seq scan choose karta hai. Kyu?",
+      "en": "orders.status is indexed; 90% of rows are 'DELIVERED'. For WHERE status = 'DELIVERED' the planner picks a seq scan. Why?"
+    },
+    "options": {
+      "hi": [
+        "Planner ka bug hai, hint dena zaroori hai",
+        "Low selectivity: itni rows ke liye index + random heap reads, seq scan se mehnga padta hai",
+        "Text columns pe index use nahi hota",
+        "Index sirf UNIQUE columns pe kaam karta hai"
+      ],
+      "en": [
+        "It is a planner bug, you must add a hint",
+        "Low selectivity: for so many rows, index + random heap reads cost more than a seq scan",
+        "Indexes are never used on text columns",
+        "Indexes only work on UNIQUE columns"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Index tab jeetta hai jab kam rows match hon. Rare value (jaise PENDING) ke liye index use hoga; common value ke liye seq scan sasta hai. Partial index bhi option hai.",
+      "en": "An index wins when few rows match. For a rare value (like PENDING) it is used; for a common value a seq scan is cheaper. A partial index is also an option."
+    }
+  },
+  {
+    "id": "db-04-indexes-04",
+    "section": "db",
+    "topic": "04-indexes",
+    "level": "hard",
+    "q": {
+      "hi": "Query: SELECT amount FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 10. Index (user_id, created_at) INCLUDE (amount) ka extra fayda kya hai?",
+      "en": "Query: SELECT amount FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 10. What extra gain does index (user_id, created_at) INCLUDE (amount) give?"
+    },
+    "options": {
+      "hi": [
+        "amount pe range filter fast ho jaata hai",
+        "Writes fast ho jaate hain kyunki index chhota hai",
+        "Covering index: index-only scan, table (heap) tak jaana nahi padta aur sort bhi nahi",
+        "user_id unique ban jaata hai"
+      ],
+      "en": [
+        "Range filters on amount become fast",
+        "Writes get faster because the index is smaller",
+        "Covering index: index-only scan with no heap lookups and no sort",
+        "user_id becomes unique"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Saare required columns index me hain, to rows table se fetch nahi karni padti; (user_id, created_at) order se sort bhi free. Cost: bada index aur slower writes.",
+      "en": "All needed columns are in the index, so no table fetch; the (user_id, created_at) order makes the sort free. Cost: bigger index and slower writes."
+    }
+  },
+  {
+    "id": "db-05-key-value-01",
+    "section": "db",
+    "topic": "05-key-value",
+    "level": "easy",
+    "q": {
+      "hi": "Dream11 contest leaderboard: score update hote rehte hain, top 10 chahiye. Redis me kaunsa data structure?",
+      "en": "Dream11 contest leaderboard: scores keep updating, you need the top 10. Which Redis data structure?"
+    },
+    "options": {
+      "hi": [
+        "Sorted Set: ZADD / ZINCRBY aur ZREVRANGE key 0 9 WITHSCORES",
+        "List: LPUSH aur LRANGE 0 9",
+        "Hash: HSET aur HGETALL",
+        "Set: SADD aur SMEMBERS"
+      ],
+      "en": [
+        "Sorted Set: ZADD / ZINCRBY and ZREVRANGE key 0 9 WITHSCORES",
+        "List: LPUSH and LRANGE 0 9",
+        "Hash: HSET and HGETALL",
+        "Set: SADD and SMEMBERS"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Sorted Set score ke hisaab se sorted rehta hai; update O(log N) aur top-K range read sasta. List/Hash/Set khud sort nahi karte.",
+      "en": "A Sorted Set stays ordered by score; updates are O(log N) and top-K range reads are cheap. List/Hash/Set do not sort by score."
+    }
+  },
+  {
+    "id": "db-05-key-value-02",
+    "section": "db",
+    "topic": "05-key-value",
+    "level": "medium",
+    "q": {
+      "hi": "Redis se order 123 pe 30 second ka distributed lock lena hai. Sahi command?",
+      "en": "You need a 30-second distributed lock on order 123 in Redis. Correct command?"
+    },
+    "options": {
+      "hi": [
+        "SETNX lock:order:123 1 phir alag se EXPIRE lock:order:123 30",
+        "SET lock:order:123 <unique-token> NX PX 30000",
+        "GET lock:order:123, khaali ho to SET lock:order:123 1",
+        "INCR lock:order:123 bina expiry ke"
+      ],
+      "en": [
+        "SETNX lock:order:123 1 then a separate EXPIRE lock:order:123 30",
+        "SET lock:order:123 <unique-token> NX PX 30000",
+        "GET lock:order:123 and SET it to 1 if empty",
+        "INCR lock:order:123 with no expiry"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "SET NX PX ek atomic step me \"nahi hai to set karo + TTL\" karta hai. SETNX+EXPIRE ke beech crash = lock kabhi expire nahi; GET-then-SET me race hai. Release pe token match karke delete karo.",
+      "en": "SET NX PX does \"set if absent + TTL\" atomically. A crash between SETNX and EXPIRE leaves a lock that never expires; GET-then-SET races. On release, delete only if the token matches."
+    }
+  },
+  {
+    "id": "db-05-key-value-03",
+    "section": "db",
+    "topic": "05-key-value",
+    "level": "medium",
+    "q": {
+      "hi": "DynamoDB orders table: partition key user_id, sort key order_ts. User ke latest 10 orders kaise laaoge?",
+      "en": "DynamoDB orders table: partition key user_id, sort key order_ts. How do you fetch a user's latest 10 orders?"
+    },
+    "options": {
+      "hi": [
+        "Scan with FilterExpression user_id = :u, Limit = 10",
+        "GetItem with user_id only",
+        "Query with KeyConditionExpression user_id = :u, ScanIndexForward = false, Limit = 10",
+        "Scan the full table and sort in the app"
+      ],
+      "en": [
+        "Scan with FilterExpression user_id = :u, Limit = 10",
+        "GetItem with user_id only",
+        "Query with KeyConditionExpression user_id = :u, ScanIndexForward = false, Limit = 10",
+        "Scan the full table and sort in the app"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Query ek partition padhta hai, sort key order me; ScanIndexForward=false = descending. Scan poori table padhta hai aur filter baad me lagta hai (Limit filter se pehle lagta hai). GetItem ko poori primary key chahiye.",
+      "en": "Query reads one partition in sort key order; ScanIndexForward=false = descending. Scan reads the whole table and filters afterwards (Limit applies before the filter). GetItem needs the full primary key."
+    }
+  },
+  {
+    "id": "db-05-key-value-04",
+    "section": "db",
+    "topic": "05-key-value",
+    "level": "hard",
+    "q": {
+      "hi": "DynamoDB me partition key = order_date rakha. Sale day pe saare writes throttle ho rahe hain jabki table ki total capacity bahut hai. Fix?",
+      "en": "DynamoDB partition key = order_date. On sale day all writes throttle even though total table capacity is high. Fix?"
+    },
+    "options": {
+      "hi": [
+        "Table ka provisioned capacity aur badha do, bas",
+        "order_date ko sort key bana do aur partition key hata do",
+        "Global Secondary Index on order_date bana do",
+        "High-cardinality key lo ya write sharding karo (order_date#0..N suffix) taaki writes partitions me spread hon"
+      ],
+      "en": [
+        "Just raise the table provisioned capacity further",
+        "Make order_date the sort key and drop the partition key",
+        "Create a Global Secondary Index on order_date",
+        "Use a high-cardinality key or write sharding (order_date#0..N suffix) so writes spread across partitions"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Ek din ke saare writes ek partition key pe = hot partition; har partition ki apni throughput limit hai. Suffix se spread karo, read pe saare suffixes query karke merge karo. Partition key compulsory hai.",
+      "en": "All writes for one day hit one partition key = hot partition; each partition has its own throughput limit. Spread with a suffix and query all suffixes on read. A partition key is mandatory."
+    }
+  },
+  {
+    "id": "db-06-document-01",
+    "section": "db",
+    "topic": "06-document",
+    "level": "medium",
+    "q": {
+      "hi": "MongoDB me kis data ko parent document me embed NAHI karna chahiye?",
+      "en": "In MongoDB, which data should NOT be embedded in the parent document?"
+    },
+    "options": {
+      "hi": [
+        "Order ke line items (bounded, saath me padhe jaate hain)",
+        "Viral post ke comments (unbounded, lakhon tak badh sakte hain)",
+        "User ka shipping address (chhota, saath me padha jaata hai)",
+        "Product ke 5 size variants"
+      ],
+      "en": [
+        "Order line items (bounded, read together)",
+        "Comments on a viral post (unbounded, can grow to lakhs)",
+        "A user's shipping address (small, read together)",
+        "A product's 5 size variants"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Unbounded arrays document ko 16 MB limit tak le jaate hain aur har update bhaari karte hain. Comments alag collection me postId reference ke saath rakho.",
+      "en": "Unbounded arrays push the document towards the 16 MB limit and make every update heavy. Keep comments in a separate collection referencing postId."
+    }
+  },
+  {
+    "id": "db-06-document-02",
+    "section": "db",
+    "topic": "06-document",
+    "level": "easy",
+    "q": {
+      "hi": "MongoDB me ek single document ka maximum size kitna hai?",
+      "en": "What is the maximum size of a single MongoDB document?"
+    },
+    "options": {
+      "hi": [
+        "1 MB",
+        "64 MB",
+        "16 MB",
+        "Koi limit nahi"
+      ],
+      "en": [
+        "1 MB",
+        "64 MB",
+        "16 MB",
+        "No limit"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "BSON document limit 16 MB hai; isse bade files ke liye GridFS ya S3 use karo. (1 MB Firestore aur 400 KB DynamoDB item limit hai.)",
+      "en": "The BSON document limit is 16 MB; for bigger files use GridFS or S3. (Firestore's limit is 1 MB; DynamoDB items are 400 KB.)"
+    }
+  },
+  {
+    "id": "db-06-document-03",
+    "section": "db",
+    "topic": "06-document",
+    "level": "medium",
+    "q": {
+      "hi": "Firestore: where('city', '==', 'Pune').orderBy('rating', 'desc') chalane pe error aata hai jisme index banane ka link hai. Kyu?",
+      "en": "Firestore: where('city', '==', 'Pune').orderBy('rating', 'desc') fails with an error containing a link to create an index. Why?"
+    },
+    "options": {
+      "hi": [
+        "Firestore orderBy support hi nahi karta",
+        "city field string hai isliye filter nahi hota",
+        "Ek query me sirf ek document return hota hai",
+        "Equality filter + alag field pe orderBy ke liye composite index chahiye"
+      ],
+      "en": [
+        "Firestore does not support orderBy at all",
+        "city is a string so it cannot be filtered",
+        "A query can return only one document",
+        "An equality filter plus orderBy on another field needs a composite index"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Firestore har query index se serve karta hai; single-field index auto bante hain, multi-field combos ke liye composite index declare karna padta hai.",
+      "en": "Firestore serves every query from an index; single-field indexes are automatic, multi-field combinations need a declared composite index."
+    }
+  },
+  {
+    "id": "db-06-document-04",
+    "section": "db",
+    "topic": "06-document",
+    "level": "hard",
+    "q": {
+      "hi": "Query: db.orders.find({ userId: 42 }).sort({ createdAt: -1 }).limit(10). Best index?",
+      "en": "Query: db.orders.find({ userId: 42 }).sort({ createdAt: -1 }).limit(10). Best index?"
+    },
+    "options": {
+      "hi": [
+        "{ userId: 1, createdAt: -1 }",
+        "{ createdAt: -1, userId: 1 }",
+        "Sirf { userId: 1 }",
+        "Do alag indexes: { userId: 1 } aur { createdAt: -1 }"
+      ],
+      "en": [
+        "{ userId: 1, createdAt: -1 }",
+        "{ createdAt: -1, userId: 1 }",
+        "Only { userId: 1 }",
+        "Two separate indexes: { userId: 1 } and { createdAt: -1 }"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "ESR rule: Equality field pehle, phir Sort field. Is index se user ke docs pehle se createdAt order me milte hain, in-memory sort nahi. Sirf userId wale index me sort memory me hoga.",
+      "en": "ESR rule: Equality field first, then the Sort field. This index returns the user's docs already in createdAt order, no in-memory sort. With only userId the sort runs in memory."
+    }
+  },
+  {
+    "id": "db-07-wide-column-01",
+    "section": "db",
+    "topic": "07-wide-column",
+    "level": "medium",
+    "q": {
+      "hi": "Cassandra, replication factor N = 3. Kaunsa combination guarantee karta hai ki read latest successful write dekhe?",
+      "en": "Cassandra, replication factor N = 3. Which combination guarantees a read sees the latest successful write?"
+    },
+    "options": {
+      "hi": [
+        "W = ONE, R = ONE",
+        "W = ONE, R = QUORUM (2)",
+        "W = QUORUM (2), R = QUORUM (2)",
+        "W = TWO, R = ONE"
+      ],
+      "en": [
+        "W = ONE, R = ONE",
+        "W = ONE, R = QUORUM (2)",
+        "W = QUORUM (2), R = QUORUM (2)",
+        "W = TWO, R = ONE"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Strong read ke liye R + W > N. 2 + 2 = 4 > 3, to read aur write replicas overlap karte hain. Baaki sab ka sum 2 ya 3 hai, jo > 3 nahi.",
+      "en": "A strong read needs R + W > N. 2 + 2 = 4 > 3, so read and write replicas overlap. The others sum to 2 or 3, not > 3."
+    }
+  },
+  {
+    "id": "db-07-wide-column-02",
+    "section": "db",
+    "topic": "07-wide-column",
+    "level": "medium",
+    "q": {
+      "hi": "WhatsApp-type app: \"ek chat ke messages, latest pehle\" query ke liye Cassandra table ka primary key?",
+      "en": "WhatsApp-like app: for the query \"messages of one chat, latest first\", what Cassandra primary key?"
+    },
+    "options": {
+      "hi": [
+        "PRIMARY KEY ((sent_at), chat_id)",
+        "PRIMARY KEY ((chat_id, sent_at))",
+        "PRIMARY KEY (message_id) aur chat_id pe secondary index",
+        "PRIMARY KEY ((chat_id), sent_at) WITH CLUSTERING ORDER BY (sent_at DESC)"
+      ],
+      "en": [
+        "PRIMARY KEY ((sent_at), chat_id)",
+        "PRIMARY KEY ((chat_id, sent_at))",
+        "PRIMARY KEY (message_id) with a secondary index on chat_id",
+        "PRIMARY KEY ((chat_id), sent_at) WITH CLUSTERING ORDER BY (sent_at DESC)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Partition key = chat_id taaki ek chat ek partition me ho; clustering key sent_at DESC se rows already sorted. Bahut busy chats ke liye (chat_id, day) bucket karo.",
+      "en": "Partition key = chat_id keeps a chat in one partition; clustering key sent_at DESC keeps rows sorted. For very busy chats bucket by (chat_id, day)."
+    }
+  },
+  {
+    "id": "db-07-wide-column-03",
+    "section": "db",
+    "topic": "07-wide-column",
+    "level": "easy",
+    "q": {
+      "hi": "Cassandra writes itne fast kyu hote hain?",
+      "en": "Why are Cassandra writes so fast?"
+    },
+    "options": {
+      "hi": [
+        "Write sirf commit log me append + memtable me jaata hai; SSTables baad me flush hote hain, read-before-write nahi",
+        "Har write se pehle B-tree page in-place update hota hai",
+        "Writes sirf ek master node pe jaate hain",
+        "Writes disk pe jaate hi nahi, sirf RAM me rehte hain"
+      ],
+      "en": [
+        "A write is just a commit log append + memtable insert; SSTables are flushed later, no read-before-write",
+        "Each write updates a B-tree page in place first",
+        "Writes go to a single master node only",
+        "Writes never reach disk, they stay in RAM only"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "LSM-style write path: sequential commit log (durability) + memtable; full hone pe immutable SSTable flush, compaction baad me merge karta hai.",
+      "en": "LSM-style write path: sequential commit log (durability) + memtable; when full it flushes to an immutable SSTable, and compaction merges later."
+    }
+  },
+  {
+    "id": "db-07-wide-column-04",
+    "section": "db",
+    "topic": "07-wide-column",
+    "level": "hard",
+    "q": {
+      "hi": "Cassandra table ko queue ki tarah use kiya: rows insert karke process hone pe DELETE. Kuch time baad reads bahut slow aur timeouts. Root cause?",
+      "en": "A Cassandra table is used as a queue: insert rows, DELETE after processing. Later reads become very slow with timeouts. Root cause?"
+    },
+    "options": {
+      "hi": [
+        "Commit log full ho gaya",
+        "Deletes tombstones banate hain jo gc_grace_seconds tak rehte hain; reads ko hazaron tombstones scan karne padte hain",
+        "Replication factor bahut kam hai",
+        "Partition key me hashing band ho gayi"
+      ],
+      "en": [
+        "The commit log is full",
+        "Deletes create tombstones that live until gc_grace_seconds; reads must scan thousands of tombstones",
+        "The replication factor is too low",
+        "Hashing of the partition key got disabled"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Cassandra me delete bhi ek write (tombstone) hai. Queue pattern me partition tombstones se bhar jaata hai. Queue ke liye Kafka/SQS lo, ya time-bucketed partitions + TTL.",
+      "en": "In Cassandra a delete is also a write (tombstone). A queue pattern fills partitions with tombstones. Use Kafka/SQS for queues, or time-bucketed partitions + TTL."
+    }
+  },
+  {
+    "id": "db-08-search-01",
+    "section": "db",
+    "topic": "08-search",
+    "level": "easy",
+    "q": {
+      "hi": "Flipkart: brand field pe exact filter aur terms aggregation (brand-wise count) chahiye. Elasticsearch mapping?",
+      "en": "Flipkart: you need exact filters and a terms aggregation (count per brand) on the brand field. Elasticsearch mapping?"
+    },
+    "options": {
+      "hi": [
+        "text",
+        "text with standard analyzer only",
+        "nested",
+        "keyword"
+      ],
+      "en": [
+        "text",
+        "text with standard analyzer only",
+        "nested",
+        "keyword"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "keyword value ko as-is ek token rakhta hai: exact match, sorting, aggregations. text analyze hota hai (tokens) aur full-text search ke liye hai. Dono chahiye to multi-field (text + .keyword).",
+      "en": "keyword stores the value as one exact token: exact match, sorting, aggregations. text is analyzed into tokens for full-text search. Need both? Use a multi-field (text + .keyword)."
+    }
+  },
+  {
+    "id": "db-08-search-02",
+    "section": "db",
+    "topic": "08-search",
+    "level": "medium",
+    "q": {
+      "hi": "title field \"text\" type hai. term query { \"term\": { \"title\": \"Samsung Galaxy\" } } koi result nahi deti, jabki doc me title \"Samsung Galaxy S24\" hai. Kyu?",
+      "en": "title is a \"text\" field. The term query { \"term\": { \"title\": \"Samsung Galaxy\" } } returns nothing, though a doc has title \"Samsung Galaxy S24\". Why?"
+    },
+    "options": {
+      "hi": [
+        "Index me title lowercase tokens (samsung, galaxy, s24) me store hai; term query input ko analyze nahi karti",
+        "term query sirf numbers pe kaam karti hai",
+        "Document abhi tak replicate nahi hua",
+        "ES case-sensitive nahi hai isliye match fail hua"
+      ],
+      "en": [
+        "The index stores title as lowercase tokens (samsung, galaxy, s24); a term query does not analyze its input",
+        "term queries only work on numbers",
+        "The document has not replicated yet",
+        "ES is not case-sensitive so the match failed"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Text field pe match query use karo (wo input ko bhi analyze karti hai). term exact keyword fields ke liye hai.",
+      "en": "Use a match query on text fields (it analyzes the input too). term is for exact keyword fields."
+    }
+  },
+  {
+    "id": "db-08-search-03",
+    "section": "db",
+    "topic": "08-search",
+    "level": "easy",
+    "q": {
+      "hi": "Elasticsearch ka inverted index kya map karta hai?",
+      "en": "What does an Elasticsearch inverted index map?"
+    },
+    "options": {
+      "hi": [
+        "Har document → uske saare fields",
+        "Har term → us term wale documents ki list (postings)",
+        "Har shard → uske replicas",
+        "Har query → uska cached result"
+      ],
+      "en": [
+        "Each document → all of its fields",
+        "Each term → the list of documents containing it (postings)",
+        "Each shard → its replicas",
+        "Each query → its cached result"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Book ke index jaisa: word se seedha matching doc IDs. Isliye full-text search poori docs scan kiye bina fast hota hai.",
+      "en": "Like a book index: from a word straight to matching doc IDs. That is why full-text search is fast without scanning all docs."
+    }
+  },
+  {
+    "id": "db-08-search-04",
+    "section": "db",
+    "topic": "08-search",
+    "level": "hard",
+    "q": {
+      "hi": "Product ko ES me index karte hi turant search kiya, result nahi aaya; 1 second baad aa gaya. Kyu?",
+      "en": "A product is indexed in ES and searched immediately; it is missing, but appears 1 second later. Why?"
+    },
+    "options": {
+      "hi": [
+        "Index request fail hui aur retry hui",
+        "Primary shard aur replica ka data alag hai permanently",
+        "ES near-real-time hai: naya data refresh (default ~1s) ke baad hi searchable segment me aata hai",
+        "Inverted index sirf raat ko rebuild hota hai"
+      ],
+      "en": [
+        "The index request failed and was retried",
+        "Primary and replica data differ permanently",
+        "ES is near-real-time: new data becomes searchable only after a refresh (default ~1s) opens a new segment",
+        "The inverted index is rebuilt only at night"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Refresh interval ke baad naya segment search ke liye open hota hai. Isliye ES ko source of truth nahi, secondary search index rakho; tests me ?refresh=wait_for use kar sakte ho.",
+      "en": "A new segment opens for search after the refresh interval. So keep ES as a secondary search index, not the source of truth; tests can use ?refresh=wait_for."
+    }
+  },
+  {
+    "id": "db-09-time-series-01",
+    "section": "db",
+    "topic": "09-time-series",
+    "level": "easy",
+    "q": {
+      "hi": "http_requests_total ek counter hai. Pichhle 5 minute ka per-second request rate kaunsi PromQL dega?",
+      "en": "http_requests_total is a counter. Which PromQL gives the per-second request rate over the last 5 minutes?"
+    },
+    "options": {
+      "hi": [
+        "rate(http_requests_total[5m])",
+        "http_requests_total[5m]",
+        "sum(http_requests_total)",
+        "delta(http_requests_total[5m])"
+      ],
+      "en": [
+        "rate(http_requests_total[5m])",
+        "http_requests_total[5m]",
+        "sum(http_requests_total)",
+        "delta(http_requests_total[5m])"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "rate() range vector pe per-second average increase deta hai aur counter resets handle karta hai. [5m] akela sirf raw samples (range vector) hai; delta() gauges ke liye hai.",
+      "en": "rate() gives the per-second average increase over a range vector and handles counter resets. [5m] alone is just raw samples (a range vector); delta() is for gauges."
+    }
+  },
+  {
+    "id": "db-09-time-series-02",
+    "section": "db",
+    "topic": "09-time-series",
+    "level": "medium",
+    "q": {
+      "hi": "Pod restart hua aur counter 12000 se 0 pe aa gaya. rate(http_requests_total[5m]) kya karega?",
+      "en": "A pod restarted and its counter dropped from 12000 to 0. What does rate(http_requests_total[5m]) do?"
+    },
+    "options": {
+      "hi": [
+        "Negative rate dikhata hai",
+        "Drop ko counter reset maan ke adjust karta hai, isliye negative rate nahi aata",
+        "Poori series ko NaN kar deta hai",
+        "Restart ke baad ka data ignore karta hai"
+      ],
+      "en": [
+        "Shows a negative rate",
+        "Treats the drop as a counter reset and adjusts, so no negative rate",
+        "Turns the whole series into NaN",
+        "Ignores data after the restart"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Counter sirf badhta hai; value girna = reset. rate/increase reset ko detect karke naya value pichhle total pe jod ke calculate karte hain.",
+      "en": "A counter only goes up; a drop means reset. rate/increase detect the reset and treat the new value as added on top of the previous total."
+    }
+  },
+  {
+    "id": "db-09-time-series-03",
+    "section": "db",
+    "topic": "09-time-series",
+    "level": "medium",
+    "q": {
+      "hi": "Kisi ne Prometheus metric me label user_id add kar diya (crores users). Kya problem hogi?",
+      "en": "Someone added a user_id label to a Prometheus metric (crores of users). What goes wrong?"
+    },
+    "options": {
+      "hi": [
+        "Kuch nahi, labels free hain",
+        "Sirf disk thoda zyada lagega, RAM same",
+        "Cardinality explosion: har label combination ek alag series; memory aur query cost bahut badh jaata hai",
+        "Prometheus label ko automatically drop kar deta hai"
+      ],
+      "en": [
+        "Nothing, labels are free",
+        "Only slightly more disk, same RAM",
+        "Cardinality explosion: each label combination is a separate series; memory and query cost blow up",
+        "Prometheus drops the label automatically"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Har unique label set = nayi time series, jiska index RAM me rehta hai. Labels low-cardinality rakho (service, status, region); per-user data logs/OLAP me.",
+      "en": "Every unique label set = a new time series whose index lives in RAM. Keep labels low-cardinality (service, status, region); per-user data goes to logs/OLAP."
+    }
+  },
+  {
+    "id": "db-09-time-series-04",
+    "section": "db",
+    "topic": "09-time-series",
+    "level": "hard",
+    "q": {
+      "hi": "Har service ka total request rate chahiye (multiple pods). Sahi PromQL?",
+      "en": "You need total request rate per service (many pods). Correct PromQL?"
+    },
+    "options": {
+      "hi": [
+        "rate(sum by (service) (http_requests_total)[5m:])",
+        "sum by (service) (http_requests_total) / 300",
+        "rate(http_requests_total[5m]) without any aggregation",
+        "sum by (service) (rate(http_requests_total[5m]))"
+      ],
+      "en": [
+        "rate(sum by (service) (http_requests_total)[5m:])",
+        "sum by (service) (http_requests_total) / 300",
+        "rate(http_requests_total[5m]) without any aggregation",
+        "sum by (service) (rate(http_requests_total[5m]))"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Pehle rate (per series), phir sum. Pehle sum karoge to ek pod ka reset sum me drop banta hai jo reset jaisa nahi pakda jaata, aur result galat aata hai.",
+      "en": "Rate first (per series), then sum. Summing first turns one pod's reset into a dip in the sum that rate cannot treat correctly, giving wrong results."
+    }
+  },
+  {
+    "id": "db-10-graph-01",
+    "section": "db",
+    "topic": "10-graph",
+    "level": "medium",
+    "q": {
+      "hi": "Cypher: MATCH (u:User {id: 1})-[:FOLLOWS]->(f)-[:FOLLOWS]->(fof) WHERE NOT (u)-[:FOLLOWS]->(fof) AND fof <> u RETURN DISTINCT fof. Ye kya return karta hai?",
+      "en": "Cypher: MATCH (u:User {id: 1})-[:FOLLOWS]->(f)-[:FOLLOWS]->(fof) WHERE NOT (u)-[:FOLLOWS]->(fof) AND fof <> u RETURN DISTINCT fof. What does it return?"
+    },
+    "options": {
+      "hi": [
+        "User 1 ke saare followers",
+        "User 1 jinko follow karta hai, unke follows jinhe user 1 abhi follow nahi karta (people you may know)",
+        "User 1 jinko directly follow karta hai",
+        "Jo log user 1 ko follow karte hain par user 1 unhe nahi"
+      ],
+      "en": [
+        "All followers of user 1",
+        "People followed by those user 1 follows, whom user 1 does not follow yet (people you may know)",
+        "People user 1 directly follows",
+        "People who follow user 1 but user 1 does not follow back"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Arrow direction u → f → fof hai: 2-hop. WHERE NOT existing follows aur khud ko hata deta hai. Classic recommendation pattern.",
+      "en": "The arrow direction is u → f → fof: 2 hops. WHERE removes existing follows and the user themself. A classic recommendation pattern."
+    }
+  },
+  {
+    "id": "db-10-graph-02",
+    "section": "db",
+    "topic": "10-graph",
+    "level": "easy",
+    "q": {
+      "hi": "Cypher me (a)-[:FRIEND*1..3]->(b) ka matlab?",
+      "en": "In Cypher, what does (a)-[:FRIEND*1..3]->(b) mean?"
+    },
+    "options": {
+      "hi": [
+        "Exactly 3 FRIEND relationships wale nodes",
+        "a ke pehle 3 friends",
+        "a se b tak 1 se 3 FRIEND hops ka variable-length path",
+        "FRIEND relationship ka weight 1 se 3 ke beech"
+      ],
+      "en": [
+        "Nodes with exactly 3 FRIEND relationships",
+        "The first 3 friends of a",
+        "A variable-length path of 1 to 3 FRIEND hops from a to b",
+        "A FRIEND relationship with weight between 1 and 3"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "*min..max variable-length traversal hai. Upper bound zaroor do, warna bade graph me query explode ho sakti hai.",
+      "en": "*min..max is variable-length traversal. Always set an upper bound, or the query can explode on a large graph."
+    }
+  },
+  {
+    "id": "db-10-graph-03",
+    "section": "db",
+    "topic": "10-graph",
+    "level": "medium",
+    "q": {
+      "hi": "Deep traversal (4-5 hops) me graph DB relational joins se fast kyu hota hai?",
+      "en": "Why is a graph DB faster than relational joins for deep (4-5 hop) traversals?"
+    },
+    "options": {
+      "hi": [
+        "Graph DB saara data hamesha GPU pe rakhta hai",
+        "Graph DB me SQL se zyada indexes bante hain",
+        "Graph DB transactions support nahi karta isliye fast hai",
+        "Index-free adjacency: har node apne neighbours ko directly point karta hai, cost visited nodes pe depend karti hai, table size pe nahi"
+      ],
+      "en": [
+        "Graph DBs always keep all data on a GPU",
+        "Graph DBs build more indexes than SQL",
+        "Graph DBs skip transactions, which makes them fast",
+        "Index-free adjacency: each node points directly to its neighbours, so cost depends on nodes visited, not table size"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "SQL me har hop ek join/index lookup hai jo table size ke saath badhta hai. Graph me relationship pointer follow karna constant-ish cost hai. (Neo4j ACID transactions support karta hai.)",
+      "en": "In SQL each hop is a join/index lookup that grows with table size. In a graph, following a relationship pointer is roughly constant cost. (Neo4j does support ACID transactions.)"
+    }
+  },
+  {
+    "id": "db-10-graph-04",
+    "section": "db",
+    "topic": "10-graph",
+    "level": "medium",
+    "q": {
+      "hi": "Kaunsa use case graph DB ke liye sabse kam fit hai?",
+      "en": "Which use case is the poorest fit for a graph DB?"
+    },
+    "options": {
+      "hi": [
+        "Saare orders ka monthly revenue SUM by city (full-table aggregation)",
+        "Paytm me shared devices/accounts se fraud ring dhoondhna",
+        "LinkedIn \"2nd degree connections\"",
+        "Swiggy me \"users who ordered X also ordered Y\" style recommendations"
+      ],
+      "en": [
+        "Monthly revenue SUM by city across all orders (full-table aggregation)",
+        "Finding fraud rings via shared devices/accounts at Paytm",
+        "LinkedIn \"2nd degree connections\"",
+        "Swiggy \"users who ordered X also ordered Y\" style recommendations"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Graph DB relationships ke traversal me chamakta hai. Poore data pe aggregation OLAP/columnar ka kaam hai.",
+      "en": "Graph DBs shine at traversing relationships. Aggregating over all data is a job for OLAP/columnar stores."
+    }
+  },
+  {
+    "id": "db-11-vector-01",
+    "section": "db",
+    "topic": "11-vector",
+    "level": "medium",
+    "q": {
+      "hi": "HNSW index me efSearch badhane se kya hota hai?",
+      "en": "What happens when you increase efSearch in an HNSW index?"
+    },
+    "options": {
+      "hi": [
+        "Recall aur latency dono kam hote hain",
+        "Index build time kam hota hai, query pe asar nahi",
+        "Recall badhta hai, query latency bhi badhti hai",
+        "Memory usage aadha ho jaata hai"
+      ],
+      "en": [
+        "Both recall and latency go down",
+        "Index build time drops, queries unaffected",
+        "Recall goes up, and query latency goes up too",
+        "Memory usage halves"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "efSearch = search ke time candidate list ka size. Bada list = zyada nodes explore = better recall par slow. (M aur efConstruction build-time/memory knobs hain.)",
+      "en": "efSearch = size of the candidate list at query time. Bigger list = more nodes explored = better recall but slower. (M and efConstruction are build-time/memory knobs.)"
+    }
+  },
+  {
+    "id": "db-11-vector-02",
+    "section": "db",
+    "topic": "11-vector",
+    "level": "easy",
+    "q": {
+      "hi": "10 crore embeddings pe exact kNN ki jagah ANN (HNSW/IVF) kyu use karte hain?",
+      "en": "Why use ANN (HNSW/IVF) instead of exact kNN over 10 crore embeddings?"
+    },
+    "options": {
+      "hi": [
+        "ANN hamesha exact se zyada accurate hai",
+        "Exact kNN cosine similarity support nahi karta",
+        "ANN ko embeddings store hi nahi karne padte",
+        "Exact kNN har query pe saare vectors se distance nikalta hai (O(N·d)); ANN thoda recall chhod ke bahut fast hai"
+      ],
+      "en": [
+        "ANN is always more accurate than exact",
+        "Exact kNN does not support cosine similarity",
+        "ANN does not need to store embeddings at all",
+        "Exact kNN computes distance to every vector per query (O(N·d)); ANN trades a little recall for big speed"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Approximate = top-k me kabhi kabhi ek-do sahi neighbours miss ho sakte hain, par latency ms me. Ye recall vs speed trade-off hai.",
+      "en": "Approximate = top-k may occasionally miss a true neighbour or two, but latency is in ms. It is a recall vs speed trade-off."
+    }
+  },
+  {
+    "id": "db-11-vector-03",
+    "section": "db",
+    "topic": "11-vector",
+    "level": "hard",
+    "q": {
+      "hi": "Embeddings L2-normalized (length 1) hain. Kaunsa metric cosine similarity jaisa hi ranking dega?",
+      "en": "Embeddings are L2-normalized (length 1). Which metric gives the same ranking as cosine similarity?"
+    },
+    "options": {
+      "hi": [
+        "Dot product (inner product)",
+        "Manhattan (L1) distance",
+        "Hamming distance",
+        "Jaccard similarity"
+      ],
+      "en": [
+        "Dot product (inner product)",
+        "Manhattan (L1) distance",
+        "Hamming distance",
+        "Jaccard similarity"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "cos(a,b) = a·b / (|a||b|); length 1 ho to cos = a·b. Isliye normalized vectors pe inner product sasta aur same ranking deta hai.",
+      "en": "cos(a,b) = a·b / (|a||b|); with length 1, cos = a·b. So on normalized vectors inner product is cheaper and ranks the same."
+    }
+  },
+  {
+    "id": "db-11-vector-04",
+    "section": "db",
+    "topic": "11-vector",
+    "level": "medium",
+    "q": {
+      "hi": "Swiggy semantic dish search: ANN se top 10 nikale, phir city = Pune filter lagaya; sirf 2 results bache. Kyu aur fix?",
+      "en": "Swiggy semantic dish search: take ANN top 10, then filter city = Pune; only 2 results remain. Why, and the fix?"
+    },
+    "options": {
+      "hi": [
+        "HNSW city field ko index nahi karta isliye bug hai",
+        "Post-filtering: top-k pehle bana, filter ne zyada tar hata diye. Pre-filter / filtered ANN use karo ya k bada lo",
+        "Embeddings galat dimension ke hain",
+        "Cosine ki jagah Euclidean lagao to 10 aa jaayenge"
+      ],
+      "en": [
+        "HNSW does not index the city field, so it is a bug",
+        "Post-filtering: top-k was chosen first and the filter removed most. Use pre-filtering / filtered ANN or fetch a larger k",
+        "The embeddings have the wrong dimension",
+        "Switch from cosine to Euclidean to get 10"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Filter ANN ke baad lagaoge to k se kam results aa sakte hain. Vector DBs metadata filter search ke andar (pre/in-filter) support karte hain.",
+      "en": "Filtering after ANN can return fewer than k results. Vector DBs support metadata filtering inside the search (pre/in-filter)."
+    }
+  },
+  {
+    "id": "db-12-columnar-olap-01",
+    "section": "db",
+    "topic": "12-columnar-olap",
+    "level": "easy",
+    "q": {
+      "hi": "Zerodha: arabon trades pe daily P&L aur segment-wise aggregates ki reports. Best store?",
+      "en": "Zerodha: daily P&L and segment-wise aggregate reports over billions of trades. Best store?"
+    },
+    "options": {
+      "hi": [
+        "Primary OLTP Postgres pe hi heavy GROUP BY",
+        "Redis Sorted Sets",
+        "MongoDB with embedded trades",
+        "Columnar OLAP (ClickHouse / BigQuery / Redshift)"
+      ],
+      "en": [
+        "Heavy GROUP BY directly on the primary OLTP Postgres",
+        "Redis Sorted Sets",
+        "MongoDB with embedded trades",
+        "Columnar OLAP (ClickHouse / BigQuery / Redshift)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Bade scans + aggregations few columns pe = OLAP. Primary OLTP DB pe chalane se live traffic slow hota hai; data CDC/ETL se warehouse me bhejo.",
+      "en": "Large scans + aggregations over a few columns = OLAP. Running them on the primary OLTP DB slows live traffic; ship data via CDC/ETL to a warehouse."
+    }
+  },
+  {
+    "id": "db-12-columnar-olap-02",
+    "section": "db",
+    "topic": "12-columnar-olap",
+    "level": "easy",
+    "q": {
+      "hi": "SELECT SUM(amount) FROM orders WHERE order_date >= ... (table me 60 columns). Columnar store isme fast kyu hai?",
+      "en": "SELECT SUM(amount) FROM orders WHERE order_date >= ... (table has 60 columns). Why is a columnar store fast here?"
+    },
+    "options": {
+      "hi": [
+        "Sirf amount aur order_date columns disk se padhe jaate hain, aur same-type column data achha compress hota hai",
+        "Har row ek saath padhi jaati hai isliye cache friendly",
+        "Columnar DB har query ka result pehle se store rakhta hai",
+        "Columnar DB me indexes ki zarurat nahi kyunki data RAM me hai"
+      ],
+      "en": [
+        "Only the amount and order_date columns are read from disk, and same-type column data compresses well",
+        "Each whole row is read at once, which is cache friendly",
+        "Columnar DBs pre-store every query result",
+        "Columnar DBs need no indexes because data is in RAM"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Row store ko 60 columns wali poori rows padhni padti. Columnar 2 columns padhta hai, compressed, vectorized execution ke saath.",
+      "en": "A row store would read whole 60-column rows. Columnar reads 2 columns, compressed, with vectorized execution."
+    }
+  },
+  {
+    "id": "db-12-columnar-olap-03",
+    "section": "db",
+    "topic": "12-columnar-olap",
+    "level": "medium",
+    "q": {
+      "hi": "Columnar DB ko Swiggy ke live order status updates (single row UPDATE, point lookups) ke liye primary kyu nahi banate?",
+      "en": "Why not use a columnar DB as primary for Swiggy live order status updates (single-row UPDATEs, point lookups)?"
+    },
+    "options": {
+      "hi": [
+        "Columnar DB SQL support nahi karta",
+        "Ek row ka data alag-alag column files me hai; single-row update/lookup mehnga hai aur immutable parts rewrite karne padte hain",
+        "Columnar DB me data compress nahi hota",
+        "Columnar DB sirf ek user ko access deta hai"
+      ],
+      "en": [
+        "Columnar DBs do not support SQL",
+        "One row is spread across separate column files; single-row updates/lookups are costly and immutable parts get rewritten",
+        "Columnar DBs do not compress data",
+        "Columnar DBs allow only one user"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Columnar bulk append + scan ke liye optimised hai. Frequent small updates aur point reads OLTP (row store) ka kaam hai.",
+      "en": "Columnar is optimised for bulk appends + scans. Frequent small updates and point reads are OLTP (row store) work."
+    }
+  },
+  {
+    "id": "db-12-columnar-olap-04",
+    "section": "db",
+    "topic": "12-columnar-olap",
+    "level": "hard",
+    "q": {
+      "hi": "ClickHouse MergeTree me PRIMARY KEY / ORDER BY (restaurant_id, order_date) diya. Kaunsa sahi hai?",
+      "en": "In ClickHouse MergeTree you set PRIMARY KEY / ORDER BY (restaurant_id, order_date). Which is correct?"
+    },
+    "options": {
+      "hi": [
+        "Ye har row ke liye unique constraint enforce karta hai",
+        "Ye B-tree hai jo har row ko point karta hai",
+        "Ye sparse index hai (har granule, default 8192 rows, ka ek mark); uniqueness enforce nahi hoti, duplicates allowed",
+        "Iska query filtering pe koi asar nahi, sirf storage order"
+      ],
+      "en": [
+        "It enforces a unique constraint on every row",
+        "It is a B-tree pointing to every row",
+        "It is a sparse index (one mark per granule, default 8192 rows); uniqueness is not enforced, duplicates are allowed",
+        "It does not affect query filtering, only storage order"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Data ORDER BY ke hisaab se sorted store hota hai aur sparse marks se granules skip hote hain. Dedup ke liye ReplacingMergeTree jaise engines hain (eventual).",
+      "en": "Data is stored sorted by ORDER BY and sparse marks let it skip granules. For dedup there are engines like ReplacingMergeTree (eventual)."
+    }
+  },
+  {
+    "id": "db-13-newsql-01",
+    "section": "db",
+    "topic": "13-newsql",
+    "level": "medium",
+    "q": {
+      "hi": "CockroachDB / Spanner me single-row write, ek single-node Postgres se slow kyu hota hai?",
+      "en": "Why is a single-row write in CockroachDB / Spanner slower than on a single-node Postgres?"
+    },
+    "options": {
+      "hi": [
+        "Har write ko Raft/Paxos consensus se majority replicas pe commit hona padta hai (multi-region me network RTT)",
+        "Ye DBs har write ke baad poora index rebuild karte hain",
+        "Inme WAL nahi hota isliye har write fsync bina retry hota hai",
+        "Ye DBs har write ko S3 pe upload karte hain"
+      ],
+      "en": [
+        "Every write must be committed to a majority of replicas via Raft/Paxos consensus (network RTT across regions)",
+        "They rebuild the whole index after each write",
+        "They have no WAL, so every write retries without fsync",
+        "They upload every write to S3"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Strong consistency + fault tolerance ki keemat: commit ke liye quorum ack chahiye. Replicas door hain to latency zyada; leaseholder/leader ko users ke paas rakho.",
+      "en": "The price of strong consistency + fault tolerance: commit needs a quorum ack. Far replicas mean more latency; place the leaseholder/leader near users."
+    }
+  },
+  {
+    "id": "db-13-newsql-02",
+    "section": "db",
+    "topic": "13-newsql",
+    "level": "hard",
+    "q": {
+      "hi": "Spanner TrueTime ka \"commit wait\" kya karta hai?",
+      "en": "What does Spanner TrueTime \"commit wait\" do?"
+    },
+    "options": {
+      "hi": [
+        "Sabhi replicas ke clocks ko NTP se sync karta hai",
+        "Commit timestamp ke baad clock uncertainty (ε) ke barabar wait karta hai taaki commit order real-time order se match kare (external consistency)",
+        "Lock milne tak transaction ko sleep karata hai",
+        "Read replicas ko commit hone tak block karta hai"
+      ],
+      "en": [
+        "It syncs all replica clocks via NTP",
+        "After choosing the commit timestamp it waits out the clock uncertainty (ε) so commit order matches real-time order (external consistency)",
+        "It sleeps the transaction until a lock is free",
+        "It blocks read replicas until commit"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "TrueTime time ko interval [earliest, latest] deta hai. Wait karne se koi bhi baad wali transaction ka timestamp guaranteed bada hota hai. GPS + atomic clocks se ε chhota (few ms).",
+      "en": "TrueTime returns time as an interval [earliest, latest]. Waiting guarantees any later transaction gets a larger timestamp. GPS + atomic clocks keep ε small (a few ms)."
+    }
+  },
+  {
+    "id": "db-13-newsql-03",
+    "section": "db",
+    "topic": "13-newsql",
+    "level": "easy",
+    "q": {
+      "hi": "Kis scenario me NewSQL (Spanner / CockroachDB / YugabyteDB) sabse justified hai?",
+      "en": "In which scenario is NewSQL (Spanner / CockroachDB / YugabyteDB) most justified?"
+    },
+    "options": {
+      "hi": [
+        "Chhota startup app, ek region, 10 GB data",
+        "Logs ka full-text search",
+        "Multi-region payments ledger: SQL + strong consistency + horizontal scale + region failure survive karna",
+        "Ek session cache with TTL"
+      ],
+      "en": [
+        "A small startup app, one region, 10 GB of data",
+        "Full-text search over logs",
+        "A multi-region payments ledger: SQL + strong consistency + horizontal scale + surviving a region failure",
+        "A session cache with TTL"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "NewSQL distributed SQL with ACID deta hai par latency aur cost zyada. Chhote single-region workload pe Postgres simple aur fast hai.",
+      "en": "NewSQL gives distributed SQL with ACID but costs latency and money. For a small single-region workload, Postgres is simpler and faster."
+    }
+  },
+  {
+    "id": "db-13-newsql-04",
+    "section": "db",
+    "topic": "13-newsql",
+    "level": "medium",
+    "q": {
+      "hi": "CockroachDB range ke 5 replicas hain (Raft). Kitne replicas fail hone pe bhi range writes accept karegi?",
+      "en": "A CockroachDB range has 5 replicas (Raft). How many replicas can fail while the range still accepts writes?"
+    },
+    "options": {
+      "hi": [
+        "1",
+        "3",
+        "4",
+        "2"
+      ],
+      "en": [
+        "1",
+        "3",
+        "4",
+        "2"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Raft ko majority chahiye: 5 me se 3. To 2 fail tolerate hote hain. (3 replicas = 1 failure.) Rule: 2f + 1 replicas = f failures.",
+      "en": "Raft needs a majority: 3 of 5. So 2 failures are tolerated. (3 replicas = 1 failure.) Rule: 2f + 1 replicas tolerate f failures."
+    }
+  },
+  {
+    "id": "db-14-scaling-databases-01",
+    "section": "db",
+    "topic": "14-scaling-databases",
+    "level": "easy",
+    "q": {
+      "hi": "User ne profile name update kiya, refresh pe purana name dikha. Reads replicas se aate hain (async replication). Sahi fix?",
+      "en": "A user updates their profile name and sees the old name on refresh. Reads go to async replicas. Correct fix?"
+    },
+    "options": {
+      "hi": [
+        "Replicas hata do, sab primary se padho hamesha",
+        "Read-your-writes: write ke baad kuch der us user ke reads primary se (ya replica jo us LSN tak pahunch gaya ho)",
+        "Cache TTL badha do",
+        "Sharding kar do"
+      ],
+      "en": [
+        "Remove replicas and always read from the primary",
+        "Read-your-writes: after a write, serve that user's reads from the primary for a while (or from a replica caught up to that LSN)",
+        "Increase the cache TTL",
+        "Add sharding"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Ye replication lag hai. Sirf affected user/time window ko primary pe route karo; baaki reads replicas pe hi rahein taaki scale bana rahe.",
+      "en": "This is replication lag. Route only the affected user/time window to the primary; keep other reads on replicas to keep scaling."
+    }
+  },
+  {
+    "id": "db-14-scaling-databases-02",
+    "section": "db",
+    "topic": "14-scaling-databases",
+    "level": "medium",
+    "q": {
+      "hi": "Swiggy orders sharding: zyada tar queries \"mere orders\" (by user) hain. Best shard key?",
+      "en": "Sharding Swiggy orders: most queries are \"my orders\" (by user). Best shard key?"
+    },
+    "options": {
+      "hi": [
+        "created_at",
+        "city",
+        "hash(user_id)",
+        "order_status"
+      ],
+      "en": [
+        "created_at",
+        "city",
+        "hash(user_id)",
+        "order_status"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "user_id high-cardinality hai aur main query ek shard pe jaati hai. created_at se latest shard hot hota hai, city skewed hai (Bangalore bada), status me bas kuch values hain.",
+      "en": "user_id is high-cardinality and the main query hits one shard. created_at makes the newest shard hot, city is skewed (Bangalore is huge), status has few values."
+    }
+  },
+  {
+    "id": "db-14-scaling-databases-03",
+    "section": "db",
+    "topic": "14-scaling-databases",
+    "level": "medium",
+    "q": {
+      "hi": "hash(key) % N ki jagah consistent hashing kyu?",
+      "en": "Why consistent hashing instead of hash(key) % N?"
+    },
+    "options": {
+      "hi": [
+        "Consistent hashing se hot keys khatam ho jaati hain",
+        "Isme replication ki zarurat nahi",
+        "Ye range queries fast kar deta hai",
+        "Node add/remove pe sirf ~K/N keys move hoti hain; modulo me N badalte hi zyada tar keys move ho jaati hain"
+      ],
+      "en": [
+        "Consistent hashing eliminates hot keys",
+        "It removes the need for replication",
+        "It makes range queries fast",
+        "Adding/removing a node moves only ~K/N keys; with modulo, changing N moves most keys"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Ring pe har node ka hissa fixed hai; naya node sirf apne neighbour ka hissa leta hai. Virtual nodes load ko even karte hain. Hot key phir bhi hot rehti hai.",
+      "en": "On the ring each node owns a slice; a new node takes only part of a neighbour's slice. Virtual nodes even out load. A hot key stays hot."
+    }
+  },
+  {
+    "id": "db-14-scaling-databases-04",
+    "section": "db",
+    "topic": "14-scaling-databases",
+    "level": "hard",
+    "q": {
+      "hi": "Orders user_id se sharded hain. Restaurant owner dashboard ko \"mere restaurant ke aaj ke orders\" chahiye, bahut baar. Best approach?",
+      "en": "Orders are sharded by user_id. The restaurant dashboard needs \"today's orders for my restaurant\", very often. Best approach?"
+    },
+    "options": {
+      "hi": [
+        "restaurant_id se sharded alag table/index rakho, CDC/events se async fill karo",
+        "Har request pe saare shards pe scatter-gather query",
+        "Shard key ko restaurant_id kar do aur user queries scatter-gather",
+        "Saare orders ek single unsharded table me wapas le aao"
+      ],
+      "en": [
+        "Keep a separate table/index sharded by restaurant_id, filled asynchronously via CDC/events",
+        "Scatter-gather across all shards on every request",
+        "Switch the shard key to restaurant_id and scatter-gather user queries",
+        "Move all orders back into one unsharded table"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Ek shard key sirf ek access pattern ko serve karti hai. Doosre frequent pattern ke liye denormalized copy (global secondary index jaisa) rakho; thoda lag acceptable.",
+      "en": "A shard key serves one access pattern. For a second frequent pattern keep a denormalized copy (like a global secondary index); a little lag is acceptable."
+    }
+  },
+  {
+    "id": "db-15-object-storage-01",
+    "section": "db",
+    "topic": "15-object-storage",
+    "level": "easy",
+    "q": {
+      "hi": "User ki 200 MB video upload: backend se bytes proxy karne ki jagah S3 pre-signed URL kyu?",
+      "en": "A user uploads a 200 MB video: why an S3 pre-signed URL instead of proxying bytes through the backend?"
+    },
+    "options": {
+      "hi": [
+        "Pre-signed URL se object public ho jaata hai hamesha ke liye",
+        "Isse upload ke bina hi file S3 me aa jaati hai",
+        "Client seedha S3 pe time-limited signed URL se upload karta hai; backend bandwidth bachti hai aur AWS credentials client ko nahi milte",
+        "Pre-signed URL file ko automatically compress karta hai"
+      ],
+      "en": [
+        "The pre-signed URL makes the object public forever",
+        "The file reaches S3 without uploading",
+        "The client uploads straight to S3 with a time-limited signed URL; backend bandwidth is saved and no AWS credentials reach the client",
+        "The pre-signed URL compresses the file automatically"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Backend sirf permission (bucket, key, method, expiry) sign karta hai. URL expire hone ke baad bekaar; object private hi rehta hai.",
+      "en": "The backend only signs a permission (bucket, key, method, expiry). After expiry the URL is useless; the object stays private."
+    }
+  },
+  {
+    "id": "db-15-object-storage-02",
+    "section": "db",
+    "topic": "15-object-storage",
+    "level": "medium",
+    "q": {
+      "hi": "S3 multipart upload ke baare me kaunsa sahi hai?",
+      "en": "Which is true about S3 multipart upload?"
+    },
+    "options": {
+      "hi": [
+        "Single PUT se 50 GB tak upload ho sakta hai, multipart optional hai",
+        "Parts sirf sequential order me upload ho sakte hain",
+        "CompleteMultipartUpload ke bina bhi object visible ho jaata hai",
+        "Parts parallel upload ho sakte hain, fail hua part hi retry hota hai; last part chhod ke har part kam se kam 5 MB"
+      ],
+      "en": [
+        "A single PUT can upload up to 50 GB, so multipart is optional",
+        "Parts must be uploaded strictly in sequence",
+        "The object becomes visible even without CompleteMultipartUpload",
+        "Parts can upload in parallel and only a failed part is retried; every part except the last is at least 5 MB"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Single PUT ki limit 5 GB hai; usse bade ke liye multipart zaroori (max 10,000 parts, object 5 TB tak). Complete call ke baad hi object banta hai.",
+      "en": "A single PUT is capped at 5 GB; beyond that multipart is required (max 10,000 parts, objects up to 5 TB). The object exists only after the Complete call."
+    }
+  },
+  {
+    "id": "db-15-object-storage-03",
+    "section": "db",
+    "topic": "15-object-storage",
+    "level": "medium",
+    "q": {
+      "hi": "Aaj S3 me PUT (naya object ya overwrite) ke turant baad GET karne pe kya milta hai?",
+      "en": "Today, what does a GET right after a PUT (new object or overwrite) on S3 return?"
+    },
+    "options": {
+      "hi": [
+        "Naya data: S3 strong read-after-write consistency deta hai (Dec 2020 se)",
+        "Kuch minute tak purana data mil sakta hai (eventual consistency)",
+        "404 jab tak replication complete na ho",
+        "Overwrite pe hamesha purana version jab tak cache clear na ho"
+      ],
+      "en": [
+        "The new data: S3 offers strong read-after-write consistency (since Dec 2020)",
+        "Possibly old data for a few minutes (eventual consistency)",
+        "404 until replication completes",
+        "Always the old version on overwrite until a cache is cleared"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "S3 ab PUT, overwrite, DELETE aur LIST sab pe strong consistency deta hai. Purane interview answers \"eventual\" bolte the; CDN cache alag cheez hai.",
+      "en": "S3 now gives strong consistency for PUT, overwrite, DELETE and LIST. Older interview answers said \"eventual\"; a CDN cache is a separate matter."
+    }
+  },
+  {
+    "id": "db-15-object-storage-04",
+    "section": "db",
+    "topic": "15-object-storage",
+    "level": "hard",
+    "q": {
+      "hi": "S3 bill badh raha hai par bucket me dikhne wale objects ka size utna nahi. Bahut se mobile uploads beech me fail hote hain. Likely cause aur fix?",
+      "en": "The S3 bill keeps rising but visible objects do not add up. Many mobile uploads fail midway. Likely cause and fix?"
+    },
+    "options": {
+      "hi": [
+        "Pre-signed URLs ka alag charge lagta hai; URLs kam banao",
+        "Incomplete multipart uploads ke parts store ho ke charge hote rehte hain; lifecycle rule AbortIncompleteMultipartUpload lagao",
+        "Versioning band hai isliye duplicates bante hain",
+        "S3 failed PUTs ko Glacier me move karta hai"
+      ],
+      "en": [
+        "Pre-signed URLs are billed separately; generate fewer URLs",
+        "Parts of incomplete multipart uploads stay stored and billed; add the AbortIncompleteMultipartUpload lifecycle rule",
+        "Versioning is off so duplicates are created",
+        "S3 moves failed PUTs to Glacier"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Jo multipart upload complete/abort nahi hua, uske parts listing me object ki tarah nahi dikhte par storage bill hote hain. Lifecycle rule N din baad unhe saaf karta hai.",
+      "en": "Parts of a multipart upload never completed or aborted do not show as objects but are billed as storage. A lifecycle rule cleans them up after N days."
+    }
+  },
+  {
+    "id": "db-16-interview-qa-01",
+    "section": "db",
+    "topic": "16-interview-qa",
+    "level": "easy",
+    "q": {
+      "hi": "Network partition ke time Cassandra (default settings) kya prefer karta hai?",
+      "en": "During a network partition, what does Cassandra (default settings) favour?"
+    },
+    "options": {
+      "hi": [
+        "Consistency (CP); writes reject karta hai",
+        "Dono, kyunki CAP Cassandra pe apply nahi hota",
+        "Partition ke time poora cluster read-only",
+        "Availability (AP); consistency level tunable hai"
+      ],
+      "en": [
+        "Consistency (CP); it rejects writes",
+        "Both, because CAP does not apply to Cassandra",
+        "The whole cluster goes read-only during a partition",
+        "Availability (AP); consistency level is tunable"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Leaderless Cassandra replicas available rehte hue writes leta hai (hinted handoff, read repair). QUORUM/ALL rakhoge to zyada consistent par kam available.",
+      "en": "Leaderless Cassandra keeps accepting writes on available replicas (hinted handoff, read repair). With QUORUM/ALL you get more consistency, less availability."
+    }
+  },
+  {
+    "id": "db-16-interview-qa-02",
+    "section": "db",
+    "topic": "16-interview-qa",
+    "level": "easy",
+    "q": {
+      "hi": "Order list page: 1 query se 100 orders, phir loop me har order ka restaurant alag query se. Isse kya kehte hain aur fix?",
+      "en": "Order list page: 1 query fetches 100 orders, then one query per order for its restaurant in a loop. What is this and the fix?"
+    },
+    "options": {
+      "hi": [
+        "N+1 query problem; JOIN ya ek batch WHERE id IN (...) query",
+        "Deadlock; isolation level badhao",
+        "Cache stampede; TTL random karo",
+        "Hot partition; shard karo"
+      ],
+      "en": [
+        "The N+1 query problem; use a JOIN or one batched WHERE id IN (...) query",
+        "A deadlock; raise the isolation level",
+        "A cache stampede; randomise TTLs",
+        "A hot partition; add sharding"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "101 round trips ki jagah 1-2 queries. ORMs me eager loading (include/join fetch) se fix hota hai.",
+      "en": "1-2 queries instead of 101 round trips. In ORMs fix it with eager loading (include/join fetch)."
+    }
+  },
+  {
+    "id": "db-16-interview-qa-03",
+    "section": "db",
+    "topic": "16-interview-qa",
+    "level": "medium",
+    "q": {
+      "hi": "Order history: ORDER BY created_at DESC LIMIT 20 OFFSET 100000 bahut slow hai. Better?",
+      "en": "Order history: ORDER BY created_at DESC LIMIT 20 OFFSET 100000 is very slow. Better option?"
+    },
+    "options": {
+      "hi": [
+        "OFFSET ko chhote batches me tod do",
+        "Keyset/cursor pagination: WHERE (created_at, id) < (:last_ts, :last_id) ORDER BY created_at DESC, id DESC LIMIT 20",
+        "SELECT COUNT(*) pehle chalao phir OFFSET",
+        "ORDER BY hata do"
+      ],
+      "en": [
+        "Split the OFFSET into smaller batches",
+        "Keyset/cursor pagination: WHERE (created_at, id) < (:last_ts, :last_id) ORDER BY created_at DESC, id DESC LIMIT 20",
+        "Run SELECT COUNT(*) first, then OFFSET",
+        "Drop the ORDER BY"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "OFFSET ko 100000 rows padh ke phekni padti hain. Cursor index se seedha last position pe seek karta hai; id tie-breaker duplicates/skips rokta hai.",
+      "en": "OFFSET must read and discard 100000 rows. A cursor seeks straight to the last position via the index; the id tie-breaker prevents duplicates/skips."
+    }
+  },
+  {
+    "id": "db-16-interview-qa-04",
+    "section": "db",
+    "topic": "16-interview-qa",
+    "level": "hard",
+    "q": {
+      "hi": "Optimistic locking: UPDATE products SET stock = ?, version = version + 1 WHERE id = 7 AND version = 3; ne 0 rows affected return kiya. Matlab?",
+      "en": "Optimistic locking: UPDATE products SET stock = ?, version = version + 1 WHERE id = 7 AND version = 3; returned 0 rows affected. What does it mean?"
+    },
+    "options": {
+      "hi": [
+        "Row lock lag gaya hai, thodi der me apne aap ho jaayega",
+        "Query syntax galat hai",
+        "Kisi aur ne beech me row update kar di (version ab 3 nahi); latest row padh ke retry karo ya conflict dikhao",
+        "Update ho gaya par count galat report hua"
+      ],
+      "en": [
+        "A row lock is held and it will apply by itself shortly",
+        "The query syntax is wrong",
+        "Someone else updated the row in between (version is no longer 3); re-read the latest row and retry or report a conflict",
+        "The update applied but the count was misreported"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Optimistic locking lock nahi leta; version match na hone pe write skip hota hai. Low-contention cases me achha; high contention me retries badhte hain, tab pessimistic lock socho.",
+      "en": "Optimistic locking takes no lock; a version mismatch skips the write. Good under low contention; with high contention retries pile up, so consider pessimistic locks."
+    }
+  }
+]

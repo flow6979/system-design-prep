@@ -1,4 +1,4 @@
-import { allPages, java, lld, localize, pageBySlug, revisionBody, route, type Page } from '../content'
+import { allPages, db, java, lld, localize, pageBySlug, revisionBody, route, type Page } from '../content'
 import { useLang, useTr } from '../i18n'
 import { Markdown } from './Markdown'
 import { Checklist } from './Checklist'
@@ -34,11 +34,11 @@ export function PageView({
   const related = page.related.map((s) => pageBySlug.get(s)).filter((p): p is Page => !!p)
   const isLld = page.kind === 'lld'
   // LLD and Java are multi-page sections shown with sub-tabs, a star filter and a jump list
-  const tabbed = isLld || page.kind === 'java'
-  const tabs = page.kind === 'java' ? java : lld
+  const tabbed = isLld || page.kind === 'java' || page.kind === 'db'
+  const tabs = page.kind === 'java' ? java : page.kind === 'db' ? db : lld
   const body = revision ? revisionBody(page) : page.body
 
-  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', java: 'Java', agent: 'Agentic AI' }[page.kind]
+  const eyebrow = { topic: 'Topic', question: `Question · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', java: 'Java', db: 'Databases', agent: 'Agentic AI' }[page.kind]
   const revisionNote = {
     question: tr(
       'Revision mode: sirf clarifying sawal, decision table aur 2-minute recap dikh rahe hain.',
@@ -50,6 +50,7 @@ export function PageView({
     ),
     lld: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) patterns dikh rahe hain.', 'Showing only ⭐ patterns (the most asked ones).'),
     java: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
+    db: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
     agent: '',
   }[page.kind]
 
@@ -98,8 +99,8 @@ export function PageView({
           ))}
         </div>
       )}
-      {/* Java pages only have Java code, so the Java/C++ switch must not hide it */}
-      <Markdown text={body} showAllCode={page.kind === 'java'} />
+      {/* Java and DB pages are not paired Java/C++, so the language switch must not hide their code */}
+      <Markdown text={body} showAllCode={page.kind === 'java' || page.kind === 'db'} />
       <Checklist page={page} />
       <PrevNext page={page} />
       {related.length > 0 && (

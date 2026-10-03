@@ -16,7 +16,7 @@ export interface Profile {
   /** yyyy-mm-dd; shows a countdown on the dashboard */
   interviewDate?: string
   /** personal study plan inputs (Plan tab) */
-  plan?: { tracks: ('hld' | 'lld' | 'java' | 'agents')[]; hours: number; level: 'junior' | 'mid' | 'senior'; days?: number }
+  plan?: { tracks: ('hld' | 'lld' | 'java' | 'db' | 'agents')[]; hours: number; level: 'junior' | 'mid' | 'senior'; days?: number }
 }
 
 interface Store {

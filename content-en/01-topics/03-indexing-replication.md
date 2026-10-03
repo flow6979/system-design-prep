@@ -9,6 +9,8 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 
 **In one line:** An index makes reads fast (no full table scan), and replication makes copies of the data so reads can scale and data is not lost when one machine dies.
 
+> **Go deeper (Databases section):** [Indexes](../05-db/04-indexes.md), [Scaling Databases](../05-db/14-scaling-databases.md)
+
 > **Example:** On Swiggy, a "my last 10 orders" query will scan 500 million rows of the `orders` table if there is no index on `user_id`. Add an index and it takes milliseconds. And if the primary DB dies, a replica gets promoted, so no orders are lost.
 
 ## The 3 basic index structures

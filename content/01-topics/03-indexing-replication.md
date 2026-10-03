@@ -9,6 +9,8 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-05-bookmyshow, t1-11-payment-s
 
 **Ek line me:** index se reads fast hote hain (poori table scan nahi), aur replication se data ki copies bante hain taaki reads scale hon aur ek machine mare to data na jaye.
 
+> **Detail me padho (Databases section):** [Indexes](../05-db/04-indexes.md), [Scaling Databases](../05-db/14-scaling-databases.md)
+
 > **Example:** Swiggy pe "mere last 10 orders" query `orders` table ke 50 crore rows scan karegi agar `user_id` pe index nahi hai. Index lagao to milliseconds. Aur agar primary DB mar jaye to replica promote ho jaata hai, orders kho nahi jaate.
 
 ## Index ke 3 basic structures

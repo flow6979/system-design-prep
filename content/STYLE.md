@@ -152,3 +152,17 @@ Rules:
 - Cover depth expected at SDE-1/SDE-2 interviews: internals (e.g. HashMap resize/treeify, String pool, ArrayList growth, GC generations), time complexities, pitfalls (== vs equals, Integer cache, ConcurrentModificationException, autoboxing NPE).
 - End with `## Checklist` (6–10 items) — same count and order in both languages.
 - Hinglish file in `content/04-java/`, English file with the same name in `content-en/04-java/`. English uses headings/labels in English; keep ⭐ in the same headings; same code (comments translated).
+
+## Database files (`05-db/`, English mirror in `content-en/05-db/`)
+
+Files (slug → title):
+01-choosing-a-database (Choosing a Database), 02-relational-sql (Relational Databases: PostgreSQL & MySQL), 03-transactions-acid (Transactions & ACID), 04-indexes (Indexes), 05-key-value (Key-Value: Redis & DynamoDB), 06-document (Document: MongoDB & Firestore), 07-wide-column (Wide-column: Cassandra & ScyllaDB), 08-search (Search: Elasticsearch), 09-time-series (Time-series Databases), 10-graph (Graph Databases), 11-vector (Vector Databases), 12-columnar-olap (Columnar / OLAP), 13-newsql (NewSQL / Distributed SQL), 14-scaling-databases (Scaling Databases), 15-object-storage (Object Storage: S3), 16-interview-qa (Database Interview Rapid-fire)
+
+Frontmatter: `title`, `order` (file number), `time` (minutes).
+
+Rules (same spirit as Java files):
+- Each concept is a `## ` section; must-know ones get `## ⭐ …`. End with `## Checklist` (6–10 items, same count/order in both languages).
+- Database pages should cover, where they apply: **Ek line me / In one line**, data model (small mermaid diagram if it helps), **real example** (Indian apps: Swiggy, Zerodha, Uber, Paytm, Flipkart…), **important commands / methods** table (`| Command / method | Kya karta hai / What it does | Example |`) with the real syntax of that DB (SQL, Redis commands, MongoDB shell methods, DynamoDB API calls, CQL, Elasticsearch query DSL, Cypher, PromQL, etc.), a code block of realistic usage (```sql, ```bash for redis-cli, ```javascript for mongo shell, ```json for ES DSL, ```python where an SDK is clearer), **features**, **kab use karo / kab nahi** (when to use / when not), **kin system design questions me** with links to existing HLD pages (`../02-questions/<slug>.md`, `../01-topics/<slug>.md` — only slugs from STYLE.md lists), **Interview tip**, **Common galti / Common mistake**.
+- Comparison tables are welcome (e.g. Redis vs Memcached, Postgres vs MySQL, Cassandra vs DynamoDB).
+- Depth: SDE-1/SDE-2 interviews. Real internals where interviewers dig (MVCC, WAL, B-tree vs LSM, Dynamo partitioning, Cassandra write path, ES inverted index, HNSW).
+- Hinglish file in `content/05-db/`, English file with the same name in `content-en/05-db/`, same structure, same ⭐ headings, same code (comments translated). Mermaid rules from above apply (quote every node label).

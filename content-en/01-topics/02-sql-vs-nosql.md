@@ -9,6 +9,8 @@ usedIn: [t1-01-url-shortener, t1-03-news-feed, t1-04-whatsapp-chat, t1-05-bookmy
 
 **In one line:** Pick SQL when you need relations, transactions and strong consistency. Pick NoSQL when you need very large scale, a simple access pattern or a flexible schema.
 
+> **Go deeper (Databases section):** [Choosing a Database](../05-db/01-choosing-a-database.md), [SQL](../05-db/02-relational-sql.md), [Key-Value](../05-db/05-key-value.md), [Document](../05-db/06-document.md), [Wide-column](../05-db/07-wide-column.md)
+
 > **Example:** Paytm wallet balances and transactions go in Postgres (money must never be wrong). WhatsApp's billions of messages go in Cassandra (you just write them and read them by chat_id in time order, no joins needed).
 
 ## SQL (relational)

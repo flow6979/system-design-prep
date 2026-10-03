@@ -44,7 +44,7 @@ function useHashRoute() {
     const path = `/${parts.join('/')}`
     return { view: 'agents' as const, slug: agentPageFor(path).slug, path }
   }
-  if ((parts[0] === 'topic' || parts[0] === 'q' || parts[0] === 'lld' || parts[0] === 'java') && parts[1]) return { view: 'page' as const, slug: parts[1] }
+  if ((parts[0] === 'topic' || parts[0] === 'q' || parts[0] === 'lld' || parts[0] === 'java' || parts[0] === 'db') && parts[1]) return { view: 'page' as const, slug: parts[1] }
   return { view: 'home' as const, slug: '' }
 }
 
