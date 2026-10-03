@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { agentPages, lld, localize, questions, route, topics, type Page } from '../content'
-import { useStore } from '../store'
+import { readLocal, useStore, writeLocal } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
 
@@ -19,22 +19,34 @@ function Item({ page, active }: { page: Page; active: boolean }) {
   )
 }
 
-function Group({ label, pages, current, match }: { label: string; pages: Page[]; current: string; match: (p: Page) => boolean }) {
+function Group({ label, pages, current, match, filtering }: { label: string; pages: Page[]; current: string; match: (p: Page) => boolean; filtering: boolean }) {
   const { progress } = useStore()
+  const key = `hld.side.${label}`
+  const [closed, setClosed] = useState<boolean>(() => readLocal(key, false))
   const s = groupStats(pages, progress)
   const shown = pages.filter(match)
   if (!shown.length) return null
+  // Searching or standing on a page inside the group always shows it
+  const open = filtering || !closed || pages.some((p) => p.slug === current)
   return (
     <div className="side-group">
-      <div className="side-label">
+      <button
+        className="side-label"
+        aria-expanded={open}
+        onClick={() => {
+          setClosed(open)
+          writeLocal(key, open)
+        }}
+      >
+        <span className="caret" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
         <span>{label}</span>
         <span className="mono">
           {s.complete}/{s.pages}
         </span>
-      </div>
-      {shown.map((p) => (
-        <Item key={p.slug} page={p} active={current === p.slug} />
-      ))}
+      </button>
+      {open && shown.map((p) => <Item key={p.slug} page={p} active={current === p.slug} />)}
     </div>
   )
 }
@@ -74,11 +86,11 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
         onChange={(e) => setFilter(e.target.value)}
         aria-label={tr('Topics aur questions filter karo', 'Filter topics and questions')}
       />
-      <Group label="Topics" pages={topics} current={current} match={match} />
-      <Group label="Questions · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} />
-      <Group label="LLD · Design patterns" pages={lld} current={current} match={match} />
-      <Group label="Questions · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} />
-      <Group label="Agentic AI" pages={agentPages} current={current} match={match} />
+      <Group label="Topics" pages={topics} current={current} match={match} filtering={!!f} />
+      <Group label="Questions · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} filtering={!!f} />
+      <Group label="LLD · Design patterns" pages={lld} current={current} match={match} filtering={!!f} />
+      <Group label="Questions · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} filtering={!!f} />
+      <Group label="Agentic AI" pages={agentPages} current={current} match={match} filtering={!!f} />
       {!f && (
         <div className="side-group">
           <a href="#/agents/docs" className="side-item">

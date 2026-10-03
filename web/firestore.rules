@@ -1,15 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each user can read and write only their own progress and notes
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    // Each user can read and write only their own progress, profile and notes
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if isOwner(uid);
       match /notes/{slug} {
-        allow read, delete: if request.auth != null && request.auth.uid == uid;
-        // request.resource only exists on writes, so the size check lives here
-        allow create, update: if request.auth != null && request.auth.uid == uid
-          && request.resource.data.text is string
-          && request.resource.data.text.size() < 200000;
+        allow read, delete: if isOwner(uid);
+        // Notes are plain `text` (short) or deflate-compressed `z` bytes (long). Cap the size either way.
+        allow create, update: if isOwner(uid) && (
+          (request.resource.data.get('text', null) is string && request.resource.data.text.size() < 200000) ||
+          (request.resource.data.get('z', null) is bytes && request.resource.data.z.size() < 200000)
+        );
       }
     }
   }

@@ -49,9 +49,10 @@ function Bar({ value }: { value: number }) {
 }
 
 export function Dashboard() {
-  const { progress } = useStore()
+  const { progress, profile } = useStore()
   const { lang } = useLang()
   const tr = useTr()
+  const daysLeft = profile.interviewDate ? Math.ceil((new Date(`${profile.interviewDate}T00:00:00`).getTime() - Date.now()) / 86400000) : null
   const everything = [...topics, ...questions, ...lld, ...agentPages]
   const all = groupStats(everything, progress)
   const next = everything.find((p) => !pageStats(p, progress).complete)
@@ -71,6 +72,11 @@ export function Dashboard() {
 
   return (
     <div className="dashboard">
+      {daysLeft !== null && daysLeft >= 0 && (
+        <p className="countdown">
+          <span className="mono">{daysLeft}</span> {daysLeft === 1 ? tr('din baaki interview me', 'day to your interview') : tr('din baaki interview me', 'days to your interview')}
+        </p>
+      )}
       {next && (
         <a className="continue" href={route(next)}>
           <span className="continue-label">{tr('Agla', 'Next')}</span>

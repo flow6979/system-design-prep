@@ -1,4 +1,4 @@
-import { lld, localize, pageBySlug, revisionBody, route, type Page } from '../content'
+import { allPages, lld, localize, pageBySlug, revisionBody, route, type Page } from '../content'
 import { useLang, useTr } from '../i18n'
 import { Markdown } from './Markdown'
 import { Checklist } from './Checklist'
@@ -96,6 +96,7 @@ export function PageView({
       )}
       <Markdown text={body} />
       <Checklist page={page} />
+      <PrevNext page={page} />
       {related.length > 0 && (
         <section className="related">
           <h2>{page.kind === 'topic' ? tr('Ye kin questions me lagta hai', 'Questions that use this') : tr('Pehle ye topics padh lo', 'Read these topics first')}</h2>
@@ -109,5 +110,34 @@ export function PageView({
         </section>
       )}
     </article>
+  )
+}
+
+/** Previous / next page in reading order (same order as the sidebar) */
+function PrevNext({ page }: { page: Page }) {
+  const { lang } = useLang()
+  const tr = useTr()
+  const order = allPages.filter((p) => p.kind === page.kind && (page.kind !== 'question' || p.tier === page.tier))
+  const i = order.findIndex((p) => p.slug === page.slug)
+  const prev = order[i - 1]
+  const next = order[i + 1]
+  if (!prev && !next) return null
+  return (
+    <nav className="prev-next" aria-label={tr('Pichla / agla', 'Previous / next')}>
+      {prev ? (
+        <a href={route(prev)} className="pn prev">
+          <span className="muted small">← {tr('Pichla', 'Previous')}</span>
+          <span>{shortTitle(localize(prev, lang).title)}</span>
+        </a>
+      ) : (
+        <span />
+      )}
+      {next && (
+        <a href={route(next)} className="pn next">
+          <span className="muted small">{tr('Agla', 'Next')} →</span>
+          <span>{shortTitle(localize(next, lang).title)}</span>
+        </a>
+      )}
+    </nav>
   )
 }

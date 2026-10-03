@@ -39,9 +39,9 @@ export type AppState = {
 const Ctx = createContext<AppState | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Language is shared with the rest of HLD Prep (top-bar switch)
+  // Language is shared with the rest of Viewinter (top-bar switch)
   const { lang, setLang } = useLang()
-  // The Gemini key saved in HLD Prep settings is reused here, so labs work without entering it again
+  // The Gemini key saved in Viewinter settings is reused here, so labs work without entering it again
   const sharedGemini = getGeminiSettings().apiKey
   const [provider, setProviderS] = useState<ProviderId | null>(() =>
     local.get<ProviderId | null>('provider', sharedGemini ? 'gemini' : null),

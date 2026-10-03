@@ -1,5 +1,5 @@
-/* Agentic AI section inside HLD Prep. Agent-lab ke tokens yahan SD-prep ke tokens pe map hote hain,
-   isliye light/dark theme aur fonts dono apps me same rehte hain. Naye colors SD-prep ke :root me add karo. */
+/* Agentic AI section inside Viewinter. Agent-lab ke tokens yahan Viewinter ke tokens pe map hote hain,
+   isliye light/dark theme aur fonts dono apps me same rehte hain. Naye colors Viewinter ke :root me add karo. */
 .agents-root {
   --ground: var(--bg);
   --header: var(--surface);
@@ -40,7 +40,7 @@
   --r-lg: 10px;
   --shadow-card: 0 18px 50px rgba(10, 16, 30, 0.28);
   color: var(--ink);
-  /* agent-lab was designed for 16px text with tighter lines than HLD Prep's reading pages */
+  /* agent-lab was designed for 16px text with tighter lines than Viewinter's reading pages */
   font-size: 16px;
   line-height: 1.45;
 }
@@ -148,8 +148,8 @@
 @container agents (max-width: 720px) { .agents-root .lab-grid { grid-template-columns: minmax(0, 1fr); } }
 
 
-/* Shared controls follow HLD Prep's look */
-/* HLD Prep also has a .page class (flex column, 820px). Agent pages are plain blocks unless they ask for .col */
+/* Shared controls follow Viewinter's look */
+/* Viewinter also has a .page class (flex column, 820px). Agent pages are plain blocks unless they ask for .col */
 .agents-root .page { min-height: 0; padding: 0; max-width: 1200px; margin: 0 auto; gap: 0; }
 .agents-root .page:not(.col):not(.grid):not(.row) { display: block; }
 .agents-root .chip { border: 0; cursor: default; }

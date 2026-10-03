@@ -1,6 +1,8 @@
-# HLD Prep: 1 hafte me System Design
+# Viewinter
 
-System design (high-level design) interview ki taiyari ke liye Hinglish notes, step-by-step interview walkthroughs, aur ek study website.
+**Live:** https://flow6979.github.io/viewinter/
+
+Interview prep ek jagah: system design (HLD), LLD / design patterns aur agentic AI. Hinglish aur English dono me, progress tracking, notes, Gemini se sawal aur mock interviews ke saath.
 
 - **`content/01-topics/`**: 23 chhote topic files (caching, sharding, locks, Kafka, geospatial…). Har file 5–8 min ki hai aur batati hai ki ye kin systems me lagta hai.
 - **`content/02-questions/`**: 26 sabse zyada pooche jaane wale questions. Har ek me ye sab hai: interviewer se kya confirm karna hai, requirements, estimation, HLD + flow diagrams, deep dives, decision table (kyun chuna, kya nahi chuna aur kyun), failures, "isko aur better kaise karein", follow-up sawal, aur 2-minute recap.

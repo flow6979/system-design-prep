@@ -1,5 +1,5 @@
-// Agentic AI section of HLD Prep (formerly the standalone Agent Lab site).
-// Lives under #/agents/...; the rest of HLD Prep keeps its own hash routes.
+// Agentic AI section of Viewinter (formerly the standalone Agent Lab site).
+// Lives under #/agents/...; the rest of Viewinter keeps its own hash routes.
 import { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
 import { ExplainCard, GuideProvider, useGuideCtx } from './guide/guide'
@@ -93,7 +93,7 @@ function Shell() {
           <Route path="/agents/run/*" element={<Runner />} />
           <Route path="/agents/history" element={<History />} />
           <Route path="/agents/presenter" element={<Presenter />} />
-          {/* Unknown agent URLs go to Setup; anything outside /agents belongs to HLD Prep, so render nothing */}
+          {/* Unknown agent URLs go to Setup; anything outside /agents belongs to Viewinter, so render nothing */}
           <Route path="/agents/*" element={<Navigate to="/agents" replace />} />
           <Route path="*" element={null} />
         </Routes>

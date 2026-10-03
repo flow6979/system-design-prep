@@ -16,5 +16,5 @@ Rules (the website depends on these):
 7. **Links:** keep relative links exactly (`../02-questions/t1-05-bookmyshow.md`), translate only the link text.
 8. Indian examples (Swiggy, Paytm, IPL) stay — they are fine in English.
 
-After writing, run `cd /Users/vaibhavdixit/projects/system-design-prep/web && node scripts/check-mermaid.mjs` (it checks content-en too) and fix failures in your files. Also verify checklist item counts match the source with:
+After writing, run `cd /Users/vaibhavdixit/projects/viewinter/web && node scripts/check-mermaid.mjs` (it checks content-en too) and fix failures in your files. Also verify checklist item counts match the source with:
 `for f in <your files>; do echo $f $(sed -n '/^## Checklist/,$p' content/$f | grep -c '^- \[') $(sed -n '/^## Checklist/,$p' content-en/$f | grep -c '^- \['); done` (run from repo root, f like 01-topics/05-caching.md).

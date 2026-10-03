@@ -19,6 +19,7 @@ import { agentPageFor, localize } from './content'
 import { lazy, Suspense } from 'react'
 import { Checklist } from './components/Checklist'
 import { Icon } from './components/Icon'
+import { Avatar, ProfileModal } from './components/ProfileModal'
 
 const AgentSection = lazy(() => import('./agents/AgentSection').then((m) => ({ default: m.AgentSection })))
 
@@ -48,7 +49,7 @@ function useHashRoute() {
 const systemTheme = (): Theme => (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 
 export function App() {
-  const { user, authReady, progress, logout } = useStore()
+  const { user, authReady, progress } = useStore()
   const route = useHashRoute()
   const { view, slug } = route
   const { lang } = useLang()
@@ -62,7 +63,7 @@ export function App() {
   const [hasKey, setHasKey] = useState(() => !!getGeminiSettings().apiKey)
   const [navOpen, setNavOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const [codeLang, setCodeLang] = useState<CodeLang>(() => readLocal('hld.codeLang', 'java'))
   useEffect(() => writeLocal('hld.codeLang', codeLang), [codeLang])
   const langCtx = useMemo(() => ({ lang: codeLang, setLang: setCodeLang }), [codeLang])
@@ -93,7 +94,7 @@ export function App() {
   useEffect(() => writeLocal('hld.revision', revision), [revision])
 
   useEffect(() => {
-    document.title = page ? `${localize(page, lang).title} · HLD Prep` : view === 'quiz' ? 'Pattern quiz · HLD Prep' : 'HLD Prep'
+    document.title = page ? `${localize(page, lang).title} · Viewinter` : view === 'quiz' ? 'Pattern quiz · Viewinter' : 'Viewinter'
     document.querySelector('.main')?.scrollTo(0, 0)
     window.scrollTo(0, 0)
   }, [page, view, lang])
@@ -126,8 +127,12 @@ export function App() {
         >
           <Icon name="menu" />
         </button>
-        <a href="#/" className="logo">
-          HLD Prep
+        <a href="#/" className="logo" aria-label="Viewinter">
+          <svg className="logo-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="2" y="2" width="20" height="20" rx="5" />
+            <path d="M7 8l5 9 5-9" />
+          </svg>
+          <span>Viewinter</span>
         </a>
         <div className="spacer" />
         <LangSwitch />
@@ -161,25 +166,9 @@ export function App() {
         )}
         {authReady &&
           (user ? (
-            <div className="user-menu">
-              <button className="btn small" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen}>
-                {user.displayName?.split(' ')[0] || user.email?.split('@')[0]} ▾
-              </button>
-              {menuOpen && (
-                <div className="menu" onMouseLeave={() => setMenuOpen(false)}>
-                  <span className="muted small">{user.email}</span>
-                  <button
-                    className="btn small wide"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      logout()
-                    }}
-                  >
-                    {tr('Logout', 'Log out')}
-                  </button>
-                </div>
-              )}
-            </div>
+            <button className="avatar-btn" onClick={() => setShowProfile(true)} aria-label={tr('Profile', 'Profile')} title={user.email ?? ''}>
+              <Avatar name={user.displayName || user.email || '?'} />
+            </button>
           ) : (
             <button className="btn primary small" onClick={() => setShowAuth(true)}>
               {tr('Login', 'Log in')}
@@ -262,6 +251,7 @@ export function App() {
       )}
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
       {showSettings && (
         <SettingsModal
           onClose={() => {
