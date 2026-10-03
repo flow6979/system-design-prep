@@ -13,6 +13,9 @@ const QUICK: Record<Lang, Record<Page['kind'], string[]>> = {
   hi: {
     topic: ['Isko aur simple example se samjhao', 'Mujhe 3 interview sawal poochho, ek-ek karke', 'Main explain karta hoon, tum grade karna'],
     lld: ['Is pattern ka ek aur real-life example do', 'Ek chhota LLD problem do jisme ye pattern lage', 'Mera code review karo (main paste karta hoon)'],
+    lldp: ['Is design me ek naya requirement add karo aur mujhse handle karwao', 'Mere class design ka review karo (main paste karta hoon)', 'Isme concurrency issues kahan aa sakte hain?'],
+    cs: ['Isko simple example se samjhao', 'Is topic pe 3 interview sawal poochho, ek-ek karke', 'System design me ye kahan kaam aata hai?'],
+    beh: ['Mere is story ko STAR me sudharo (main paste karta hoon)', 'Mujhse ek behavioral sawal poochho aur mera jawab grade karo', 'Is sawal pe interviewer kya check karta hai?'],
     db: ['Ye database kab use karein, ek real example do', 'Is topic pe 3 interview sawal poochho, ek-ek karke', 'Iska alternative DB kya hai aur kyun?'],
     java: ['Isko ek chhote code example se samjhao', 'Is topic pe 3 interview sawal poochho, ek-ek karke', 'Iska output kya hoga, aisa ek tricky sawal do'],
     agent: ['Is lab ko simple example se samjhao', 'Interview me agentic AI pe kya pooch sakte hain?', 'Production me ye agent kahan fail ho sakta hai?'],
@@ -21,6 +24,9 @@ const QUICK: Record<Lang, Record<Page['kind'], string[]>> = {
   en: {
     topic: ['Explain this with a simpler example', 'Ask me 3 interview questions, one at a time', 'Let me explain it, then grade me'],
     lld: ['Give me another real-life example of this pattern', 'Give me a small LLD problem that needs this pattern', 'Review my code (I will paste it)'],
+    lldp: ['Add a new requirement and make me handle it', 'Review my class design (I will paste it)', 'Where can concurrency issues show up here?'],
+    cs: ['Explain this with a simple example', 'Ask me 3 interview questions on this, one at a time', 'Where does this matter in system design?'],
+    beh: ['Improve my story in STAR format (I will paste it)', 'Ask me a behavioral question and grade my answer', 'What is the interviewer checking with this question?'],
     db: ['When should I use this database? Give a real example', 'Ask me 3 interview questions on this, one at a time', 'What is the alternative DB and why?'],
     java: ['Explain this with a small code example', 'Ask me 3 interview questions on this, one at a time', 'Give me a tricky output-prediction question'],
     agent: ['Explain this lab with a simple example', 'What can interviewers ask about agentic AI here?', 'Where can this agent fail in production?'],

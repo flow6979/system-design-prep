@@ -1,11 +1,58 @@
 import { useState } from 'react'
-import { agentPages, db, java, lld, localize, questions, route, topics, type Page } from '../content'
+import { agentPages, behavioral, cs, db, java, lld, lldProblems, localize, questions, route, topics, type Page } from '../content'
 import { readLocal, useStore, writeLocal } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 
 export const shortTitle = (title: string) => title.replace(/^Design (an? )?/, '')
+
+interface Sub {
+  label?: { hi: string; en: string }
+  pages: Page[]
+}
+interface Section {
+  id: string
+  label: string
+  icon: IconName
+  subs: Sub[]
+}
+
+// Every subject appears once, in study order; sub-headings only where a subject has parts
+const SECTIONS: Section[] = [
+  {
+    id: 'hld',
+    label: 'HLD · System design',
+    icon: 'hld',
+    subs: [
+      { label: { hi: 'Topics', en: 'Topics' }, pages: topics },
+      { label: { hi: 'Problems · Tier 1', en: 'Problems · Tier 1' }, pages: questions.filter((q) => q.tier === 1) },
+      { label: { hi: 'Problems · Tier 2', en: 'Problems · Tier 2' }, pages: questions.filter((q) => q.tier !== 1) },
+    ],
+  },
+  {
+    id: 'lld',
+    label: 'LLD',
+    icon: 'code',
+    subs: [
+      { label: { hi: 'Design patterns', en: 'Design patterns' }, pages: lld },
+      { label: { hi: 'Problems', en: 'Problems' }, pages: lldProblems },
+    ],
+  },
+  { id: 'java', label: 'Java', icon: 'cup', subs: [{ pages: java }] },
+  { id: 'db', label: 'Databases', icon: 'db', subs: [{ pages: db }] },
+  {
+    id: 'cs',
+    label: 'CS fundamentals',
+    icon: 'chip',
+    subs: [
+      { label: { hi: 'Networking', en: 'Networking' }, pages: cs.filter((p) => p.order <= 5) },
+      { label: { hi: 'Operating systems', en: 'Operating systems' }, pages: cs.filter((p) => p.order > 5) },
+    ],
+  },
+  { id: 'beh', label: 'Behavioral', icon: 'chat', subs: [{ pages: behavioral }] },
+  { id: 'agents', label: 'Agentic AI', icon: 'bot', subs: [{ pages: agentPages }] },
+]
 
 function Item({ page, active }: { page: Page; active: boolean }) {
   const { progress } = useStore()
@@ -20,35 +67,69 @@ function Item({ page, active }: { page: Page; active: boolean }) {
   )
 }
 
-function Group({ label, pages, current, match, filtering }: { label: string; pages: Page[]; current: string; match: (p: Page) => boolean; filtering: boolean }) {
-  const { progress } = useStore()
-  const key = `hld.side.${label}`
-  // Groups start collapsed so the sidebar stays short; the open state is remembered
-  const [closed, setClosed] = useState<boolean>(() => readLocal(key, true))
-  const s = groupStats(pages, progress)
-  const shown = pages.filter(match)
-  if (!shown.length) return null
-  // Searching or standing on a page inside the group always shows it
-  const open = filtering || !closed || pages.some((p) => p.slug === current)
+/** A labelled part of a section; only the part holding the current page starts open */
+function SubGroup({ sub, sectionId, current, filtering, single }: { sub: Sub; sectionId: string; current: string; filtering: boolean; single: boolean }) {
+  const { lang } = useLang()
+  const key = `hld.side2.${sectionId}.${sub.label?.en ?? ''}`
+  const hasCurrent = sub.pages.some((p) => p.slug === current)
+  const [userOpen, setUserOpen] = useState<boolean>(() => readLocal(key, false))
+  const open = single || !sub.label || filtering || hasCurrent || userOpen
   return (
-    <div className="side-group">
+    <div className="side-sub">
+      {sub.label && (
+        <button
+          className="side-sub-label"
+          aria-expanded={open}
+          onClick={() => {
+            setUserOpen(!open)
+            writeLocal(key, !open)
+          }}
+        >
+          <span>{sub.label[lang]}</span>
+          <span className="mono">
+            {sub.pages.length} {open ? '▾' : '▸'}
+          </span>
+        </button>
+      )}
+      {open && sub.pages.map((p) => <Item key={p.slug} page={p} active={current === p.slug} />)}
+    </div>
+  )
+}
+
+function SectionGroup({ section, current, match, filtering }: { section: Section; current: string; match: (p: Page) => boolean; filtering: boolean }) {
+  const { progress } = useStore()
+  const all = section.subs.flatMap((s) => s.pages)
+  const key = `hld.side2.${section.id}`
+  const [closed, setClosed] = useState<boolean>(() => readLocal(key, true))
+  const hasCurrent = all.some((p) => p.slug === current) || (section.id === 'agents' && current.startsWith('agents'))
+  const shown = section.subs.map((s) => ({ ...s, pages: s.pages.filter(match) })).filter((s) => s.pages.length)
+  if (!all.length || (filtering && !shown.length)) return null
+  const open = filtering || !closed || hasCurrent
+  const st = groupStats(all, progress)
+  return (
+    <div className={`side-section ${hasCurrent ? 'current' : ''}`}>
       <button
-        className="side-label"
+        className="side-section-head"
         aria-expanded={open}
         onClick={() => {
           setClosed(open)
           writeLocal(key, open)
         }}
       >
+        <Icon name={section.icon} size={17} />
+        <span className="side-section-label">{section.label}</span>
+        <span className="side-section-count mono">{st.complete ? `${st.complete}/${st.pages}` : st.pages}</span>
         <span className="caret" aria-hidden="true">
           {open ? '▾' : '▸'}
         </span>
-        <span>{label}</span>
-        <span className="mono">
-          {s.complete}/{s.pages}
-        </span>
       </button>
-      {open && shown.map((p) => <Item key={p.slug} page={p} active={current === p.slug} />)}
+      {open && (
+        <div className="side-section-body">
+          {shown.map((sub, i) => (
+            <SubGroup key={i} sub={sub} sectionId={section.id} current={current} filtering={filtering} single={shown.length === 1} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -78,43 +159,17 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
         <Icon name="quiz" size={17} />
         Quiz
       </a>
-      {lld[0] && (
-        <a href={route(lld[0])} className={`side-item home ${lld.some((p) => p.slug === current) ? 'active' : ''}`}>
-          <Icon name="code" size={17} />
-          LLD · Design patterns
-        </a>
-      )}
-      {java[0] && (
-        <a href={route(java[0])} className={`side-item home ${java.some((p) => p.slug === current) ? 'active' : ''}`}>
-          <Icon name="cup" size={17} />
-          Java
-        </a>
-      )}
-      {db[0] && (
-        <a href={route(db[0])} className={`side-item home ${db.some((p) => p.slug === current) ? 'active' : ''}`}>
-          <Icon name="db" size={17} />
-          Databases
-        </a>
-      )}
-      <a href="#/agents" className={`side-item home ${current.startsWith('agents') ? 'active' : ''}`}>
-        <Icon name="bot" size={17} />
-        Agentic AI
-      </a>
       <input
         id="side-filter"
         className="side-filter"
         placeholder={tr('Dhoondho: cache, Uber, Kafka…', 'Search: cache, Uber, Kafka…')}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
-        aria-label={tr('Topics aur questions filter karo', 'Filter topics and questions')}
+        aria-label={tr('Pages dhoondho', 'Search pages')}
       />
-      <Group label="Topics" pages={topics} current={current} match={match} filtering={!!f} />
-      <Group label="HLD problems · Tier 1" pages={questions.filter((q) => q.tier === 1)} current={current} match={match} filtering={!!f} />
-      <Group label="LLD · Design patterns" pages={lld} current={current} match={match} filtering={!!f} />
-      <Group label="Databases" pages={db} current={current} match={match} filtering={!!f} />
-      <Group label="Java" pages={java} current={current} match={match} filtering={!!f} />
-      <Group label="HLD problems · Tier 2" pages={questions.filter((q) => q.tier !== 1)} current={current} match={match} filtering={!!f} />
-      <Group label="Agentic AI" pages={agentPages} current={current} match={match} filtering={!!f} />
+      {SECTIONS.map((s) => (
+        <SectionGroup key={s.id} section={s} current={current} match={match} filtering={!!f} />
+      ))}
     </nav>
   )
 }

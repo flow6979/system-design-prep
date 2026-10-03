@@ -15,7 +15,7 @@ mermaid.initialize({ startOnLoad: false })
 const root = new URL('../../content/', import.meta.url).pathname
 let blocks = 0
 let failures = 0
-for (const dir of ['01-topics', '02-questions', '03-lld', '04-java', '05-db', '../content-en/01-topics', '../content-en/02-questions', '../content-en/03-lld', '../content-en/04-java', '../content-en/05-db']) {
+for (const dir of ['01-topics', '02-questions', '03-lld', '04-java', '05-db', '06-lld-problems', '07-cs', '08-behavioral', '../content-en/01-topics', '../content-en/02-questions', '../content-en/03-lld', '../content-en/04-java', '../content-en/05-db', '../content-en/06-lld-problems', '../content-en/07-cs', '../content-en/08-behavioral']) {
   for (const file of readdirSync(join(root, dir)).filter((f) => f.endsWith('.md'))) {
     const text = readFileSync(join(root, dir, file), 'utf8')
     for (const m of text.matchAll(/```mermaid\n([\s\S]*?)```/g)) {

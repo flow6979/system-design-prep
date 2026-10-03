@@ -1,9 +1,9 @@
 // Personal study plan: turns "days left + what I'm preparing + hours per day" into a day-by-day list.
 // Deterministic (no LLM): same inputs and progress always give the same plan, and finished pages
 // drop out, so the plan re-balances itself every day from today.
-import { agentPages, db, java, lld, pageBySlug, questions, topics, type Page } from './content'
+import { agentPages, behavioral, cs, db, java, lld, lldProblems, pageBySlug, questions, topics, type Page } from './content'
 
-export type Track = 'hld' | 'lld' | 'java' | 'db' | 'agents'
+export type Track = 'hld' | 'lld' | 'java' | 'db' | 'cs' | 'beh' | 'agents'
 export type Level = 'junior' | 'mid' | 'senior'
 
 export interface PlanInput {
@@ -41,6 +41,8 @@ export const TRACKS: { id: Track; label: { hi: string; en: string } }[] = [
   { id: 'lld', label: { hi: 'LLD · Design patterns', en: 'LLD · Design patterns' } },
   { id: 'java', label: { hi: 'Java', en: 'Java' } },
   { id: 'db', label: { hi: 'Databases', en: 'Databases' } },
+  { id: 'cs', label: { hi: 'CS fundamentals', en: 'CS fundamentals' } },
+  { id: 'beh', label: { hi: 'Behavioral', en: 'Behavioral' } },
   { id: 'agents', label: { hi: 'Agentic AI', en: 'Agentic AI' } },
 ]
 
@@ -53,21 +55,25 @@ const HLD_P1 = [
 ]
 const HLD_P2 = [
   '03-indexing-replication', '08-real-time-communication', '11-rate-limiting', '12-blob-storage-cdn', '13-geospatial',
-  '14-search-indexing', '18-fan-out', '17-unique-id-generation', 't1-06-uber', 't1-07-youtube', 't1-08-dropbox',
+  '14-search-indexing', '18-fan-out', '17-unique-id-generation', '23-microservices-patterns', 't1-06-uber', 't1-07-youtube', 't1-08-dropbox',
   't1-09-notification-system', 't1-10-typeahead', 't1-11-payment-system', 't1-12-web-crawler',
   '16-distributed-transactions', '15-counting-top-k', '19-api-design', '20-reliability-observability',
 ]
-const LLD_P1 = ['01-oops', '02-solid', '05-behavioral', '03-creational']
-const LLD_P2 = ['04-structural']
+const LLD_P1 = ['01-oops', '02-solid', '05-behavioral', '03-creational', '01-parking-lot', '06-lru-cache', '04-splitwise', '02-elevator']
+const LLD_P2 = ['04-structural', '03-vending-machine', '05-bookmyshow', '08-atm', '07-snake-and-ladder']
 const JAVA_P1 = ['01-basics', '02-strings', '04-oops', '05-collections-overview', '06-lists', '07-maps-sets', '10-exceptions', '15-interview-qa']
 const JAVA_P2 = ['03-arrays', '08-queues', '12-streams-lambdas', '14-concurrency', '09-generics', '11-jvm-memory']
 const DB_P1 = ['01-choosing-a-database', '02-relational-sql', '03-transactions-acid', '04-indexes', '05-key-value', '14-scaling-databases', '16-interview-qa']
 const DB_P2 = ['06-document', '07-wide-column', '08-search', '15-object-storage', '11-vector']
+const CS_P1 = ['01-how-the-internet-works', '02-tcp-udp', '03-http', '06-processes-threads', '08-deadlocks-synchronization']
+const CS_P2 = ['04-dns', '05-tls', '07-memory-management']
+const BEH_P1 = ['01-star-method', '02-tell-me-about-yourself', '03-common-questions', '05-story-bank']
+const BEH_P2 = ['04-leadership-principles']
 const AGENT_P1 = ['agents-map', 'agents-react', 'agents-rag']
 const AGENT_P2 = ['agents-prod', 'agents-multi', 'agents-comm', 'agents-web']
 
 // Reading time × factor = study time (questions need practice, labs need running)
-const FACTOR: Record<Page['kind'], number> = { topic: 3, question: 2.5, lld: 2, java: 1.5, db: 1.5, agent: 2 }
+const FACTOR: Record<Page['kind'], number> = { topic: 3, question: 2.5, lld: 2, lldp: 2.5, java: 1.5, db: 1.5, cs: 1.5, beh: 2, agent: 2 }
 
 function tiers(track: Track, level: Level): string[][] {
   if (track === 'hld') {
@@ -81,7 +87,9 @@ function tiers(track: Track, level: Level): string[][] {
     }
     return [HLD_P1, HLD_P2, [...tier2, ...rest]]
   }
-  if (track === 'lld') return [LLD_P1, LLD_P2, lld.map((p) => p.slug).filter((s) => !LLD_P1.includes(s) && !LLD_P2.includes(s))]
+  if (track === 'lld') return [LLD_P1, LLD_P2, [...lld, ...lldProblems].map((p) => p.slug).filter((s) => !LLD_P1.includes(s) && !LLD_P2.includes(s))]
+  if (track === 'cs') return [CS_P1, CS_P2, cs.map((p) => p.slug).filter((s) => !CS_P1.includes(s) && !CS_P2.includes(s))]
+  if (track === 'beh') return [BEH_P1, BEH_P2, behavioral.map((p) => p.slug).filter((s) => !BEH_P1.includes(s) && !BEH_P2.includes(s))]
   if (track === 'db') return [DB_P1, DB_P2, db.map((p) => p.slug).filter((s) => !DB_P1.includes(s) && !DB_P2.includes(s))]
   if (track === 'java') return [JAVA_P1, JAVA_P2, java.map((p) => p.slug).filter((s) => !JAVA_P1.includes(s) && !JAVA_P2.includes(s))]
   return [AGENT_P1, AGENT_P2, agentPages.map((p) => p.slug).filter((s) => !AGENT_P1.includes(s) && !AGENT_P2.includes(s))]

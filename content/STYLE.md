@@ -166,3 +166,33 @@ Rules (same spirit as Java files):
 - Comparison tables are welcome (e.g. Redis vs Memcached, Postgres vs MySQL, Cassandra vs DynamoDB).
 - Depth: SDE-1/SDE-2 interviews. Real internals where interviewers dig (MVCC, WAL, B-tree vs LSM, Dynamo partitioning, Cassandra write path, ES inverted index, HNSW).
 - Hinglish file in `content/05-db/`, English file with the same name in `content-en/05-db/`, same structure, same ⭐ headings, same code (comments translated). Mermaid rules from above apply (quote every node label).
+
+## New HLD topics (`01-topics/`)
+23-microservices-patterns (Microservices Patterns), 24-cqrs-event-sourcing (CQRS & Event Sourcing), 25-consensus-leader-election (Consensus & Leader Election). Same format as other topic files (see "Topic file sections").
+
+## LLD problem files (`06-lld-problems/`, English mirror in `content-en/06-lld-problems/`)
+01-parking-lot (Parking Lot), 02-elevator (Elevator System), 03-vending-machine (Vending Machine), 04-splitwise (Splitwise), 05-bookmyshow (BookMyShow LLD), 06-lru-cache (LRU Cache), 07-snake-and-ladder (Snake & Ladder), 08-atm (ATM)
+
+Frontmatter: `title`, `order`, `time`, `patterns: [Strategy, State, …]`.
+Sections in this order (keep headings exactly; English uses the English text after the slash):
+1. `# Title`, one line on what is being designed and what the interviewer checks
+2. `## Step 1: Requirements confirm karo / Step 1: Clarify requirements` — table (Tum poochho | Typical jawab | Design pe asar), then functional list + out of scope
+3. `## Step 2: Core entities / Step 2: Core entities` — nouns → classes, one line each
+4. `## Step 3: Class diagram / Step 3: Class diagram` — mermaid `classDiagram` (keep ≤ ~12 classes)
+5. `## Step 4: Design patterns kyun / Step 4: Why these design patterns` — table (Pattern | Kahan / Where | Kyun / Why | Alternative)
+6. `## Step 5: Code / Step 5: Code` — Java 17, the key classes and the main flow, compilable-looking, 120–220 lines total across 2–4 ```java blocks, comments in the file's language
+7. `## Step 6: Concurrency & edge cases / Step 6: Concurrency & edge cases`
+8. `## Step 7: Extensions / Step 7: Extensions` — follow-ups the interviewer adds ("add EV charging", "multiple floors"…) and how the design absorbs them
+9. `## Step 8: Interview flow (45 min) / Step 8: Interview flow (45 min)` — what to do in which minutes
+10. `## 2-minute recap / 2-minute recap`
+11. `## Checklist` (6–8 items, same count/order in both languages)
+Crisp: bullets over paragraphs, no filler.
+
+## CS fundamentals (`07-cs/`, English mirror in `content-en/07-cs/`)
+Networking: 01-how-the-internet-works (How the Internet Works), 02-tcp-udp (TCP vs UDP), 03-http (HTTP, HTTPS & HTTP/2/3), 04-dns (DNS), 05-tls (TLS & Certificates)
+OS: 06-processes-threads (Processes & Threads), 07-memory-management (Memory Management), 08-deadlocks-synchronization (Synchronization & Deadlocks)
+Format like Java/DB pages: `## ` sections, ⭐ on most-asked, mermaid where it helps, **Interview tip**, **Common galti/mistake**, links to related HLD topics, end with `## Checklist`. Include the classic interview questions ("what happens when you type a URL", TCP 3-way handshake, HTTP/1.1 vs 2 vs 3, process vs thread, virtual memory & paging, 4 deadlock conditions).
+
+## Behavioral (`08-behavioral/`, English mirror in `content-en/08-behavioral/`)
+01-star-method (STAR Method), 02-tell-me-about-yourself (Tell Me About Yourself), 03-common-questions (Common Behavioral Questions), 04-leadership-principles (Amazon LPs & Company Values), 05-story-bank (Story Bank & Questions to Ask)
+Format: `## ` sections, ⭐ on must-prepare, sample answers written as STAR blocks for a software engineer (Indian product-company context, realistic, 60–120 seconds when spoken), "what the interviewer is checking", red flags, a fill-in template per question; end with `## Checklist`. No code.

@@ -11,7 +11,7 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.by == request.auth.uid
         && request.resource.data.v == 1
-        && request.resource.data.section in ['hld', 'lld', 'java', 'db', 'agents']
+        && request.resource.data.section in ['hld', 'lld', 'java', 'db', 'cs', 'agents']
         && request.resource.data.topic is string && request.resource.data.topic.size() < 80
         && request.resource.data.answer is int && request.resource.data.answer >= 0 && request.resource.data.answer <= 3
         && request.resource.data.options.hi.size() == 4 && request.resource.data.options.en.size() == 4

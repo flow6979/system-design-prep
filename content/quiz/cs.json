@@ -1,0 +1,930 @@
+[
+  {
+    "id": "cs-01-how-the-internet-works-01",
+    "section": "cs",
+    "topic": "01-how-the-internet-works",
+    "level": "easy",
+    "q": {
+      "hi": "L7 load balancer kya kar sakta hai jo L4 load balancer nahi kar sakta?",
+      "en": "What can an L7 load balancer do that an L4 load balancer cannot?"
+    },
+    "options": {
+      "hi": [
+        "Destination IP aur port ke basis pe traffic forward karna",
+        "Packets ko MAC address se same network pe deliver karna",
+        "HTTP path/headers padh ke `/api` aur `/images` ko alag servers pe route karna",
+        "TCP 3-way handshake skip karke latency kam karna"
+      ],
+      "en": [
+        "Forward traffic based on destination IP and port",
+        "Deliver frames on the same network using MAC addresses",
+        "Read the HTTP path/headers and route `/api` and `/images` to different servers",
+        "Skip the TCP 3-way handshake to cut latency"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "L4 sirf IP + port dekhta hai aur content nahi samajhta. L7 HTTP padhta hai (path, headers, cookies), isliye content-based routing kar sakta hai.",
+      "en": "L4 only sees IP + port and does not understand content. L7 reads HTTP (path, headers, cookies), so it can route by content."
+    }
+  },
+  {
+    "id": "cs-01-how-the-internet-works-02",
+    "section": "cs",
+    "topic": "01-how-the-internet-works",
+    "level": "easy",
+    "q": {
+      "hi": "Ek office ke 500 employees ek hi public IP se aate hain aur per-IP rate limit sabko block kar deta hai. Iski wajah kya hai?",
+      "en": "All 500 employees of an office come from one public IP and a per-IP rate limit blocks all of them. What causes this?"
+    },
+    "options": {
+      "hi": [
+        "NAT: kai private-IP devices ek public IP share karte hain",
+        "DNS caching ki wajah se sab same IP resolve karte hain",
+        "TTL expire hone pe packets ka source IP badal jaata hai",
+        "TCP 4-tuple me src port nahi hota, isliye sab same dikhte hain"
+      ],
+      "en": [
+        "NAT: many private-IP devices share one public IP",
+        "DNS caching makes everyone resolve the same IP",
+        "Packets get a new source IP when their TTL expires",
+        "The TCP 4-tuple has no source port, so everyone looks the same"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "NAT (aur mobile pe CGNAT) router pe address/port rewrite karke kai users ko ek public IP ke peeche rakhta hai. Isliye user ID ya API key se limit karo, IP fallback rakho.",
+      "en": "NAT (and CGNAT on mobile) rewrites addresses/ports so many users sit behind one public IP. Rate limit by user ID or API key and keep IP as a fallback."
+    }
+  },
+  {
+    "id": "cs-01-how-the-internet-works-03",
+    "section": "cs",
+    "topic": "01-how-the-internet-works",
+    "level": "medium",
+    "q": {
+      "hi": "\"Server ke port 443 pe sirf 65,535 connections ho sakte hain kyunki ports 16-bit hain.\" Ye sahi kyun nahi hai?",
+      "en": "\"A server can only hold 65,535 connections on port 443 because ports are 16-bit.\" Why is this wrong?"
+    },
+    "options": {
+      "hi": [
+        "Server har connection ko alag random port pe shift kar deta hai",
+        "IPv6 me ports 32-bit hote hain, isliye limit nahi",
+        "TLS har connection ko alag session ID deta hai jo port ki jagah use hota hai",
+        "Connection 4-tuple (src IP, src port, dst IP, dst port) se pehchana jaata hai; asli limit memory aur file descriptors hain"
+      ],
+      "en": [
+        "The server moves every connection to its own random port",
+        "IPv6 uses 32-bit ports, so there is no limit",
+        "TLS gives each connection a session ID that replaces the port",
+        "A connection is identified by the 4-tuple (src IP, src port, dst IP, dst port); the real limits are memory and file descriptors"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Server side ka port fix hai par client IP + ephemeral port badalte rehte hain, to har connection ka 4-tuple unique hai. Limits RAM aur FDs ki hain.",
+      "en": "The server port is fixed but client IP + ephemeral port vary, so each 4-tuple is unique. The limits are RAM and FDs."
+    }
+  },
+  {
+    "id": "cs-01-how-the-internet-works-04",
+    "section": "cs",
+    "topic": "01-how-the-internet-works",
+    "level": "hard",
+    "q": {
+      "hi": "Mumbai user, Mumbai server (~10 ms RTT), cold DNS cached hai. HTTPS (TCP + TLS 1.3, HTTP/2) pe pehla response aane me kitne network round trips lagte hain (server time chhod ke)?",
+      "en": "Mumbai user, Mumbai server (~10 ms RTT), DNS already cached. Over HTTPS (TCP + TLS 1.3, HTTP/2), how many network round trips until the first response (ignoring server time)?"
+    },
+    "options": {
+      "hi": [
+        "1 RTT: HTTP/2 sab ek saath bhejta hai",
+        "3 RTT: TCP 1 + TLS 1.3 1 + request/response 1",
+        "2 RTT: TCP handshake hi TLS keys bhi exchange karta hai",
+        "5 RTT: TCP 1 + TLS 1.3 3 + request 1"
+      ],
+      "en": [
+        "1 RTT: HTTP/2 sends everything together",
+        "3 RTT: TCP 1 + TLS 1.3 1 + request/response 1",
+        "2 RTT: the TCP handshake also exchanges TLS keys",
+        "5 RTT: TCP 1 + TLS 1.3 3 + request 1"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "TCP 3-way handshake 1 RTT, TLS 1.3 1 RTT, phir HTTP request/response 1 RTT. HTTP/3 (QUIC) me TCP + TLS milke 1 RTT ho jaate hain.",
+      "en": "TCP 3-way handshake is 1 RTT, TLS 1.3 is 1 RTT, then the HTTP request/response is 1 RTT. HTTP/3 (QUIC) merges transport + TLS into 1 RTT."
+    }
+  },
+  {
+    "id": "cs-02-tcp-udp-01",
+    "section": "cs",
+    "topic": "02-tcp-udp",
+    "level": "easy",
+    "q": {
+      "hi": "TCP handshake me server ka SYN-ACK `ack=x+1` kyun bhejta hai jab client ka SYN `seq=x` tha?",
+      "en": "Why does the server SYN-ACK carry `ack=x+1` when the client SYN had `seq=x`?"
+    },
+    "options": {
+      "hi": [
+        "Server apna ISN x+1 rakhta hai",
+        "SYN khud ek sequence number consume karta hai",
+        "x+1 se encryption key derive hoti hai",
+        "Pehla data byte hamesha header me chala jaata hai"
+      ],
+      "en": [
+        "The server picks x+1 as its own ISN",
+        "The SYN itself consumes one sequence number",
+        "The encryption key is derived from x+1",
+        "The first data byte is always carried in the header"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "SYN ek sequence number khata hai, isliye ack = x+1 matlab \"agla byte x+1 bhejo\". Keys exchange TLS ka kaam hai, TCP ka nahi.",
+      "en": "SYN consumes one sequence number, so ack = x+1 means \"send byte x+1 next\". Key exchange is TLS, not TCP."
+    }
+  },
+  {
+    "id": "cs-02-tcp-udp-02",
+    "section": "cs",
+    "topic": "02-tcp-udp",
+    "level": "medium",
+    "q": {
+      "hi": "API server pe hazaron sockets CLOSE_WAIT me atke hain. Sabse likely wajah?",
+      "en": "An API server has thousands of sockets stuck in CLOSE_WAIT. Most likely cause?"
+    },
+    "options": {
+      "hi": [
+        "Server active closer hai aur 2×MSL wait normal hai",
+        "SYN flood se half-open queue bhar gayi",
+        "Congestion window zero ho gayi",
+        "App ko peer ka FIN mila par code ne kabhi `close()` nahi kiya (connection leak)"
+      ],
+      "en": [
+        "The server is the active closer and the 2×MSL wait is normal",
+        "A SYN flood filled the half-open queue",
+        "The congestion window dropped to zero",
+        "The app got the peer FIN but the code never called `close()` (connection leak)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "CLOSE_WAIT passive side pe hota hai jab app close karna bhool jaaye, ye tumhare code ka bug hai. TIME_WAIT active closer pe normal hai.",
+      "en": "CLOSE_WAIT sits on the passive side when the app forgets to close; it is a bug in your code. TIME_WAIT on the active closer is normal."
+    }
+  },
+  {
+    "id": "cs-02-tcp-udp-03",
+    "section": "cs",
+    "topic": "02-tcp-udp",
+    "level": "medium",
+    "q": {
+      "hi": "Flow control aur congestion control ka sahi farak kya hai?",
+      "en": "What is the correct difference between flow control and congestion control?"
+    },
+    "options": {
+      "hi": [
+        "Flow control receiver ko bachata hai (rwnd), congestion control network ko (cwnd); sender min(rwnd, cwnd) tak bhejta hai",
+        "Dono same cheez hain, bas naam alag",
+        "Flow control network ko bachata hai, congestion control receiver ko",
+        "Flow control UDP me hota hai, congestion control TCP me"
+      ],
+      "en": [
+        "Flow control protects the receiver (rwnd), congestion control protects the network (cwnd); the sender sends up to min(rwnd, cwnd)",
+        "They are the same thing with different names",
+        "Flow control protects the network, congestion control protects the receiver",
+        "Flow control is in UDP, congestion control is in TCP"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "rwnd receiver ACK me batata hai; cwnd sender loss/delay se khud set karta hai. Effective limit dono ka minimum.",
+      "en": "The receiver advertises rwnd in ACKs; the sender sets cwnd itself from loss/delay. The effective limit is the minimum of both."
+    }
+  },
+  {
+    "id": "cs-02-tcp-udp-04",
+    "section": "cs",
+    "topic": "02-tcp-udp",
+    "level": "hard",
+    "q": {
+      "hi": "HTTP/2 ek TCP connection pe 10 streams multiplex kar raha hai aur ek packet lose hota hai. Kya hoga?",
+      "en": "HTTP/2 is multiplexing 10 streams over one TCP connection and one packet is lost. What happens?"
+    },
+    "options": {
+      "hi": [
+        "Sirf wahi stream rukti hai jiska packet gaya",
+        "HTTP/2 lost frame skip kar deta hai, koi stall nahi",
+        "Saari streams ruk jaati hain jab tak retransmit na ho, kyunki TCP bytes strictly order me deta hai",
+        "Connection reset hota hai aur browser 6 naye connections kholta hai"
+      ],
+      "en": [
+        "Only the stream whose packet was lost stalls",
+        "HTTP/2 skips the lost frame, nothing stalls",
+        "All streams stall until the retransmit, because TCP delivers bytes strictly in order",
+        "The connection resets and the browser opens 6 new connections"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "HTTP/2 ne HTTP-level HOL fix kiya par TCP-level HOL bacha. QUIC/HTTP/3 per-stream ordering se ise hataata hai.",
+      "en": "HTTP/2 fixed HTTP-level HOL but TCP-level HOL remains. QUIC/HTTP/3 removes it with per-stream ordering."
+    }
+  },
+  {
+    "id": "cs-03-http-01",
+    "section": "cs",
+    "topic": "03-http",
+    "level": "easy",
+    "q": {
+      "hi": "User logged in hai par doosre user ka order dekhne ki koshish karta hai. Sahi status code?",
+      "en": "A logged-in user tries to view another user order. Correct status code?"
+    },
+    "options": {
+      "hi": [
+        "401 Unauthorized",
+        "404 Not Found hamesha",
+        "409 Conflict",
+        "403 Forbidden"
+      ],
+      "en": [
+        "401 Unauthorized",
+        "404 Not Found, always",
+        "409 Conflict",
+        "403 Forbidden"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "401 = tum kaun ho pata nahi (authenticate karo). 403 = pata hai tum kaun ho, par allowed nahi.",
+      "en": "401 = we do not know who you are (authenticate). 403 = we know who you are and the answer is no."
+    }
+  },
+  {
+    "id": "cs-03-http-02",
+    "section": "cs",
+    "topic": "03-http",
+    "level": "medium",
+    "q": {
+      "hi": "Payment API pe client timeout ke baad POST retry karta hai aur do baar paise kat jaate hain. Sabse sahi fix?",
+      "en": "A client retries a POST after a timeout on a payment API and gets charged twice. Best fix?"
+    },
+    "options": {
+      "hi": [
+        "POST ko GET me badal do kyunki GET idempotent hai",
+        "Client side retries band kar do",
+        "Idempotency-Key header: server key → result store karke repeat pe same result lautaye",
+        "Response `Cache-Control: no-store` bhejo"
+      ],
+      "en": [
+        "Change the POST to a GET because GET is idempotent",
+        "Disable retries on the client",
+        "An Idempotency-Key header: the server stores key → result and returns the same result on repeat",
+        "Send `Cache-Control: no-store` in the response"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "POST idempotent nahi hai, isliye retry duplicate bana sakta hai. Idempotency-Key se POST retry-safe ban jaata hai. Side effect ke liye GET galat hai.",
+      "en": "POST is not idempotent, so a retry can duplicate. An Idempotency-Key makes POST retry-safe. GET with side effects is wrong."
+    }
+  },
+  {
+    "id": "cs-03-http-03",
+    "section": "cs",
+    "topic": "03-http",
+    "level": "easy",
+    "q": {
+      "hi": "Browser ke paas `ETag: \"v42\"` wali cached copy hai. `If-None-Match: \"v42\"` bhejne pe resource nahi badla to server kya lautata hai?",
+      "en": "The browser has a cached copy with `ETag: \"v42\"`. It sends `If-None-Match: \"v42\"` and the resource has not changed. What does the server return?"
+    },
+    "options": {
+      "hi": [
+        "200 OK, poori body ke saath",
+        "304 Not Modified, bina body ke",
+        "412 Precondition Failed",
+        "204 No Content"
+      ],
+      "en": [
+        "200 OK with the full body",
+        "304 Not Modified, with no body",
+        "412 Precondition Failed",
+        "204 No Content"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Conditional GET match hua to 304 aata hai aur browser cached body reuse karta hai. 412 `If-Match` fail hone pe (optimistic locking) aata hai.",
+      "en": "A matching conditional GET returns 304 and the browser reuses the cached body. 412 is for a failed `If-Match` (optimistic locking)."
+    }
+  },
+  {
+    "id": "cs-03-http-04",
+    "section": "cs",
+    "topic": "03-http",
+    "level": "hard",
+    "q": {
+      "hi": "JWT access tokens use ho rahe hain. User ko turant har device se logout karna hai. Site ke hisaab se best approach?",
+      "en": "You use JWT access tokens. A user must be logged out of every device right now. Best approach per the site?"
+    },
+    "options": {
+      "hi": [
+        "Access token short (~15 min), refresh token DB me revoke, aur urgent case me `jti` ki Redis denylist expiry tak",
+        "JWT payload se user ID hata do, token apne aap invalid",
+        "Signing key har logout pe rotate karo",
+        "Kuch nahi ho sakta, JWT stateless hai, expiry ka wait karo"
+      ],
+      "en": [
+        "Short access tokens (~15 min), revoke the refresh token in the DB, and for urgent cases a Redis denylist of `jti` until expiry",
+        "Remove the user ID from the JWT payload so the token becomes invalid",
+        "Rotate the signing key on every logout",
+        "Nothing can be done; JWT is stateless, wait for expiry"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "JWT revoke karna mushkil hai, isliye short access token + revocable refresh token + chhoti denylist. Har logout pe key rotate karna sab users ko logout kar dega.",
+      "en": "JWTs are hard to revoke, so use short access tokens + revocable refresh tokens + a small denylist. Rotating the key per logout logs everyone out."
+    }
+  },
+  {
+    "id": "cs-04-dns-01",
+    "section": "cs",
+    "topic": "04-dns",
+    "level": "easy",
+    "q": {
+      "hi": "DNS lookup me root aur TLD servers se baat kaun karta hai?",
+      "en": "Who talks to the root and TLD servers during a DNS lookup?"
+    },
+    "options": {
+      "hi": [
+        "Browser seedha root server se",
+        "Authoritative server khud root se poochta hai",
+        "Recursive resolver (ISP, 8.8.8.8, 1.1.1.1)",
+        "OS ka stub resolver iterative queries karta hai"
+      ],
+      "en": [
+        "The browser talks to the root server directly",
+        "The authoritative server asks the root itself",
+        "The recursive resolver (ISP, 8.8.8.8, 1.1.1.1)",
+        "The OS stub resolver makes the iterative queries"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Stub recursive query karta hai; recursive resolver root → TLD → authoritative ko iterative queries karta hai aur cache karta hai.",
+      "en": "The stub makes a recursive query; the recursive resolver makes iterative queries to root → TLD → authoritative and caches the answers."
+    }
+  },
+  {
+    "id": "cs-04-dns-02",
+    "section": "cs",
+    "topic": "04-dns",
+    "level": "medium",
+    "q": {
+      "hi": "`swiggy.com` (zone apex) ko load balancer hostname pe CNAME kyun nahi kar sakte?",
+      "en": "Why can you not CNAME `swiggy.com` (the zone apex) to a load balancer hostname?"
+    },
+    "options": {
+      "hi": [
+        "Apex pe SOA aur NS records zaroori hain, aur CNAME doosre records ke saath same name pe nahi reh sakta",
+        "CNAME sirf IPv6 ke liye hota hai",
+        "Load balancer hostnames DNS me resolve nahi hote",
+        "Apex pe sirf MX record allowed hai"
+      ],
+      "en": [
+        "The apex must have SOA and NS records, and a CNAME cannot coexist with other records on the same name",
+        "CNAME only works for IPv6",
+        "Load balancer hostnames do not resolve in DNS",
+        "Only MX records are allowed at the apex"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Isliye providers ALIAS/ANAME ya CNAME flattening dete hain (Route 53 Alias).",
+      "en": "That is why providers offer ALIAS/ANAME or CNAME flattening (Route 53 Alias)."
+    }
+  },
+  {
+    "id": "cs-04-dns-03",
+    "section": "cs",
+    "topic": "04-dns",
+    "level": "medium",
+    "q": {
+      "hi": "Kal DB migration hai aur record ka TTL 86400 hai. Aaj subah TTL 60 kar diya. Kal switch ke baad kya hoga?",
+      "en": "A migration is tomorrow and the record TTL is 86400. You set TTL to 60 this morning. What happens after tomorrow switch?"
+    },
+    "options": {
+      "hi": [
+        "Kuch users 48 ghante tak purane IP pe rahenge, propagation fixed time hai",
+        "TTL change turant sab resolvers pe push ho jaata hai, timing matter nahi karti",
+        "60 s TTL se DNS queries band ho jaayengi",
+        "Theek: purane 86400 TTL wale cached answers ek din me expire ho chuke honge, naya 60 s TTL lagu hoga"
+      ],
+      "en": [
+        "Some users stay on the old IP for 48 hours because propagation is a fixed time",
+        "TTL changes are pushed to all resolvers instantly, so timing does not matter",
+        "A 60 s TTL stops DNS queries",
+        "Fine: cached answers with the old 86400 TTL will have expired within a day, and the new 60 s TTL applies"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "DNS me push nahi hota; resolvers purana record purane TTL tak rakhte hain. Isliye TTL kam se kam ek purane-TTL period pehle kam karo. (Long-lived pools aur JVM caches alag se check karo.)",
+      "en": "DNS has no push; resolvers keep the old record for the old TTL. Lower the TTL at least one old-TTL period before the switch. (Check long-lived pools and JVM caches separately.)"
+    }
+  },
+  {
+    "id": "cs-04-dns-04",
+    "section": "cs",
+    "topic": "04-dns",
+    "level": "hard",
+    "q": {
+      "hi": "Multi-region app: users ko nearest region bhejna hai aur region down ho to failover. Sabse sahi design?",
+      "en": "Multi-region app: send users to the nearest region and fail over if a region dies. Best design?"
+    },
+    "options": {
+      "hi": [
+        "Sirf DNS round robin saare regions ke IPs pe, LB ki zarurat nahi",
+        "GeoDNS/latency-based records + health-checked failover, aur har region ke andar L7 load balancer",
+        "Ek global L4 load balancer, DNS ka koi role nahi",
+        "TTL 0 rakh ke har request pe region decide karo"
+      ],
+      "en": [
+        "Plain DNS round robin across all region IPs, no LB needed",
+        "GeoDNS/latency-based records + health-checked failover, plus an L7 load balancer inside each region",
+        "One global L4 load balancer, DNS plays no role",
+        "Set TTL 0 and decide the region on every request"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "DNS coarse hai (caching, load ka pata nahi), isliye region chunne ke liye DNS aur region ke andar asli LB. Round robin dead IP ko TTL tak traffic deta rehta hai.",
+      "en": "DNS is coarse (caching, no load awareness), so use DNS to pick the region and a real LB inside it. Round robin keeps sending traffic to a dead IP until TTL expires."
+    }
+  },
+  {
+    "id": "cs-05-tls-01",
+    "section": "cs",
+    "topic": "05-tls",
+    "level": "easy",
+    "q": {
+      "hi": "TLS me asymmetric (public key) crypto mainly kis kaam aata hai, aur bulk data kaise encrypt hota hai?",
+      "en": "In TLS, what is asymmetric (public key) crypto mainly used for, and how is bulk data encrypted?"
+    },
+    "options": {
+      "hi": [
+        "Har data packet RSA se encrypt hota hai",
+        "Handshake me authentication aur key exchange; data symmetric key (jaise AES-GCM) se encrypt",
+        "Sirf certificate download ke liye, data plain text jaata hai",
+        "Data hash hota hai, encrypt nahi"
+      ],
+      "en": [
+        "Every data packet is encrypted with RSA",
+        "Authentication and key exchange during the handshake; data is encrypted with a symmetric key (e.g. AES-GCM)",
+        "Only for downloading the certificate; data goes in plain text",
+        "Data is hashed, not encrypted"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Asymmetric crypto slow hai, isliye sirf handshake me use hota hai. Dono sides shared symmetric keys derive karti hain jo fast hain.",
+      "en": "Asymmetric crypto is slow, so it is used only in the handshake. Both sides derive shared symmetric keys, which are fast."
+    }
+  },
+  {
+    "id": "cs-05-tls-02",
+    "section": "cs",
+    "topic": "05-tls",
+    "level": "easy",
+    "q": {
+      "hi": "Browser server certificate ko trust karne ke liye kya check karta hai?",
+      "en": "What does the browser check before trusting a server certificate?"
+    },
+    "options": {
+      "hi": [
+        "Sirf ye ki certificate self-signed hai",
+        "Server ka IP certificate ke IP se match karta hai, hostname matter nahi",
+        "Certificate me private key maujood hai",
+        "Chain ek trusted root CA tak jaati hai, hostname (SAN) match karta hai, cert expire/revoke nahi hua"
+      ],
+      "en": [
+        "Only that the certificate is self-signed",
+        "The server IP matches the IP in the cert; hostname does not matter",
+        "The certificate contains the private key",
+        "The chain leads to a trusted root CA, the hostname (SAN) matches, and the cert is not expired/revoked"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Certificate me public key hoti hai, private key kabhi nahi. Trust chain + hostname + validity teeno check hote hain.",
+      "en": "A certificate carries the public key, never the private key. Trust chain + hostname + validity are all checked."
+    }
+  },
+  {
+    "id": "cs-05-tls-03",
+    "section": "cs",
+    "topic": "05-tls",
+    "level": "medium",
+    "q": {
+      "hi": "TLS 1.3 me ECDHE key exchange \"forward secrecy\" deta hai. Iska matlab?",
+      "en": "ECDHE key exchange in TLS 1.3 gives \"forward secrecy\". What does that mean?"
+    },
+    "options": {
+      "hi": [
+        "Server ki long-term private key baad me leak ho jaaye to bhi purane recorded sessions decrypt nahi honge",
+        "Certificate kabhi expire nahi hota",
+        "Future ke saare sessions ek hi key use karte hain",
+        "Client ko certificate bhejna padta hai"
+      ],
+      "en": [
+        "If the server long-term private key leaks later, previously recorded sessions still cannot be decrypted",
+        "The certificate never expires",
+        "All future sessions reuse one key",
+        "The client must send a certificate"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Har session ke ephemeral keys alag hote hain aur baad me phenk diye jaate hain. Isliye TLS 1.3 ne static RSA key exchange hata diya.",
+      "en": "Each session uses fresh ephemeral keys that are thrown away. That is why TLS 1.3 dropped static RSA key exchange."
+    }
+  },
+  {
+    "id": "cs-05-tls-04",
+    "section": "cs",
+    "topic": "05-tls",
+    "level": "hard",
+    "q": {
+      "hi": "TLS 1.3 0-RTT (early data) resumption ka main risk kya hai, aur kahan use karna safe hai?",
+      "en": "What is the main risk of TLS 1.3 0-RTT (early data) resumption, and where is it safe?"
+    },
+    "options": {
+      "hi": [
+        "Certificate check skip hota hai, isliye sirf internal traffic pe",
+        "Data encrypt nahi hota, isliye sirf public pages pe",
+        "Replay attack: early data dobara bheja ja sakta hai, isliye sirf idempotent requests (jaise GET) ke liye",
+        "Forward secrecy badh jaati hai, isliye payments ke liye best"
+      ],
+      "en": [
+        "The certificate check is skipped, so use it only internally",
+        "The data is not encrypted, so use it only for public pages",
+        "Replay attacks: early data can be resent, so use it only for idempotent requests (e.g. GET)",
+        "It increases forward secrecy, so it is best for payments"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "0-RTT data ek round trip bachata hai par attacker use replay kar sakta hai. POST/payment jaise non-idempotent kaam ke liye mat use karo.",
+      "en": "0-RTT saves a round trip but an attacker can replay it. Do not use it for non-idempotent work like POST or payments."
+    }
+  },
+  {
+    "id": "cs-06-processes-threads-01",
+    "section": "cs",
+    "topic": "06-processes-threads",
+    "level": "easy",
+    "q": {
+      "hi": "Ek process ke threads kya share karte hain aur kya apna rakhte hain?",
+      "en": "What do threads of one process share, and what do they keep private?"
+    },
+    "options": {
+      "hi": [
+        "Sab kuch alag, sirf PID same",
+        "Stack share, heap alag",
+        "Kuch share nahi, communication IPC se",
+        "Heap, code, globals, open files share; stack aur registers apne"
+      ],
+      "en": [
+        "Everything is separate; only the PID is shared",
+        "They share the stack and have separate heaps",
+        "Nothing is shared; they communicate via IPC",
+        "They share heap, code, globals and open files; each has its own stack and registers"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Isi shared heap ki wajah se race conditions hoti hain aur locks chahiye.",
+      "en": "This shared heap is exactly why race conditions happen and locks are needed."
+    }
+  },
+  {
+    "id": "cs-06-processes-threads-02",
+    "section": "cs",
+    "topic": "06-processes-threads",
+    "level": "easy",
+    "q": {
+      "hi": "Process ka disk I/O complete hua. Ab woh kis state me jaata hai?",
+      "en": "A process finishes waiting on disk I/O. Which state does it move to?"
+    },
+    "options": {
+      "hi": [
+        "Seedha Running",
+        "Terminated",
+        "Ready (scheduler baad me Running me dispatch karega)",
+        "New"
+      ],
+      "en": [
+        "Straight to Running",
+        "Terminated",
+        "Ready (the scheduler will dispatch it to Running later)",
+        "New"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Waiting → Ready hota hai, kabhi seedha Running nahi. CPU milna scheduler ka decision hai.",
+      "en": "It goes Waiting → Ready, never straight to Running. Getting the CPU is the scheduler decision."
+    }
+  },
+  {
+    "id": "cs-06-processes-threads-03",
+    "section": "cs",
+    "topic": "06-processes-threads",
+    "level": "medium",
+    "q": {
+      "hi": "Ek server pe 10 lakh WebSocket connections chahiye, zyaadatar idle. Kya chunoge?",
+      "en": "You need 1 million WebSocket connections on one server, mostly idle. What do you pick?"
+    },
+    "options": {
+      "hi": [
+        "Har connection ke liye ek platform OS thread",
+        "Event loop + epoll (ya virtual threads/goroutines), thread-per-connection nahi",
+        "Har connection ke liye fork() se naya process",
+        "Ek thread jo connections ko round robin me blocking read kare"
+      ],
+      "en": [
+        "One platform OS thread per connection",
+        "An event loop + epoll (or virtual threads/goroutines), not thread-per-connection",
+        "A new process per connection via fork()",
+        "One thread doing blocking reads across connections in round robin"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Platform thread ~1 MB stack × 10 lakh = ~1 TB. I/O-bound idle connections ke liye non-blocking event loop ya M:N threads sahi hain.",
+      "en": "A platform thread is ~1 MB stack × 1 million = ~1 TB. For idle I/O-bound connections use a non-blocking event loop or M:N threads."
+    }
+  },
+  {
+    "id": "cs-06-processes-threads-04",
+    "section": "cs",
+    "topic": "06-processes-threads",
+    "level": "hard",
+    "q": {
+      "hi": "Docker container me tumhara app PID 1 hai aur `ps` me bahut saare `<defunct>` processes dikh rahe hain. Kya ho raha hai aur fix?",
+      "en": "Your app is PID 1 in a Docker container and `ps` shows many `<defunct>` processes. What is happening and what is the fix?"
+    },
+    "options": {
+      "hi": [
+        "Zombies: exit hue children ko koi `wait()` nahi kar raha; `tini`/`--init` ya SIGCHLD handler se reap karo",
+        "Orphans: `kill -9` se saaf karo",
+        "Memory leak: heap badhao",
+        "Deadlock: lock ordering lagao"
+      ],
+      "en": [
+        "Zombies: no one calls `wait()` on exited children; reap them with `tini`/`--init` or a SIGCHLD handler",
+        "Orphans: clean them up with `kill -9`",
+        "Memory leak: increase the heap",
+        "Deadlock: add lock ordering"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Zombie pehle se mara hai, `kill -9` kaam nahi karta. Normally PID 1 (init) reap karta hai; container me app PID 1 ho to woh zimmedari app ki hai.",
+      "en": "A zombie is already dead, so `kill -9` does nothing. Normally PID 1 (init) reaps; in a container where the app is PID 1, that job is the app."
+    }
+  },
+  {
+    "id": "cs-07-memory-management-01",
+    "section": "cs",
+    "topic": "07-memory-management",
+    "level": "easy",
+    "q": {
+      "hi": "Virtual memory ka sabse bada fayda kya hai (site ke hisaab se)?",
+      "en": "What is the biggest benefit of virtual memory (per the site)?"
+    },
+    "options": {
+      "hi": [
+        "RAM ki speed badhana",
+        "Garbage collection automatic karna",
+        "Isolation aur protection: har process ka private address space",
+        "Disk ko RAM jitna fast banana"
+      ],
+      "en": [
+        "Making RAM faster",
+        "Doing garbage collection automatically",
+        "Isolation and protection: each process gets a private address space",
+        "Making disk as fast as RAM"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "\"RAM se zyada memory\" ek fayda hai, par main point isolation hai: same virtual address alag physical page pe map hota hai.",
+      "en": "\"More memory than RAM\" is one benefit, but the main point is isolation: the same virtual address maps to different physical pages."
+    }
+  },
+  {
+    "id": "cs-07-memory-management-02",
+    "section": "cs",
+    "topic": "07-memory-management",
+    "level": "medium",
+    "q": {
+      "hi": "3 frames, references `7 0 1 2 0 3 0 4`. LRU me kitne page faults?",
+      "en": "3 frames, references `7 0 1 2 0 3 0 4`. How many page faults with LRU?"
+    },
+    "options": {
+      "hi": [
+        "6",
+        "7",
+        "5",
+        "8"
+      ],
+      "en": [
+        "6",
+        "7",
+        "5",
+        "8"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "7,0,1 (3) → 2 replaces 7 → 0 hit → 3 replaces 1 → 0 hit → 4 replaces 2 = 6. Isi string pe FIFO 7 faults deta hai.",
+      "en": "7,0,1 (3) → 2 replaces 7 → 0 hit → 3 replaces 1 → 0 hit → 4 replaces 2 = 6. FIFO gives 7 on the same string."
+    }
+  },
+  {
+    "id": "cs-07-memory-management-03",
+    "section": "cs",
+    "topic": "07-memory-management",
+    "level": "medium",
+    "q": {
+      "hi": "Redis BGSAVE ke time memory 2x tak kyun ja sakti hai?",
+      "en": "Why can Redis memory go up to 2x during BGSAVE?"
+    },
+    "options": {
+      "hi": [
+        "Child poori memory turant copy karta hai",
+        "Snapshot pehle RAM me compress hota hai",
+        "TLB flush se pages duplicate hote hain",
+        "fork() copy-on-write: parent jo pages likhta hai unki copy banti hai"
+      ],
+      "en": [
+        "The child copies all memory immediately",
+        "The snapshot is first compressed in RAM",
+        "A TLB flush duplicates pages",
+        "fork() copy-on-write: pages the parent writes get copied"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Fork ke baad pages share hote hain jab tak koi likhe nahi. Write-heavy load me parent bahut pages modify karta hai, to copies badhti hain.",
+      "en": "After fork pages are shared until someone writes. Under write-heavy load the parent modifies many pages, so copies pile up."
+    }
+  },
+  {
+    "id": "cs-07-memory-management-04",
+    "section": "cs",
+    "topic": "07-memory-management",
+    "level": "hard",
+    "q": {
+      "hi": "JVM container ki memory limit 4 GB hai aur `-Xmx4g` set hai. Pod baar baar exit code 137 se mar raha hai. Wajah aur fix?",
+      "en": "A JVM container has a 4 GB limit and `-Xmx4g`. The pod keeps dying with exit code 137. Cause and fix?"
+    },
+    "options": {
+      "hi": [
+        "Stack overflow: recursion kam karo",
+        "Heap ke alawa metaspace, thread stacks, direct buffers bhi memory lete hain, cgroup OOM kill hota hai; heap ~70–75% rakho",
+        "Thrashing: swap badhao",
+        "GC bug: `-Xmx` aur badhao"
+      ],
+      "en": [
+        "Stack overflow: reduce recursion",
+        "Metaspace, thread stacks and direct buffers use memory beyond the heap, so the cgroup OOM-kills it; keep heap at ~70–75%",
+        "Thrashing: add more swap",
+        "GC bug: raise `-Xmx` further"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "137 = SIGKILL (OOMKilled). JVM ki total memory heap se zyada hoti hai, isliye heap container limit ke barabar mat rakho.",
+      "en": "137 = SIGKILL (OOMKilled). JVM total memory exceeds the heap, so never set the heap equal to the container limit."
+    }
+  },
+  {
+    "id": "cs-08-deadlocks-synchronization-01",
+    "section": "cs",
+    "topic": "08-deadlocks-synchronization",
+    "level": "easy",
+    "q": {
+      "hi": "`transfer(a, b)` aur `transfer(b, a)` ek saath chalne pe deadlock hota hai. Sabse simple fix?",
+      "en": "`transfer(a, b)` and `transfer(b, a)` running together deadlock. Simplest fix?"
+    },
+    "options": {
+      "hi": [
+        "Dono locks ko `volatile` bana do",
+        "Lock ordering: hamesha chhote account id ka lock pehle lo",
+        "Thread priority badha do",
+        "`synchronized` ki jagah `wait()` use karo"
+      ],
+      "en": [
+        "Make both locks `volatile`",
+        "Lock ordering: always lock the smaller account id first",
+        "Raise the thread priority",
+        "Use `wait()` instead of `synchronized`"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Global order me lock lene se circular wait ho hi nahi sakta. Practically ye sabse aasaan Coffman condition todna hai.",
+      "en": "Taking locks in a global order makes circular wait impossible. In practice it is the easiest Coffman condition to break."
+    }
+  },
+  {
+    "id": "cs-08-deadlocks-synchronization-02",
+    "section": "cs",
+    "topic": "08-deadlocks-synchronization",
+    "level": "medium",
+    "q": {
+      "hi": "Condition variable pe `wait()` hamesha `while` loop me kyun, `if` me kyun nahi?",
+      "en": "Why should `wait()` on a condition variable always be in a `while` loop, not an `if`?"
+    },
+    "options": {
+      "hi": [
+        "`if` me lock release nahi hota",
+        "`while` se CPU kam use hota hai",
+        "Java compiler `if` ke saath `wait()` allow nahi karta",
+        "Spurious wakeup ho sakta hai, ya jaagne tak kisi aur thread ne condition badal di"
+      ],
+      "en": [
+        "`if` does not release the lock",
+        "`while` uses less CPU",
+        "The Java compiler does not allow `wait()` inside an `if`",
+        "Spurious wakeups happen, or another thread changed the condition before you woke"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Jaagne ke baad condition dobara check karni padti hai, warna thread galat state me aage chala jaata hai.",
+      "en": "The condition must be rechecked after waking, otherwise the thread proceeds in the wrong state."
+    }
+  },
+  {
+    "id": "cs-08-deadlocks-synchronization-03",
+    "section": "cs",
+    "topic": "08-deadlocks-synchronization",
+    "level": "hard",
+    "q": {
+      "hi": "Semaphore producer-consumer me producer pehle `lock(mutex)` aur phir `wait(empty)` kare to buffer full hone pe kya hoga?",
+      "en": "In the semaphore producer-consumer, the producer does `lock(mutex)` before `wait(empty)`. What happens when the buffer is full?"
+    },
+    "options": {
+      "hi": [
+        "Deadlock: producer mutex pakad ke so jaata hai, consumer andar aa ke slot khaali nahi kar paata",
+        "Kuch nahi, order matter nahi karta",
+        "Livelock: dono threads spin karte rahenge",
+        "Buffer overflow: producer extra item likh dega"
+      ],
+      "en": [
+        "Deadlock: the producer sleeps holding the mutex, so the consumer cannot get in to free a slot",
+        "Nothing; the order does not matter",
+        "Livelock: both threads keep spinning",
+        "Buffer overflow: the producer writes an extra item"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Pehle `wait(empty)` phir `lock(mutex)`. Mutex pakad ke block hona hold-and-wait banata hai.",
+      "en": "Do `wait(empty)` first, then `lock(mutex)`. Blocking while holding the mutex creates hold-and-wait."
+    }
+  },
+  {
+    "id": "cs-08-deadlocks-synchronization-04",
+    "section": "cs",
+    "topic": "08-deadlocks-synchronization",
+    "level": "medium",
+    "q": {
+      "hi": "Mutex aur binary semaphore me asli farak kya hai?",
+      "en": "What is the real difference between a mutex and a binary semaphore?"
+    },
+    "options": {
+      "hi": [
+        "Koi farak nahi, dono me ek hi thread andar",
+        "Mutex busy-wait karta hai, semaphore block karta hai",
+        "Mutex ka owner hota hai (jo lock kare wahi unlock kare); semaphore signaling ke liye hai, koi bhi thread signal kar sakta hai",
+        "Semaphore sirf processes ke beech kaam karta hai, threads ke beech nahi"
+      ],
+      "en": [
+        "No difference; both let one thread in",
+        "A mutex busy-waits, a semaphore blocks",
+        "A mutex has an owner (only the locker unlocks); a semaphore is for signaling and any thread can signal it",
+        "A semaphore only works between processes, not threads"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Dono me ek andar, par ownership ka farak hai (priority inheritance bhi mutex me possible). Busy-wait spinlock karta hai.",
+      "en": "Both admit one, but ownership differs (mutexes can also do priority inheritance). Busy-waiting is what a spinlock does."
+    }
+  }
+]

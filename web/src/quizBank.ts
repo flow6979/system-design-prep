@@ -9,7 +9,7 @@ import { allPages, pageBySlug, type Page } from './content'
 import { generateJson } from './gemini'
 import { readLocal, writeLocal } from './store'
 
-export type Section = 'hld' | 'lld' | 'java' | 'db' | 'agents'
+export type Section = 'hld' | 'lld' | 'java' | 'db' | 'cs' | 'agents'
 type T2 = { hi: string; en: string }
 
 export interface QuizQuestion {
@@ -24,16 +24,29 @@ export interface QuizQuestion {
   ai?: boolean
 }
 
-export const SECTIONS: Section[] = ['hld', 'lld', 'java', 'db', 'agents']
+export const SECTIONS: Section[] = ['hld', 'lld', 'java', 'db', 'cs', 'agents']
 
 const seedFiles = import.meta.glob('../../content/quiz/*.json', { eager: true, import: 'default' }) as Record<string, unknown>
 export const SEED: QuizQuestion[] = Object.values(seedFiles).flatMap((v) => (Array.isArray(v) ? (v as QuizQuestion[]) : []))
 
-export function sectionOf(page: Page): Section {
-  return page.kind === 'lld' ? 'lld' : page.kind === 'java' ? 'java' : page.kind === 'db' ? 'db' : page.kind === 'agent' ? 'agents' : 'hld'
+const SECTION_OF: Record<Page['kind'], Section | null> = {
+  topic: 'hld',
+  question: 'hld',
+  lld: 'lld',
+  lldp: 'lld',
+  java: 'java',
+  db: 'db',
+  cs: 'cs',
+  agent: 'agents',
+  // Behavioral answers are personal stories, not right/wrong options, so no MCQ quiz
+  beh: null,
 }
 
-export const topicsOf = (section: Section) => allPages.filter((p) => sectionOf(p) === section && !(p.kind === 'agent' && p.slug === 'agents-general'))
+export function sectionOf(page: Page): Section {
+  return SECTION_OF[page.kind] ?? 'hld'
+}
+
+export const topicsOf = (section: Section) => allPages.filter((p) => SECTION_OF[p.kind] === section && !(p.kind === 'agent' && p.slug === 'agents-general'))
 
 const LOCAL_BANK = 'hld.quiz.bank'
 

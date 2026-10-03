@@ -1,4 +1,4 @@
-import { agentPages, db, java, lld, localize, questions, route, topics } from '../content'
+import { agentPages, behavioral, cs, db, java, lld, lldProblems, localize, questions, route, topics } from '../content'
 import { useStore } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
@@ -19,13 +19,15 @@ export function Dashboard() {
   const tr = useTr()
   const firstName = user?.displayName?.split(' ')[0]
   const daysLeft = daysUntil(profile.interviewDate)
-  const everything = [...topics, ...questions, ...lld, ...java, ...db, ...agentPages]
+  const everything = [...topics, ...questions, ...lld, ...lldProblems, ...java, ...db, ...cs, ...behavioral, ...agentPages]
   const all = groupStats(everything, progress)
   const groups: [string, ReturnType<typeof groupStats>, string][] = [
     ['HLD', groupStats([...topics, ...questions], progress), route(topics[0])],
-    ['LLD', groupStats(lld, progress), lld[0] ? route(lld[0]) : '#/'],
+    ['LLD', groupStats([...lld, ...lldProblems], progress), lld[0] ? route(lld[0]) : '#/'],
     ['Java', groupStats(java, progress), java[0] ? route(java[0]) : '#/'],
     ['Databases', groupStats(db, progress), db[0] ? route(db[0]) : '#/'],
+    ['CS', groupStats(cs, progress), cs[0] ? route(cs[0]) : '#/'],
+    ['Behavioral', groupStats(behavioral, progress), behavioral[0] ? route(behavioral[0]) : '#/'],
     ['Agentic AI', groupStats(agentPages, progress), '#/agents'],
   ]
   // Today's slice of the personal plan (defaults until the user sets one in the Plan tab)

@@ -1,0 +1,698 @@
+[
+  {
+    "id": "lld-01-parking-lot-01",
+    "section": "lld",
+    "topic": "01-parking-lot",
+    "level": "easy",
+    "q": {
+      "hi": "Parking lot me weekend pricing aur \"upar wale floor pehle bharo\" rule bina `ParkingLot` badle add karne hain. Kaunsa pattern?",
+      "en": "You must add weekend pricing and a \"fill upper floors first\" rule without touching `ParkingLot`. Which pattern?"
+    },
+    "options": {
+      "hi": [
+        "Singleton",
+        "Observer",
+        "Strategy (`PricingStrategy`, `SpotAllocationStrategy`)",
+        "Factory (`VehicleFactory`)"
+      ],
+      "en": [
+        "Singleton",
+        "Observer",
+        "Strategy (`PricingStrategy`, `SpotAllocationStrategy`)",
+        "Factory (`VehicleFactory`)"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Pluggable rules = Strategy. `if (type == ...)` chain me har naye rule pe purana code khulta.",
+      "en": "Pluggable rules = Strategy. An `if (type == ...)` chain reopens old code for every new rule."
+    }
+  },
+  {
+    "id": "lld-01-parking-lot-02",
+    "section": "lld",
+    "topic": "01-parking-lot",
+    "level": "medium",
+    "q": {
+      "hi": "Gate A aur Gate B dono ne ek hi spot free dekha aur dono ne assign kar diya. Site ka recommended fix?",
+      "en": "Gate A and Gate B both saw the same spot free and both assigned it. The site recommended fix?"
+    },
+    "options": {
+      "hi": [
+        "`tryOccupy` = `compareAndSet(null, vehicle)`; haarne wala gate agla spot try kare",
+        "Assign se pehle `isFree()` do baar check karo",
+        "DisplayBoard ko har second poll karwao",
+        "Spot object ko `volatile` bana do"
+      ],
+      "en": [
+        "`tryOccupy` = `compareAndSet(null, vehicle)`; the losing gate tries the next spot",
+        "Call `isFree()` twice before assigning",
+        "Have the DisplayBoard poll every second",
+        "Make the spot object `volatile`"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Check aur occupy ek atomic step hona chahiye. `isFree()` sirf sasta filter hai, correctness CAS deta hai. Simple alternative: global `synchronized park()` (gates serialize).",
+      "en": "Check and occupy must be one atomic step. `isFree()` is only a cheap filter; CAS gives correctness. Simple alternative: a global `synchronized park()` (gates serialize)."
+    }
+  },
+  {
+    "id": "lld-01-parking-lot-03",
+    "section": "lld",
+    "topic": "01-parking-lot",
+    "level": "hard",
+    "q": {
+      "hi": "Exit pe payment fail ho gaya. Sahi behaviour kya hai?",
+      "en": "Payment fails at exit. What is the correct behaviour?"
+    },
+    "options": {
+      "hi": [
+        "Spot free karo aur ticket delete karo, payment baad me lo",
+        "Ticket ko used mark karo taaki dusra gate use na kare",
+        "Barrier khol do aur plate ko blacklist karo",
+        "Ticket wapas `active` me, spot free nahi hota, barrier band rehta hai"
+      ],
+      "en": [
+        "Free the spot and delete the ticket; collect payment later",
+        "Mark the ticket used so no other gate can use it",
+        "Open the barrier and blacklist the plate",
+        "The ticket goes back to `active`, the spot is not freed, the barrier stays closed"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Exit ek claim hai (`active.remove`); payment fail ho to claim undo karo taaki gaadi andar hi rahe aur state consistent rahe.",
+      "en": "Exit is a claim (`active.remove`); if payment fails, undo the claim so the car stays inside and state stays consistent."
+    }
+  },
+  {
+    "id": "lld-02-elevator-01",
+    "section": "lld",
+    "topic": "02-elevator",
+    "level": "easy",
+    "q": {
+      "hi": "Elevator car ka behaviour Idle, MovingUp, MovingDown, Maintenance me alag hai. Ise model karne ke liye kaunsa pattern?",
+      "en": "An elevator car behaves differently in Idle, MovingUp, MovingDown and Maintenance. Which pattern models this?"
+    },
+    "options": {
+      "hi": [
+        "Strategy",
+        "State",
+        "Command",
+        "Observer"
+      ],
+      "en": [
+        "Strategy",
+        "State",
+        "Command",
+        "Observer"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Car khud state badalti hai (moving up → idle), har state ek class. Strategy (dispatch algo) bahar se set hoti hai.",
+      "en": "The car changes its own state (moving up → idle), one class per state. Strategy (dispatch algo) is set from outside."
+    }
+  },
+  {
+    "id": "lld-02-elevator-02",
+    "section": "lld",
+    "topic": "02-elevator",
+    "level": "medium",
+    "q": {
+      "hi": "Design me `Elevator` class pe koi lock nahi hai, phir bhi race nahi hoti. Kyun?",
+      "en": "The design has no lock on `Elevator`, yet there is no race. Why?"
+    },
+    "options": {
+      "hi": [
+        "Har car ka apna thread hai jo `synchronized` hai",
+        "Buttons sirf `LinkedBlockingQueue` me `submit()` karte hain; ek controller thread `tick()` chala ke car state ka akela writer hai",
+        "Fields `final` hain, isliye kabhi badalte nahi",
+        "Java me int writes atomic hote hain, lock ki zarurat nahi"
+      ],
+      "en": [
+        "Each car has its own `synchronized` thread",
+        "Buttons only `submit()` into a `LinkedBlockingQueue`; one controller thread runs `tick()` and is the only writer of car state",
+        "The fields are `final`, so they never change",
+        "Int writes are atomic in Java, so no lock is needed"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Ye actor/event-loop model hai, Command objects queue me jaate hain. `volatile` sirf dashboard reads ke liye.",
+      "en": "This is an actor/event-loop model with Command objects in a queue. `volatile` is only for dashboard reads."
+    }
+  },
+  {
+    "id": "lld-02-elevator-03",
+    "section": "lld",
+    "topic": "02-elevator",
+    "level": "hard",
+    "q": {
+      "hi": "SSTF (hamesha sabse paas wala stop) ki jagah LOOK kyun chuna gaya?",
+      "en": "Why was LOOK chosen over SSTF (always the nearest stop)?"
+    },
+    "options": {
+      "hi": [
+        "LOOK hamesha top floor tak jaata hai, isliye fair hai",
+        "SSTF ko sorted set nahi chahiye, LOOK ko chahiye",
+        "LOOK total travel distance hamesha minimum karta hai",
+        "SSTF me door ke floors starve ho sakte hain; LOOK ek direction ke saare stops khatam karke palatta hai, wait max ~2 sweeps"
+      ],
+      "en": [
+        "LOOK always goes to the top floor, so it is fair",
+        "SSTF needs no sorted set, LOOK does",
+        "LOOK always minimises total travel distance",
+        "SSTF can starve far floors; LOOK finishes all stops in one direction before reversing, so the wait is at most ~2 sweeps"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Last floor tak jaana SCAN hai (bekaar travel); LOOK aakhri request pe palat jaata hai. Aur strong guarantee ke liye aging.",
+      "en": "Going to the last floor is SCAN (wasted travel); LOOK reverses at the last request. Add aging for a stronger guarantee."
+    }
+  },
+  {
+    "id": "lld-03-vending-machine-01",
+    "section": "lld",
+    "topic": "03-vending-machine",
+    "level": "easy",
+    "q": {
+      "hi": "Vending machine me product price kis type me rakhna chahiye?",
+      "en": "What type should a vending machine use for product price?"
+    },
+    "options": {
+      "hi": [
+        "`int` rupees / `long` paise",
+        "`double`",
+        "`float`",
+        "`String`, display ke liye"
+      ],
+      "en": [
+        "`int` rupees / `long` paise",
+        "`double`",
+        "`float`",
+        "`String`, for display"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "`double` me 0.1 + 0.2 jaisi rounding galti hoti hai. Paise integer me rakho.",
+      "en": "`double` has rounding errors like 0.1 + 0.2. Keep money as integers."
+    }
+  },
+  {
+    "id": "lld-03-vending-machine-02",
+    "section": "lld",
+    "topic": "03-vending-machine",
+    "level": "medium",
+    "q": {
+      "hi": "Customer ke daale coins seedha cash box me na daal ke \"escrow\" me kyun rakhte hain?",
+      "en": "Why are inserted coins kept in \"escrow\" instead of going straight into the cash box?"
+    },
+    "options": {
+      "hi": [
+        "Taaki Singleton thread-safe ho",
+        "Taaki UPI webhook fast aaye",
+        "Cancel pe wahi coins wapas, change banane ka risk hi nahi",
+        "Cash box me jagah bachane ke liye"
+      ],
+      "en": [
+        "So the Singleton becomes thread-safe",
+        "So the UPI webhook arrives faster",
+        "On cancel the same coins go back, so there is no risk of failing to make change",
+        "To save space in the cash box"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Sale pakki hone tak coins escrow me. Seedha box me daalte to cancel pe change dena padta, jo fail ho sakta hai.",
+      "en": "Coins stay in escrow until the sale is final. Putting them in the box would require change on cancel, which can fail."
+    }
+  },
+  {
+    "id": "lld-03-vending-machine-03",
+    "section": "lld",
+    "topic": "03-vending-machine",
+    "level": "hard",
+    "q": {
+      "hi": "₹6 change dena hai, cash box me {5, 2, 2, 2} hain. Greedy change ke saath kya hota hai aur fix?",
+      "en": "You must return ₹6 change and the box has {5, 2, 2, 2}. What happens with greedy change and what is the fix?"
+    },
+    "options": {
+      "hi": [
+        "Greedy hamesha optimal hai Indian coins pe, koi problem nahi",
+        "Sale ke baad change check karo, fail ho to admin alert",
+        "5 + 2 = 7 de do, ₹1 extra chalega",
+        "Greedy 5 leke atak jaata hai (1 nahi); limited counts pe bounded coin-change DP use karo"
+      ],
+      "en": [
+        "Greedy is always optimal for Indian coins, no problem",
+        "Check change after the sale and alert the admin on failure",
+        "Give 5 + 2 = 7; ₹1 extra is fine",
+        "Greedy takes 5 and gets stuck (no 1); use a bounded coin-change DP for limited counts"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Greedy unlimited coins pe optimal hai, limited counts pe nahi. Aur `canSettle` dispense se pehle chalta hai (order: change check → dispense → settle).",
+      "en": "Greedy is optimal with unlimited coins, not limited counts. `canSettle` runs before dispense (order: change check → dispense → settle)."
+    }
+  },
+  {
+    "id": "lld-04-splitwise-01",
+    "section": "lld",
+    "topic": "04-splitwise",
+    "level": "easy",
+    "q": {
+      "hi": "₹100 ko 3 logon me EQUAL split karna hai (paise me). Sahi shares?",
+      "en": "Split ₹100 EQUAL among 3 people (in paise). Correct shares?"
+    },
+    "options": {
+      "hi": [
+        "33.33 har ek, `double` me",
+        "3333 har ek, 1 paisa chhod do",
+        "3334, 3333, 3333 (leftover paisa deterministic order me)",
+        "3334 kisi random user ko, baaki 3333"
+      ],
+      "en": [
+        "33.33 each, as `double`",
+        "3333 each and drop 1 paisa",
+        "3334, 3333, 3333 (leftover paisa in a deterministic order)",
+        "3334 to a random user, the rest 3333"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Random nahi, participants list ke order me, warna do servers alag balance banayenge. Sum exactly total hona chahiye.",
+      "en": "Not random; follow the participants order, or two servers compute different balances. The sum must equal the total exactly."
+    }
+  },
+  {
+    "id": "lld-04-splitwise-02",
+    "section": "lld",
+    "topic": "04-splitwise",
+    "level": "medium",
+    "q": {
+      "hi": "Naya split type (shares/ratio) add karna hai bina `ExpenseService` badle. Design kya hai?",
+      "en": "You must add a new split type (shares/ratio) without changing `ExpenseService`. What is the design?"
+    },
+    "options": {
+      "hi": [
+        "`ExpenseService` me naya `case` add karo",
+        "Nayi `SplitStrategy` class + `SplitStrategyFactory` me map entry",
+        "`Expense` record me naya mutable field",
+        "`ExpenseListener` me split logic daalo"
+      ],
+      "en": [
+        "Add a new `case` in `ExpenseService`",
+        "A new `SplitStrategy` class + an entry in `SplitStrategyFactory`",
+        "A new mutable field on the `Expense` record",
+        "Put the split logic in `ExpenseListener`"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Strategy + Factory: caller sirf enum jaanta hai, service open/closed rehti hai. Service phir bhi final check karti hai ki shares ka sum = amount.",
+      "en": "Strategy + Factory: the caller only knows the enum and the service stays open/closed. The service still checks that shares sum to the amount."
+    }
+  },
+  {
+    "id": "lld-04-splitwise-03",
+    "section": "lld",
+    "topic": "04-splitwise",
+    "level": "hard",
+    "q": {
+      "hi": "DB me ek expense kai users ke balance rows update karta hai. Do parallel expenses deadlock na karein, iske liye?",
+      "en": "In the DB one expense updates many users balance rows. How do you stop two parallel expenses from deadlocking?"
+    },
+    "options": {
+      "hi": [
+        "Rows sorted userId order me `SELECT ... FOR UPDATE` se lock karo (ya optimistic `version` + retry)",
+        "Notifications transaction ke andar bhejo",
+        "Har balance row alag transaction me update karo",
+        "`double` ki jagah `BigDecimal` use karo"
+      ],
+      "en": [
+        "Lock rows in sorted userId order with `SELECT ... FOR UPDATE` (or optimistic `version` + retry)",
+        "Send notifications inside the transaction",
+        "Update each balance row in its own transaction",
+        "Use `BigDecimal` instead of `double`"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Fixed order me locking circular wait todti hai. Alag transactions atomicity tod dete; notifications lock ke bahar hone chahiye.",
+      "en": "Locking in a fixed order breaks circular wait. Separate transactions would break atomicity; notifications belong outside the lock."
+    }
+  },
+  {
+    "id": "lld-05-bookmyshow-01",
+    "section": "lld",
+    "topic": "05-bookmyshow",
+    "level": "easy",
+    "q": {
+      "hi": "Booked/locked seat status kahan track hota hai: `Seat` pe ya `Show` pe?",
+      "en": "Where is booked/locked seat status tracked: on `Seat` or on `Show`?"
+    },
+    "options": {
+      "hi": [
+        "`Seat` pe, kyunki seat physical hai",
+        "`Screen` pe",
+        "`Show` pe, kyunki same seat har show me alag status rakhti hai",
+        "`Theatre` pe"
+      ],
+      "en": [
+        "On `Seat`, because the seat is physical",
+        "On `Screen`",
+        "On `Show`, because the same seat has a different status in each show",
+        "On `Theatre`"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Seat screen ki hai (layout fixed), booking show ki. Seat pe status rakhoge to 3 PM ki booking 9 PM ko block kar degi.",
+      "en": "A seat belongs to the screen (fixed layout); booking belongs to the show. Status on Seat would make the 3 PM booking block 9 PM."
+    }
+  },
+  {
+    "id": "lld-05-bookmyshow-02",
+    "section": "lld",
+    "topic": "05-bookmyshow",
+    "level": "medium",
+    "q": {
+      "hi": "Seat lock global lock ki jagah per-show lock kyun hai, aur seat-level lock kyun nahi?",
+      "en": "Why is seat locking per show instead of global, and why not per seat?"
+    },
+    "options": {
+      "hi": [
+        "Per-show: ek movie ka rush doosri ko block nahi karta; seat-level me multi-seat booking pe deadlock risk (sort na karo to)",
+        "Global lock fast hai par memory zyada leta hai",
+        "Seat-level lock Java me possible nahi",
+        "Per-show lock se payment idempotent ho jaata hai"
+      ],
+      "en": [
+        "Per show: one movie rush does not block another; per-seat risks deadlock on multi-seat bookings (unless sorted)",
+        "A global lock is faster but uses more memory",
+        "Per-seat locks are not possible in Java",
+        "A per-show lock makes payment idempotent"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "user1: A1→A2, user2: A2→A1 = deadlock. Per-show lock simple hai aur ek show ka contention chhota hai.",
+      "en": "user1: A1→A2, user2: A2→A1 = deadlock. A per-show lock is simple and one show contention is small."
+    }
+  },
+  {
+    "id": "lld-05-bookmyshow-03",
+    "section": "lld",
+    "topic": "05-bookmyshow",
+    "level": "hard",
+    "q": {
+      "hi": "User payment page pe hai aur uska seat lock (TTL) expire hone wala hai. `confirm()` kya karta hai?",
+      "en": "The user is on the payment page and their seat lock (TTL) is about to expire. What does `confirm()` do?"
+    },
+    "options": {
+      "hi": [
+        "Seedha charge karo, lock ki chinta commit pe",
+        "Cleanup job pe depend karo jo har 30 sec expired locks hataata hai",
+        "Lock ko permanent bana do jab tak payment complete na ho",
+        "Pay se pehle `lock()` dobara: abhi bhi mera/free hai to TTL extend, warna EXPIRED bina charge; pay ke dauraan expire ho to `commit()` fail → refund"
+      ],
+      "en": [
+        "Charge directly and worry about the lock at commit",
+        "Rely on the cleanup job that purges expired locks every 30 seconds",
+        "Make the lock permanent until payment completes",
+        "Calls `lock()` again before paying: still mine/free extends the TTL, else EXPIRED without charging; if it expires during pay, `commit()` fails → refund"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Expiry lazy `isActive` check se hoti hai, cleanup sirf memory ke liye. Correctness confirm ke re-lock aur commit check se aati hai.",
+      "en": "Expiry is a lazy `isActive` check; cleanup is only for memory. Correctness comes from re-locking in confirm and the commit check."
+    }
+  },
+  {
+    "id": "lld-06-lru-cache-01",
+    "section": "lld",
+    "topic": "06-lru-cache",
+    "level": "easy",
+    "q": {
+      "hi": "O(1) `get` aur `put` ke liye LRU cache ki core structure kya hai?",
+      "en": "What is the core structure of an LRU cache for O(1) `get` and `put`?"
+    },
+    "options": {
+      "hi": [
+        "TreeMap timestamp ke basis pe",
+        "HashMap<K, Node> + doubly linked list (sentinel head/tail)",
+        "PriorityQueue access count pe",
+        "Sirf ArrayList, end pe add"
+      ],
+      "en": [
+        "A TreeMap keyed by timestamp",
+        "HashMap<K, Node> + doubly linked list (sentinel head/tail)",
+        "A PriorityQueue on access count",
+        "Only an ArrayList, adding at the end"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Map se node O(1), list se move/evict O(1). TreeMap/PriorityQueue O(log n) dete hain.",
+      "en": "The map gives O(1) node lookup, the list gives O(1) move/evict. TreeMap/PriorityQueue are O(log n)."
+    }
+  },
+  {
+    "id": "lld-06-lru-cache-02",
+    "section": "lld",
+    "topic": "06-lru-cache",
+    "level": "medium",
+    "q": {
+      "hi": "Node me value ke saath key bhi kyun store karte hain?",
+      "en": "Why does each Node store the key as well as the value?"
+    },
+    "options": {
+      "hi": [
+        "Hash collision resolve karne ke liye",
+        "Evict pe tail node se key leke map se bhi hatana padta hai",
+        "Linked list sort karne ke liye",
+        "TTL calculate karne ke liye"
+      ],
+      "en": [
+        "To resolve hash collisions",
+        "On eviction you need the tail node key to remove it from the map too",
+        "To sort the linked list",
+        "To calculate TTL"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Bina key ke tail node ko list se nikaal doge par map me entry bachi rahegi: `map.remove(lru.key)`.",
+      "en": "Without the key you would unlink the tail but leave the map entry behind: `map.remove(lru.key)`."
+    }
+  },
+  {
+    "id": "lld-06-lru-cache-03",
+    "section": "lld",
+    "topic": "06-lru-cache",
+    "level": "hard",
+    "q": {
+      "hi": "LRU cache ko thread-safe banane ke liye `ReadWriteLock` (get pe read lock) kyun galat hai?",
+      "en": "Why is a `ReadWriteLock` (read lock on get) wrong for making an LRU cache thread-safe?"
+    },
+    "options": {
+      "hi": [
+        "ReadWriteLock Java me reentrant nahi hai",
+        "Read lock se writes starve hote hain, bas itna",
+        "`ConcurrentHashMap` akela kaafi hai, lock ki zarurat nahi",
+        "LRU me `get` bhi write hai (node front pe move); do readers saath me list corrupt kar denge"
+      ],
+      "en": [
+        "ReadWriteLock is not reentrant in Java",
+        "Read locks only starve writers, nothing more",
+        "A `ConcurrentHashMap` alone is enough, no lock needed",
+        "In LRU `get` is also a write (it moves the node to front); two readers together corrupt the list"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Ek lock map + list dono ko guard kare (`ConcurrentLRUCache` wrapper). ConcurrentHashMap akela combined update atomic nahi karta. Throughput ke liye segments ya Caffeine.",
+      "en": "One lock must guard both map and list (`ConcurrentLRUCache` wrapper). ConcurrentHashMap alone does not make the combined update atomic. For throughput use segments or Caffeine."
+    }
+  },
+  {
+    "id": "lld-07-snake-and-ladder-01",
+    "section": "lld",
+    "topic": "07-snake-and-ladder",
+    "level": "easy",
+    "q": {
+      "hi": "Game loop ko deterministic test karne ke liye design me kya kiya gaya hai?",
+      "en": "What does the design do so the game loop can be tested deterministically?"
+    },
+    "options": {
+      "hi": [
+        "`Dice` interface inject hota hai (Strategy + DI); test me `FixedDice`",
+        "`Game` ke andar `new Random(42)`",
+        "`Board` ko Singleton banaya",
+        "Output ko `System.out` se compare karte hain"
+      ],
+      "en": [
+        "A `Dice` interface is injected (Strategy + DI); tests use `FixedDice`",
+        "`new Random(42)` inside `Game`",
+        "The `Board` is a Singleton",
+        "Tests compare `System.out` output"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "`Game` ke andar Random hardcode karoge to test flaky. Dice inject karo.",
+      "en": "Hardcoding Random inside `Game` makes tests flaky. Inject the dice."
+    }
+  },
+  {
+    "id": "lld-07-snake-and-ladder-02",
+    "section": "lld",
+    "topic": "07-snake-and-ladder",
+    "level": "medium",
+    "q": {
+      "hi": "`Board` ko Builder se kyun banaya gaya hai?",
+      "en": "Why is `Board` built with a Builder?"
+    },
+    "options": {
+      "hi": [
+        "Taaki ek hi Board instance poore app me ho",
+        "Taaki Board runtime pe badal sake",
+        "Snakes/ladders ek-ek add karo, `build()` pe ek jagah validate karo, phir immutable Board",
+        "Taaki listeners ko events mil sakein"
+      ],
+      "en": [
+        "So there is only one Board instance in the app",
+        "So the Board can change at runtime",
+        "Add snakes/ladders one by one, validate in one place at `build()`, then get an immutable Board",
+        "So listeners can receive events"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Immutable Board kai games safely share kar sakte hain. Bade constructor me validation bikhar jaata.",
+      "en": "An immutable Board can be shared safely by many games. A big constructor scatters validation."
+    }
+  },
+  {
+    "id": "lld-07-snake-and-ladder-03",
+    "section": "lld",
+    "topic": "07-snake-and-ladder",
+    "level": "medium",
+    "q": {
+      "hi": "Builder kaunsa config reject karta hai?",
+      "en": "Which config does the Builder reject?"
+    },
+    "options": {
+      "hi": [
+        "Do ladders jinke bottom alag cells pe hain",
+        "Snake jiska tail cell 2 pe hai",
+        "Board size 100",
+        "Ladder ka top kisi snake ka head ho (jump chain), ya last cell pe snake"
+      ],
+      "en": [
+        "Two ladders with bottoms on different cells",
+        "A snake whose tail is on cell 2",
+        "A board of size 100",
+        "A ladder top that is a snake head (jump chain), or a snake on the last cell"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Chain se infinite loop/confusion hota hai (aur snake → ladder cycle bhi block). Last cell pe snake = koi jeet hi nahi sakta.",
+      "en": "Chains cause loops/confusion (and blocking them also blocks snake → ladder cycles). A snake on the last cell means nobody can win."
+    }
+  },
+  {
+    "id": "lld-08-atm-01",
+    "section": "lld",
+    "topic": "08-atm",
+    "level": "easy",
+    "q": {
+      "hi": "ATM me 2000 → 500 → 200 → 100 notes ka breakup kis pattern se?",
+      "en": "Which pattern produces the 2000 → 500 → 200 → 100 note breakup in the ATM?"
+    },
+    "options": {
+      "hi": [
+        "State",
+        "Observer",
+        "Chain of Responsibility (`NoteHandler`)",
+        "Singleton"
+      ],
+      "en": [
+        "State",
+        "Observer",
+        "Chain of Responsibility (`NoteHandler`)",
+        "Singleton"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Har handler apne notes deta hai aur baaki aage bhejta hai. Naya note (50) = naya link.",
+      "en": "Each handler dispenses its notes and passes the rest on. A new note (50) = a new link."
+    }
+  },
+  {
+    "id": "lld-08-atm-02",
+    "section": "lld",
+    "topic": "08-atm",
+    "level": "medium",
+    "q": {
+      "hi": "Daily withdrawal limit kahan check honi chahiye?",
+      "en": "Where should the daily withdrawal limit be checked?"
+    },
+    "options": {
+      "hi": [
+        "ATM pe, `AuthenticatedState` me",
+        "Bank side pe, balance debit wale same atomic conditional UPDATE me",
+        "`CashDispenser` me",
+        "Card chip pe"
+      ],
+      "en": [
+        "At the ATM, in `AuthenticatedState`",
+        "On the bank side, in the same atomic conditional UPDATE as the debit",
+        "In `CashDispenser`",
+        "On the card chip"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "ATM pe check karoge to do ATMs (ya ATM + UPI) se limit bypass ho jayegi. `WHERE balance >= :amt AND withdrawn_today + :amt <= :limit`.",
+      "en": "Checking at the ATM lets two ATMs (or ATM + UPI) bypass the limit. `WHERE balance >= :amt AND withdrawn_today + :amt <= :limit`."
+    }
+  },
+  {
+    "id": "lld-08-atm-03",
+    "section": "lld",
+    "topic": "08-atm",
+    "level": "hard",
+    "q": {
+      "hi": "Withdrawal me bank debit call timeout ho gaya (status unknown). ATM ko kya karna chahiye?",
+      "en": "During a withdrawal the bank debit call times out (status unknown). What should the ATM do?"
+    },
+    "options": {
+      "hi": [
+        "Cash mat do; `REVERSAL_PENDING` log karo aur same txnId se idempotent `reverse()` retry karo",
+        "Cash de do, debit shayad ho gaya hoga",
+        "Naye txnId se debit dobara karo",
+        "Card retain karo aur session khatam"
+      ],
+      "en": [
+        "Do not dispense; log `REVERSAL_PENDING` and retry an idempotent `reverse()` with the same txnId",
+        "Dispense cash; the debit probably went through",
+        "Retry the debit with a new txnId",
+        "Retain the card and end the session"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Unknown status pe cash dena ghaata ho sakta hai. Same txnId se reverse idempotent hai: debit hua hi nahi to no-op. Naya txnId double debit ka risk.",
+      "en": "Dispensing on unknown status can lose money. Reversing with the same txnId is idempotent: no-op if no debit happened. A new txnId risks a double debit."
+    }
+  }
+]

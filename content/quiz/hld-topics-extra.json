@@ -1,0 +1,350 @@
+[
+  {
+    "id": "hld-23-microservices-patterns-01",
+    "section": "hld",
+    "topic": "23-microservices-patterns",
+    "level": "easy",
+    "q": {
+      "hi": "8 engineers ki team naya product bana rahi hai, domain abhi clear nahi. Site ke hisaab se kya architecture?",
+      "en": "A team of 8 engineers is building a new product and the domain is not clear yet. Which architecture per the site?"
+    },
+    "options": {
+      "hi": [
+        "Shuru se 20 microservices with service mesh",
+        "Microservices par sabka ek shared DB",
+        "Modular monolith; boundaries pakki hon aur load alag ho tab services nikaalo",
+        "Har feature ke liye alag serverless function"
+      ],
+      "en": [
+        "20 microservices with a service mesh from day one",
+        "Microservices sharing one database",
+        "A modular monolith; extract services once boundaries are clear and load differs",
+        "A separate serverless function per feature"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Chhoti team me ops ka bojh features se zyada ho jaata hai, aur galat boundary = distributed monolith.",
+      "en": "For a small team the ops burden outweighs features, and a wrong boundary gives a distributed monolith."
+    }
+  },
+  {
+    "id": "hld-23-microservices-patterns-02",
+    "section": "hld",
+    "topic": "23-microservices-patterns",
+    "level": "easy",
+    "q": {
+      "hi": "Mobile app ko kam fields aur ek call chahiye, web ko zyada data. Kya lagaoge?",
+      "en": "The mobile app needs fewer fields in one call; the web needs more data. What do you add?"
+    },
+    "options": {
+      "hi": [
+        "BFF (Backend for Frontend): har client type ka alag chhota backend",
+        "API Gateway me client-specific business logic",
+        "Service mesh sidecar",
+        "Client-side service discovery"
+      ],
+      "en": [
+        "BFF (Backend for Frontend): a small backend per client type",
+        "Client-specific business logic in the API Gateway",
+        "A service mesh sidecar",
+        "Client-side service discovery"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Gateway sirf cross-cutting kaam (auth, rate limit, routing) kare; client-specific shaping BFF me, ideally frontend team ke paas.",
+      "en": "The gateway does only cross-cutting work (auth, rate limiting, routing); client-specific shaping goes in a BFF, ideally owned by the frontend team."
+    }
+  },
+  {
+    "id": "hld-23-microservices-patterns-03",
+    "section": "hld",
+    "topic": "23-microservices-patterns",
+    "level": "medium",
+    "q": {
+      "hi": "Order → Payment → Inventory → Notification sab sync REST call chain hai, har ek 99% available. End-to-end availability aur sahi fix?",
+      "en": "Order → Payment → Inventory → Notification is a sync REST chain, each 99% available. End-to-end availability and the right fix?"
+    },
+    "options": {
+      "hi": [
+        "99%, kyunki sab parallel chalte hain",
+        "~96%; har service ko ek shared DB do",
+        "99.99%; retries sab theek kar denge",
+        "~96% (0.99⁴); notification jaise kaam async events pe, baaki pe timeout + circuit breaker"
+      ],
+      "en": [
+        "99%, because they all run in parallel",
+        "~96%; give every service one shared DB",
+        "99.99%; retries fix everything",
+        "~96% (0.99⁴); move work like notification to async events, add timeouts + circuit breakers on the rest"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Lambi sync chain me availability multiply hoti hai aur latency add. \"Ho gaya\" batane wala kaam async rakho.",
+      "en": "In a long sync chain availability multiplies and latency adds up. Keep \"it happened\" work async."
+    }
+  },
+  {
+    "id": "hld-23-microservices-patterns-04",
+    "section": "hld",
+    "topic": "23-microservices-patterns",
+    "level": "hard",
+    "q": {
+      "hi": "Purane monolith se payments nikaalna hai bina big-bang rewrite. Strangler fig ke steps ka sahi order?",
+      "en": "You must pull payments out of an old monolith without a big-bang rewrite. Correct order of strangler fig steps?"
+    },
+    "options": {
+      "hi": [
+        "Monolith band karo → naya service deploy → DB migrate",
+        "Proxy aage lagao → payment service banao → traffic shift (shadow → canary → 100%) → monolith ka code hatao",
+        "Naya service banao → clients ko seedha naye URL pe bhejo → proxy baad me",
+        "Monolith ka DB naye service ke saath share karo, phir kabhi alag mat karo"
+      ],
+      "en": [
+        "Shut the monolith → deploy the new service → migrate the DB",
+        "Put a proxy in front → build the payment service → shift traffic (shadow → canary → 100%) → delete the monolith code",
+        "Build the new service → point clients straight at its URL → add a proxy later",
+        "Share the monolith DB with the new service and never split it"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Routing layer se feature-by-feature migration, migration ke dauraan CDC sync. Shared DB coupling wapas le aata hai.",
+      "en": "A routing layer enables feature-by-feature migration with CDC sync during the move. A shared DB brings coupling back."
+    }
+  },
+  {
+    "id": "hld-24-cqrs-event-sourcing-01",
+    "section": "hld",
+    "topic": "24-cqrs-event-sourcing",
+    "level": "easy",
+    "q": {
+      "hi": "CQRS aur Event Sourcing ka relation kya hai?",
+      "en": "What is the relationship between CQRS and Event Sourcing?"
+    },
+    "options": {
+      "hi": [
+        "Ek hi cheez ke do naam",
+        "Alag cheezein hain; CQRS normal DB + outbox/CDC se bhi chal sakta hai",
+        "Event Sourcing ke bina CQRS possible nahi",
+        "CQRS sirf Kafka ke saath kaam karta hai"
+      ],
+      "en": [
+        "Two names for the same thing",
+        "They are different; CQRS can run on a normal DB + outbox/CDC",
+        "CQRS is impossible without Event Sourcing",
+        "CQRS only works with Kafka"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "CQRS = alag read/write models. Event sourcing = state ki jagah events store. CQRS akela common hai; ES sirf jahan history hi product ho.",
+      "en": "CQRS = separate read/write models. Event sourcing = store events instead of state. CQRS alone is common; ES only where history is the product."
+    }
+  },
+  {
+    "id": "hld-24-cqrs-event-sourcing-02",
+    "section": "hld",
+    "topic": "24-cqrs-event-sourcing",
+    "level": "medium",
+    "q": {
+      "hi": "User ne order place kiya par Elasticsearch wali order list me turant nahi dikha. Site ka recommended handling?",
+      "en": "A user placed an order but it does not show up in the Elasticsearch order list immediately. Recommended handling?"
+    },
+    "options": {
+      "hi": [
+        "Read model ko har write pe synchronously update karo, distributed transaction se",
+        "CQRS hata do",
+        "Client ko 5 sec sleep karke reload karne do",
+        "Write response me naya data lautao aur critical read (\"order hua?\") write DB se karo"
+      ],
+      "en": [
+        "Update the read model synchronously on every write with a distributed transaction",
+        "Remove CQRS",
+        "Have the client sleep 5 seconds and reload",
+        "Return the new data in the write response and serve the critical read (\"did my order go through?\") from the write DB"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "Read model eventual hai (ms–seconds peeche). UI write response se dikhao, version field se staleness batao.",
+      "en": "The read model is eventual (ms to seconds behind). Show the UI from the write response and expose staleness via a version field."
+    }
+  },
+  {
+    "id": "hld-24-cqrs-event-sourcing-03",
+    "section": "hld",
+    "topic": "24-cqrs-event-sourcing",
+    "level": "medium",
+    "q": {
+      "hi": "Wallet event-sourced hai. Do requests ek saath same balance pe ₹120 spend karti hain. Double spend kaise rokoge?",
+      "en": "A wallet is event-sourced. Two requests spend ₹120 against the same balance at once. How do you stop a double spend?"
+    },
+    "options": {
+      "hi": [
+        "Append pe `expected_version` check (unique `(stream_id, version)`); ek fail hoga aur retry karega",
+        "Har 100 events pe snapshot lo",
+        "Upcaster lagao",
+        "Read model se balance padh ke validate karo"
+      ],
+      "en": [
+        "Check `expected_version` on append (unique `(stream_id, version)`); one fails and retries",
+        "Take a snapshot every 100 events",
+        "Add an upcaster",
+        "Validate against the balance from the read model"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Optimistic concurrency: dono ne version N padha, sirf ek N+1 likh payega. Read model eventual hai, us pe validate karna unsafe.",
+      "en": "Optimistic concurrency: both read version N, only one can write N+1. The read model is eventual, so validating against it is unsafe."
+    }
+  },
+  {
+    "id": "hld-24-cqrs-event-sourcing-04",
+    "section": "hld",
+    "topic": "24-cqrs-event-sourcing",
+    "level": "hard",
+    "q": {
+      "hi": "`MoneyAdded` event me naya field add karna hai. Lakhon purane v1 events hain. Sahi tareeka?",
+      "en": "You need a new field on the `MoneyAdded` event. There are millions of old v1 events. Right approach?"
+    },
+    "options": {
+      "hi": [
+        "Migration script se saare purane events rewrite karo",
+        "Purane events delete karke snapshot se shuru karo",
+        "`MoneyAdded v2` banao; purane v1 events padhte waqt upcaster unhe v2 shape me convert kare",
+        "Field ko read model me hi add karo, events ko chhodo"
+      ],
+      "en": [
+        "Rewrite all old events with a migration script",
+        "Delete old events and start from a snapshot",
+        "Create `MoneyAdded v2`; an upcaster converts old v1 events to the v2 shape when reading",
+        "Add the field only to the read model and ignore events"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Events immutable hain; rewrite audit trail todta hai. (GDPR ke liye crypto-shredding: per-user key phenk do.)",
+      "en": "Events are immutable; rewriting breaks the audit trail. (For GDPR use crypto-shredding: throw away the per-user key.)"
+    }
+  },
+  {
+    "id": "hld-25-consensus-leader-election-01",
+    "section": "hld",
+    "topic": "25-consensus-leader-election",
+    "level": "easy",
+    "q": {
+      "hi": "2 node failures sehne hain. Raft cluster me kitne nodes chahiye?",
+      "en": "You must survive 2 node failures. How many nodes does a Raft cluster need?"
+    },
+    "options": {
+      "hi": [
+        "4",
+        "3",
+        "6",
+        "5 (2f + 1, majority 3)"
+      ],
+      "en": [
+        "4",
+        "3",
+        "6",
+        "5 (2f + 1, majority 3)"
+      ]
+    },
+    "answer": 3,
+    "why": {
+      "hi": "f failures ke liye 2f + 1. 4 ya 6 nodes extra failure tolerance nahi dete, bas writes slow karte hain.",
+      "en": "2f + 1 for f failures. 4 or 6 nodes add no extra fault tolerance, just slower writes."
+    }
+  },
+  {
+    "id": "hld-25-consensus-leader-election-02",
+    "section": "hld",
+    "topic": "25-consensus-leader-election",
+    "level": "medium",
+    "q": {
+      "hi": "Raft me followers ka election timeout randomized (jaise 150–300 ms) kyun hota hai?",
+      "en": "Why is the follower election timeout randomised (e.g. 150–300 ms) in Raft?"
+    },
+    "options": {
+      "hi": [
+        "Taaki clock skew theek ho",
+        "Taaki leader ke heartbeats compress ho sakein",
+        "Taaki sab ek saath candidate na banein aur split vote kam ho",
+        "Taaki committed entries kabhi overwrite na ho"
+      ],
+      "en": [
+        "To correct clock skew",
+        "So leader heartbeats can be compressed",
+        "So nodes do not all become candidates at once and split votes are rare",
+        "So committed entries are never overwritten"
+      ]
+    },
+    "answer": 2,
+    "why": {
+      "hi": "Ek node pehle timeout hoke votes le leta hai. Split vote hua to candidate dobara timeout pe naya term try karta hai.",
+      "en": "One node times out first and collects votes. On a split vote the candidate retries in a new term after another timeout."
+    }
+  },
+  {
+    "id": "hld-25-consensus-leader-election-03",
+    "section": "hld",
+    "topic": "25-consensus-leader-election",
+    "level": "medium",
+    "q": {
+      "hi": "Raft me client write kab \"committed\" maana jaata hai?",
+      "en": "When is a client write considered \"committed\" in Raft?"
+    },
+    "options": {
+      "hi": [
+        "Jab leader apne log me likh de",
+        "Jab entry majority ke log me aa jaaye",
+        "Jab saare followers ack kar dein",
+        "Jab next heartbeat chala jaaye"
+      ],
+      "en": [
+        "When the leader writes it to its own log",
+        "When the entry is in the log of a majority",
+        "When every follower acks",
+        "When the next heartbeat is sent"
+      ]
+    },
+    "answer": 1,
+    "why": {
+      "hi": "Majority (3 me 2) ka ack kaafi hai; slow follower baad me catch up karta hai. Naya leader wahi banta hai jiske paas sab committed entries hain.",
+      "en": "A majority ack (2 of 3) is enough; a slow follower catches up later. Only a node with all committed entries can become the new leader."
+    }
+  },
+  {
+    "id": "hld-25-consensus-leader-election-04",
+    "section": "hld",
+    "topic": "25-consensus-leader-election",
+    "level": "hard",
+    "q": {
+      "hi": "Scheduler leader etcd lease se chuna jaata hai. Purana leader 20 sec GC pause se jaaga, lease expire ho chuki thi, aur woh write karta hai. Ise kya rokta hai?",
+      "en": "A scheduler leader is chosen with an etcd lease. The old leader wakes from a 20 s GC pause after its lease expired and writes. What stops it?"
+    },
+    "options": {
+      "hi": [
+        "Fencing token: har naye lease ke saath badhta number; storage purane token wali write reject kare",
+        "Lease TTL badha do",
+        "Gossip protocol se membership track karo",
+        "Heartbeat interval kam kar do"
+      ],
+      "en": [
+        "A fencing token: a number that grows with each new lease; storage rejects writes with an older token",
+        "Increase the lease TTL",
+        "Track membership with a gossip protocol",
+        "Reduce the heartbeat interval"
+      ]
+    },
+    "answer": 0,
+    "why": {
+      "hi": "Quorum minority ko leader banne se rokta hai, par \"late write\" ke liye fencing token chahiye (Raft term, ZK zxid). Token 33 aa chuka to 32 reject.",
+      "en": "Quorum stops a minority from becoming leader, but a \"late write\" needs a fencing token (Raft term, ZK zxid). Once 33 is seen, 32 is rejected."
+    }
+  }
+]
