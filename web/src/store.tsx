@@ -12,11 +12,19 @@ export interface QuizState {
 }
 const LOCAL_QUIZ = 'hld.quiz.state'
 
+export interface TopicList {
+  id: string
+  name: string
+  slugs: string[]
+}
+
 export interface Profile {
   /** yyyy-mm-dd; shows a countdown on the dashboard */
   interviewDate?: string
   /** personal study plan inputs (Plan tab) */
-  plan?: { tracks: ('hld' | 'lld' | 'java' | 'db' | 'cs' | 'beh' | 'rag' | 'agents')[]; hours: number; level: 'junior' | 'mid' | 'senior'; days?: number }
+  /** the user's own topic lists, revised again and again */
+  lists?: TopicList[]
+  plan?: { list?: string; tracks: ('hld' | 'lld' | 'java' | 'db' | 'cs' | 'beh' | 'rag' | 'agents')[]; hours: number; level: 'junior' | 'mid' | 'senior'; days?: number }
 }
 
 interface Store {

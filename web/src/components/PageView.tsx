@@ -1,4 +1,5 @@
-import { allPages, behavioral, cs, rag, db, java, lld, lldProblems, localize, pageBySlug, revisionBody, route, type Page } from '../content'
+import { allPages, behavioral, cs, rag, db, java, lld, lldProblems, localize, pageBySlug, quickLook, revisionBody, route, type Page } from '../content'
+import { ListPicker } from './ListPicker'
 import { useLang, useTr } from '../i18n'
 import { Markdown } from './Markdown'
 import { Checklist } from './Checklist'
@@ -15,16 +16,19 @@ function jumpTo(title: string) {
   el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+/** full page · revision (⭐ / recap sections) · quick look (1-minute cheat sheet) */
+export type ReadMode = 'full' | 'revision' | 'quick'
+
 export function PageView({
   page: source,
-  revision,
-  onToggleRevision,
+  mode,
+  onMode,
   codeLang,
   onCodeLang,
 }: {
   page: Page
-  revision: boolean
-  onToggleRevision: () => void
+  mode: ReadMode
+  onMode: (m: ReadMode) => void
   codeLang: CodeLang
   onCodeLang: (l: CodeLang) => void
 }) {
@@ -39,6 +43,8 @@ export function PageView({
   const tabbed = tabs.length > 0
   // ⭐ filter for star-based sections; problems keep the regular revision mode
   const starFilter = tabbed && page.kind !== 'lldp'
+  const quick = quickLook(page.slug, lang)
+  const revision = mode === 'revision'
   const body = revision ? revisionBody(page) : page.body
 
   const eyebrow = { topic: 'Topic', question: `HLD problem · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', lldp: 'LLD problem', java: 'Java', db: 'Databases', cs: 'CS fundamentals', beh: 'Behavioral', rag: 'RAG', agent: 'Agentic AI' }[page.kind]
@@ -78,19 +84,26 @@ export function PageView({
         </span>
         <div className="row wrap">
           {isLld && <LangToggle value={codeLang} onChange={onCodeLang} />}
-          <button
-            type="button"
-            className={`revise-btn ${revision ? 'on' : ''}`}
-            aria-pressed={revision}
-            onClick={onToggleRevision}
-            title={starFilter ? tr('Sirf ⭐ wale points dikhao', 'Show only ⭐ points') : tr('Sirf recap aur interview lines dikhao', 'Show only the recap and interview lines')}
-          >
-            <span aria-hidden="true">{starFilter ? '⭐' : '⚡'}</span>
-            <span>{revision ? tr('Revision on', 'Revision on') : starFilter ? tr('Quick revision: sirf ⭐', 'Quick revision: only ⭐') : tr('Quick revision', 'Quick revision')}</span>
-          </button>
+          <ListPicker slug={page.slug} />
         </div>
       </div>
-      {page.patterns.length > 0 && (
+      <div className="mode-switch" role="radiogroup" aria-label={tr('Kaise padhna hai', 'Reading mode')}>
+        {(
+          [
+            ['full', '📖', tr('Poora page', 'Full page'), tr('Sab kuch, detail me', 'Everything, in detail')],
+            ['revision', '⭐', 'Revision', starFilter ? tr('Sirf ⭐ wale sections', 'Only ⭐ sections') : tr('Sirf recap aur interview lines', 'Only recap and interview lines')],
+            ['quick', '⚡', 'Quick look', tr('1 minute me key points', 'Key points in 1 minute')],
+          ] as [ReadMode, string, string, string][]
+        ).map(([m, icon, label, hint]) => (
+          <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => onMode(m)} disabled={m === 'quick' && !quick}>
+            <span className="mode-label">
+              <span aria-hidden="true">{icon}</span> {label}
+            </span>
+            <span className="mode-hint">{hint}</span>
+          </button>
+        ))}
+      </div>
+      {page.patterns.length > 0 && mode !== 'quick' && (
         <div className="row wrap tags">
           {page.patterns.map((p) => (
             <span key={p} className="tag">
@@ -103,7 +116,7 @@ export function PageView({
         </div>
       )}
       {revision && <p className="revision-note small">{revisionNote}</p>}
-      {starFilter && (
+      {starFilter && mode !== 'quick' && (
         <div className="jump row wrap">
           {sections(body).map((t) => (
             <button key={t} className={`chip ${t.startsWith('⭐') ? 'star' : ''}`} onClick={() => jumpTo(t)}>
@@ -113,7 +126,16 @@ export function PageView({
         </div>
       )}
       {/* Java and DB pages are not paired Java/C++, so the language switch must not hide their code */}
-      <Markdown text={body} showAllCode={page.kind !== 'lld'} />
+      {mode === 'quick' && quick ? (
+        <section className="quicklook">
+          <Markdown text={quick} showAllCode />
+          <button type="button" className="link-btn small" onClick={() => onMode('full')}>
+            {tr('Poora page padho →', 'Read the full page →')}
+          </button>
+        </section>
+      ) : (
+        <Markdown text={body} showAllCode={page.kind !== 'lld'} />
+      )}
       <Checklist page={page} />
       <PrevNext page={page} />
       {related.length > 0 && (

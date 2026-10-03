@@ -324,6 +324,17 @@ export function route(p: Pick<Page, 'kind' | 'slug' | 'path'>): string {
 }
 
 /** Map a relative .md link inside content to an in-app hash route */
+// One-minute cheat sheets for the last half hour before an interview (content/quicklook/<slug>.md)
+const quickFiles = import.meta.glob('../../content/quicklook/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+const quickEnFiles = import.meta.glob('../../content-en/quicklook/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+const bySlug = (files: Record<string, string>) => new Map(Object.entries(files).map(([path, text]) => [path.split('/').pop()!.replace(/\.md$/, ''), text]))
+const quickHi = bySlug(quickFiles)
+const quickEn = bySlug(quickEnFiles)
+
+export function quickLook(slug: string, lang: 'hi' | 'en'): string | undefined {
+  return (lang === 'en' ? quickEn.get(slug) : undefined) ?? quickHi.get(slug)
+}
+
 export function resolveMdLink(href: string): string | null {
   const m = href.match(/([\w-]+)\.md(#.*)?$/)
   if (!m) return null

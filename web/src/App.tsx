@@ -6,9 +6,10 @@ import { OPEN_SETTINGS_EVENT, useGemini } from './gemini'
 import { pct } from './progress'
 import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './components/Dashboard'
-import { PageView } from './components/PageView'
+import { PageView, type ReadMode } from './components/PageView'
 import { Quiz } from './components/Quiz'
 import { Resume } from './components/Resume'
+import { Lists } from './components/Lists'
 import { Planner } from './components/Planner'
 import { NotesPanel } from './components/NotesPanel'
 import { ChatPanel } from './components/ChatPanel'
@@ -36,6 +37,7 @@ function useRoute() {
   const path = usePath()
   const parts = path.split('/')
   if (parts[0] === 'quiz') return { view: 'quiz' as const, slug: 'quiz' }
+  if (parts[0] === 'lists') return { view: 'lists' as const, slug: 'lists' }
   if (parts[0] === 'resume') return { view: 'resume' as const, slug: 'resume' }
   if (parts[0] === 'plan') return { view: 'plan' as const, slug: 'plan' }
   if (parts[0] === 'agents') {
@@ -56,7 +58,7 @@ export function App() {
   const tr = useTr()
   const page = view === 'page' ? pageBySlug.get(slug) : view === 'agents' ? agentPageFor(route.path ?? '/agents') : undefined
   const [tab, setTab] = useState<Tab>(() => readLocal('hld.tab', 'notes'))
-  const [revision, setRevision] = useState<boolean>(() => readLocal('hld.revision', false))
+  const [readMode, setReadMode] = useState<ReadMode>(() => readLocal('hld.mode', readLocal('hld.revision', false) ? 'revision' : 'full'))
   const [theme, setTheme] = useState<Theme>(() => readLocal('hld.theme', systemTheme()))
   const [showAuth, setShowAuth] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -99,10 +101,10 @@ export function App() {
   }, [theme])
 
   useEffect(() => writeLocal('hld.tab', tab), [tab])
-  useEffect(() => writeLocal('hld.revision', revision), [revision])
+  useEffect(() => writeLocal('hld.mode', readMode), [readMode])
 
   useEffect(() => {
-    document.title = page ? `${localize(page, lang).title} · Viewinter` : view === 'quiz' ? 'Quiz · Viewinter' : view === 'plan' ? 'Plan · Viewinter' : view === 'resume' ? 'Resume · Viewinter' : 'Viewinter'
+    document.title = page ? `${localize(page, lang).title} · Viewinter` : view === 'quiz' ? 'Quiz · Viewinter' : view === 'plan' ? 'Plan · Viewinter' : view === 'resume' ? 'Resume · Viewinter' : view === 'lists' ? 'My lists · Viewinter' : 'Viewinter'
     document.querySelector('.main')?.scrollTo(0, 0)
     window.scrollTo(0, 0)
   }, [page, view, lang])
@@ -194,6 +196,7 @@ export function App() {
           {view === 'home' && <Dashboard />}
           {view === 'plan' && <Planner />}
           {view === 'quiz' && <Quiz hasKey={hasKey} onOpenSettings={() => setShowSettings(true)} />}
+          {view === 'lists' && <Lists />}
           {view === 'resume' && <Resume hasKey={hasKey} onOpenSettings={() => setShowSettings(true)} />}
           {view === 'page' && !page && (
             <div className="empty-state">
@@ -214,8 +217,8 @@ export function App() {
           {view === 'page' && page && (
             <PageView
               page={page}
-              revision={revision}
-              onToggleRevision={() => setRevision((r) => !r)}
+              mode={readMode}
+              onMode={setReadMode}
               codeLang={codeLang}
               onCodeLang={setCodeLang}
             />

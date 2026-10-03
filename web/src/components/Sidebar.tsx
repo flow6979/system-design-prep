@@ -168,6 +168,10 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
         <Icon name="quiz" size={17} />
         Quiz
       </a>
+      <a href={href('lists')} className={`side-item home ${current === 'lists' ? 'active' : ''}`}>
+        <Icon name="list" size={17} />
+        {tr('Meri lists', 'My lists')}
+      </a>
       <a href={href('resume')} className={`side-item home ${current === 'resume' ? 'active' : ''}`}>
         <Icon name="file" size={17} />
         {tr('Resume se sawal', 'Resume questions')}

@@ -6,6 +6,7 @@ import { useLang, useTr } from '../i18n'
 import { pageStats } from '../progress'
 import { buildPlan, daysUntil, TRACKS, type Level, type PlanInput, type PlanItem, type Track } from '../plan'
 import { shortTitle } from './Sidebar'
+import { useLists, withListPages } from '../lists'
 
 const HOURS = [1, 2, 3, 4, 6]
 const DEFAULT_INPUT: PlanInput = { tracks: ['hld'], hours: 2, level: 'mid', days: 14 }
@@ -18,6 +19,9 @@ export function Planner() {
   const tr = useTr()
   const saved = profile.plan ?? DEFAULT_INPUT
   const [input, setInput] = useState<PlanInput>(saved)
+  const [showHow, setShowHow] = useState(false)
+  const { lists } = useLists()
+  const fromList = input.list ? lists.find((l) => l.id === input.list) : undefined
   const fromDate = daysUntil(profile.interviewDate)
   const days = fromDate ?? input.days ?? 14
 
@@ -31,14 +35,20 @@ export function Planner() {
     if (tracks.length) update({ ...input, tracks })
   }
 
-  const plan = useMemo(() => buildPlan(input, days + 1, (p) => pageStats(p, progress).complete), [input, days, progress])
+  const plan = useMemo(() => buildPlan(withListPages(input, lists), days + 1, (p) => pageStats(p, progress).complete), [input, lists, days, progress])
   const total = plan.days.reduce((n, d) => n + d.items.length, 0)
   const dayLabel = (date: Date, i: number) =>
     i === 0 ? tr('Aaj', 'Today') : i === 1 ? tr('Kal', 'Tomorrow') : date.toLocaleDateString(lang === 'en' ? 'en-IN' : 'en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
 
   return (
     <div className="planner">
-      <h1>{tr('Mera plan', 'My plan')}</h1>
+      <div className="plan-title-row">
+        <h1>{tr('Mera plan', 'My plan')}</h1>
+        <button type="button" className={`chip ${showHow ? 'on' : ''}`} aria-expanded={showHow} onClick={() => setShowHow((s) => !s)}>
+          ℹ️ {tr('Plan kaise banta hai?', 'How is the plan made?')}
+        </button>
+      </div>
+      {showHow && <PlanHowTo />}
 
       <section className="plan-form" aria-label={tr('Plan ke inputs', 'Plan inputs')}>
         <div className="field">
@@ -61,13 +71,31 @@ export function Planner() {
 
         <div className="field">
           <span className="field-label">{tr('Kya prepare karna hai', 'What are you preparing')}</span>
-          <div className="row wrap">
+          <div className={`row wrap ${fromList ? 'dimmed' : ''}`}>
             {TRACKS.map((t) => (
               <button key={t.id} type="button" className={`chip ${input.tracks.includes(t.id) ? 'on' : ''}`} aria-pressed={input.tracks.includes(t.id)} onClick={() => toggleTrack(t.id)}>
                 {t.label[lang]}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="field">
+          <span className="field-label">{tr('Ya sirf apni list se', 'Or only from your list')}</span>
+          {lists.length ? (
+            <select id="plan-list" value={fromList?.id ?? ''} onChange={(e) => update({ ...input, list: e.target.value || undefined })}>
+              <option value="">{tr('— Subjects se (upar wale) —', '— From the subjects above —')}</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name} · {l.slugs.length}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="muted small">
+              {tr('Koi list nahi hai.', 'No lists yet.')} <a href={href('lists')}>{tr('List banao →', 'Make a list →')}</a>
+            </span>
+          )}
         </div>
 
         <div className="field-row">
@@ -126,8 +154,8 @@ export function Planner() {
               <div className="plan-revision">
                 <p>
                   {tr(
-                    'Revision day: Revision mode me recaps padho, ⭐ quiz dohrao, aur ek mock interview do.',
-                    'Revision day: read recaps in Revision mode, redo ⭐ quiz questions and take one mock interview.',
+                    'Revision day: pages ka ⚡ Quick look ya ⭐ Revision padho, ⭐ quiz dohrao, aur ek mock interview do.',
+                    'Revision day: read the ⚡ Quick look or ⭐ Revision of your pages, redo ⭐ quiz questions and take one mock interview.',
                   )}
                 </p>
                 <div className="row wrap">
@@ -180,4 +208,55 @@ export function Planner() {
       </li>
     )
   }
+}
+
+/** Plain-language explanation of how buildPlan() decides the days */
+function PlanHowTo() {
+  const tr = useTr()
+  return (
+    <section className="plan-howto">
+      <ol>
+        <li>
+          <b>{tr('Tum batao:', 'You tell us:')}</b>{' '}
+          {tr(
+            'kitne din baaki (profile me interview date ho to wahi se), roz kitne ghante, experience, aur kaunse subjects. Ya seedha apni ek list chuno.',
+            'days left (taken from the interview date in your profile if set), hours per day, experience and subjects. Or pick one of your lists.',
+          )}
+        </li>
+        <li>
+          <b>{tr('Priority:', 'Priority:')}</b>{' '}
+          {tr(
+            'har subject ke pages 3 hisson me hain: ● must-do (sabse zyada pooche jaate), important, aur time mile to. Pehle saare must-do aate hain.',
+            'each subject has 3 tiers: ● must-do (asked most), important, and if you have time. All must-do pages come first.',
+          )}
+        </li>
+        <li>
+          <b>{tr('Mix:', 'Mix:')}</b>{' '}
+          {tr('ek din me ek hi subject nahi; subjects baari baari (round-robin) aate hain taaki sab saath badhe.', 'subjects take turns (round-robin), so one subject never eats a whole day.')}
+        </li>
+        <li>
+          <b>{tr('Time:', 'Time:')}</b>{' '}
+          {tr(
+            'har page ka reading time × practice factor (HLD topic ×3, HLD problem ×2.5, LLD ×2, Java/DB/CS ×1.5). Din bhar jaata hai to agla din shuru.',
+            'each page = reading time × a practice factor (HLD topic ×3, HLD problem ×2.5, LLD ×2, Java/DB/CS ×1.5). When a day is full, the next one starts.',
+          )}
+        </li>
+        <li>
+          <b>{tr('Experience:', 'Experience:')}</b>{' '}
+          {tr('senior ko tier-2 designs jaldi milte hain; junior pehle fundamentals aur aasaan designs karta hai.', 'seniors get the deeper tier-2 designs earlier; juniors start with fundamentals and easier designs.')}
+        </li>
+        <li>
+          <b>{tr('Aakhri din:', 'Last day:')}</b>{' '}
+          {tr('revision day: Quick look, ⭐ quiz aur ek mock interview.', 'revision day: Quick look, ⭐ quiz and one mock interview.')}
+        </li>
+        <li>
+          <b>{tr('Roz update:', 'Updates daily:')}</b>{' '}
+          {tr(
+            'jo page ka checklist poora tick ho gaya wo plan se hat jaata hai, aur plan aaj se dobara bant jaata hai. Time kam pade to bachi cheezein "Time mile to" me dikhti hain.',
+            'a page whose checklist is fully ticked drops out, and the plan re-balances from today. If time runs short, the rest shows under "If you have time".',
+          )}
+        </li>
+      </ol>
+    </section>
+  )
 }

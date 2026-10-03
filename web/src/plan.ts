@@ -12,7 +12,13 @@ export interface PlanInput {
   level: Level
   /** used when no interview date is set */
   days?: number
+  /** id of one of the user's lists: plan only those pages, in list order */
+  list?: string
+  /** resolved pages of that list (filled by the caller, not saved) */
+  only?: string[]
 }
+
+const TRACK_OF: Record<Page['kind'], Track> = { topic: 'hld', question: 'hld', lld: 'lld', lldp: 'lld', java: 'java', db: 'db', cs: 'cs', beh: 'beh', rag: 'rag', agent: 'agents' }
 
 export interface PlanItem {
   page: Page
@@ -103,13 +109,24 @@ function tiers(track: Track, level: Level): string[][] {
 function queue(input: PlanInput, isDone: (p: Page) => boolean): { items: PlanItem[]; done: number } {
   const items: PlanItem[] = []
   let done = 0
+  const minutesFor = (page: Page) => Math.max(10, Math.round(((page.time || 10) * FACTOR[page.kind]) / 5) * 5)
+  if (input.only) {
+    // A personal list: the user already chose the pages and their order
+    for (const slug of input.only) {
+      const page = pageBySlug.get(slug)
+      if (!page) continue
+      if (isDone(page)) done++
+      else items.push({ page, track: TRACK_OF[page.kind], priority: 1, minutes: minutesFor(page) })
+    }
+    return { items, done }
+  }
   for (const priority of [1, 2, 3] as const) {
     const lists = input.tracks.map((track) =>
       tiers(track, input.level)[priority - 1]
         .map((slug) => pageBySlug.get(slug))
         .filter((p): p is Page => !!p)
         .filter((p) => (isDone(p) ? (done++, false) : true))
-        .map((page) => ({ page, track, priority, minutes: Math.max(10, Math.round((page.time || 10) * FACTOR[page.kind] / 5) * 5) })),
+        .map((page) => ({ page, track, priority, minutes: minutesFor(page) })),
     )
     for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (l[i]) items.push(l[i])
   }

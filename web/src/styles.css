@@ -646,3 +646,68 @@ body { background: var(--bg); background-image: none; }
 .resume-q-text { margin: 0; font-weight: 600; font-size: 1.02rem; }
 .resume-q details > summary { cursor: pointer; color: var(--accent); }
 .resume-q details[open] { display: flex; flex-direction: column; gap: 8px; }
+
+/* Reading mode switch: full · revision · quick look */
+.mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 5px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); margin: 4px 0 8px; }
+.mode-switch button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 12px; border-radius: 10px; border: 1.5px solid transparent; background: transparent; color: var(--ink); font: inherit; cursor: pointer; text-align: left; }
+.mode-switch button:hover:not(:disabled) { background: var(--surface-2); }
+.mode-switch button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.mode-switch button:disabled { opacity: 0.45; cursor: not-allowed; }
+.mode-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.95rem; }
+.mode-hint { font-size: 0.78rem; color: var(--muted); }
+.mode-switch button.on .mode-hint { color: inherit; opacity: 0.85; }
+@media (max-width: 560px) { .mode-hint { display: none; } .mode-switch button { align-items: center; } }
+.quicklook { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; }
+.quicklook .md > :first-child { margin-top: 0; }
+.quicklook .md li { margin: 3px 0; }
+.quicklook h3 { margin: 0; font-size: 1.05rem; }
+.quick-stack { display: flex; flex-direction: column; gap: 14px; }
+
+/* Add-to-list popover */
+.list-picker { position: relative; }
+.list-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 280px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.list-pop-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.list-pop-row span:nth-child(2) { flex: 1; }
+.list-pop-new, .lists-new { display: flex; gap: 6px; }
+.list-pop-new input, .lists-new input, .list-add input, .list-name { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
+
+/* My lists page */
+.lists { display: flex; flex-direction: column; gap: 14px; max-width: 900px; }
+.lists h1 { margin-bottom: 0; }
+.lists-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lists-new { min-width: 260px; flex: 1; }
+.list-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.list-head { display: flex; gap: 12px; align-items: center; }
+.list-name { font-size: 1.15rem; font-weight: 700; background: transparent; border-color: transparent; }
+.list-name:hover, .list-name:focus { border-color: var(--line); }
+.list-pages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.list-pages li { display: flex; align-items: center; gap: 6px; border-radius: 8px; }
+.list-pages li:hover { background: var(--surface-2); }
+.list-pages li.done .list-page-link > span:nth-child(2) { color: var(--muted); text-decoration: line-through; }
+.list-page-link { flex: 1; display: flex; align-items: center; gap: 10px; padding: 7px 8px; color: var(--ink); text-decoration: none; min-width: 0; }
+.list-page-link > span:nth-child(2) { flex: 1; }
+.list-page-actions { display: flex; }
+.list-page-actions .icon-btn { width: 28px; height: 28px; font-size: 0.85rem; }
+.list-add { position: relative; display: flex; }
+.list-add-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; list-style: none; margin: 0; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); }
+.list-add-results button { width: 100%; text-align: left; display: flex; gap: 8px; align-items: center; padding: 7px 8px; border: 0; background: none; color: var(--ink); font: inherit; border-radius: 6px; cursor: pointer; }
+.list-add-results button:hover { background: var(--surface-2); }
+.lists-starters h2 { font-size: 1rem; }
+
+/* Plan explainer */
+.plan-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.plan-howto { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; }
+.plan-howto ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.dimmed { opacity: 0.4; pointer-events: none; }
+.plan-form select { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; max-width: 360px; }
+
+/* Dashboard guide */
+.guide { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 18px 16px; }
+.guide-head { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: 0; padding: 10px 0; color: var(--ink); cursor: pointer; font: inherit; }
+.guide-head h2 { margin: 0; font-size: 1.1rem; }
+.guide-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.guide-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); text-decoration: none; line-height: 1.45; }
+a.guide-card:hover { border-color: var(--accent); }
+.guide-icon { font-size: 1.15rem; }
+.guide-week { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); }
+.guide-week ol { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }

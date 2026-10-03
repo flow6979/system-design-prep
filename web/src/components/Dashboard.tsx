@@ -5,6 +5,8 @@ import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
 import { shortTitle } from './Sidebar'
 import { buildPlan, daysUntil, type PlanInput } from '../plan'
+import { withListPages } from '../lists'
+import { Guide } from './Guide'
 
 function Bar({ value }: { value: number }) {
   return (
@@ -34,7 +36,7 @@ export function Dashboard() {
   ]
   // Today's slice of the personal plan (defaults until the user sets one in the Plan tab)
   const input: PlanInput = profile.plan ?? { tracks: ['hld'], hours: 2, level: 'mid', days: 14 }
-  const plan = buildPlan(input, (daysLeft ?? input.days ?? 14) + 1, (p) => pageStats(p, progress).complete)
+  const plan = buildPlan(withListPages(input, profile.lists ?? []), (daysLeft ?? input.days ?? 14) + 1, (p) => pageStats(p, progress).complete)
   const today = plan.days[0]
 
   return (
@@ -48,6 +50,8 @@ export function Dashboard() {
         )}
       </header>
 
+      <Guide />
+
       <section className="today">
         <div className="today-head">
           <h2>{tr('Aaj', 'Today')}</h2>
@@ -56,7 +60,7 @@ export function Dashboard() {
           </a>
         </div>
         {today?.revision ? (
-          <p className="muted">{tr('Revision day: recaps, ⭐ quiz aur ek mock interview.', 'Revision day: recaps, ⭐ quiz and one mock interview.')}</p>
+          <p className="muted">{tr('Revision day: ⚡ Quick look, ⭐ quiz aur ek mock interview.', 'Revision day: ⚡ Quick look, ⭐ quiz and one mock interview.')}</p>
         ) : today && today.items.length ? (
           <ul className="plan-items">
             {today.items.map((it) => {
