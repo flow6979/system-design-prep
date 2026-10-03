@@ -1,0 +1,1354 @@
+[
+  {
+    "id": "g-impact-01",
+    "group": "impact",
+    "q": {
+      "hi": "Aapne ab tak ka sabse impactful project kaun sa kiya hai aur uska impact kya tha?",
+      "en": "What is the most impactful project you have worked on, and what was its impact?"
+    },
+    "checks": {
+      "hi": "Kya aap apne kaam ko business outcome se jod paate ho aur apna exact role bata paate ho.",
+      "en": "Whether you can tie your work to a business outcome and state your exact role."
+    },
+    "points": {
+      "hi": [
+        "Problem aur kyon zaroori tha (user/business pain)",
+        "Aapka specific role aur ownership",
+        "Key technical kaam jo aapne khud kiya",
+        "Measurable result: latency, cost, revenue, ya users",
+        "Aaj peeche dekh ke kya seekha"
+      ],
+      "en": [
+        "The problem and why it mattered (user/business pain)",
+        "Your specific role and ownership",
+        "The key technical work you personally did",
+        "Measurable result: latency, cost, revenue or users",
+        "What you learned looking back"
+      ]
+    },
+    "tip": {
+      "hi": "Ek hi project choose karo jisme aap deep dive ke liye ready ho; \"we\" nahi \"I\" bolo.",
+      "en": "Pick one project you can deep-dive on for 30 minutes; say \"I\", not \"we\"."
+    }
+  },
+  {
+    "id": "g-impact-02",
+    "group": "impact",
+    "q": {
+      "hi": "Apne kaam ka impact numbers mein bataiye, kaun se metrics improve hue?",
+      "en": "Quantify the impact of your work: which metrics moved and by how much?"
+    },
+    "checks": {
+      "hi": "Kya aap data-driven ho aur kya aapko pata hai success kaise measure hua.",
+      "en": "Whether you are data-driven and know how success was actually measured."
+    },
+    "points": {
+      "hi": [
+        "Baseline vs after numbers (e.g. p99 800ms se 200ms)",
+        "Metric kaise measure kiya: dashboard, A/B test, logs",
+        "Business translation: cost saved, conversion, tickets kam",
+        "Kitna credit aapka, kitna team ka, honestly"
+      ],
+      "en": [
+        "Baseline vs after numbers (e.g. p99 from 800ms to 200ms)",
+        "How it was measured: dashboard, A/B test, logs",
+        "Business translation: cost saved, conversion, fewer tickets",
+        "Honest split of credit between you and the team"
+      ]
+    },
+    "tip": {
+      "hi": "Approx numbers bhi chalenge, par unka source batao; bina numbers ke answer weak lagta hai.",
+      "en": "Approximate numbers are fine if you name the source; no numbers reads as no impact."
+    }
+  },
+  {
+    "id": "g-impact-03",
+    "group": "impact",
+    "q": {
+      "hi": "Aisa koi kaam bataiye jo aapne bina kisi ke kahe kiya aur jisse team ya product ko fayda hua.",
+      "en": "Tell me about something you did without being asked that benefited the team or product."
+    },
+    "checks": {
+      "hi": "Initiative aur bias for action: kya aap khud problems dhoondte ho.",
+      "en": "Initiative and bias for action: do you find problems on your own."
+    },
+    "points": {
+      "hi": [
+        "Problem kaise notice kiya (on-call pain, metrics, toil)",
+        "Stakeholders ko kaise convince kiya ya time nikala",
+        "Kya build/fix kiya",
+        "Result aur adoption"
+      ],
+      "en": [
+        "How you noticed the problem (on-call pain, metrics, toil)",
+        "How you got buy-in or carved out time",
+        "What you built or fixed",
+        "Result and adoption"
+      ]
+    },
+    "tip": {
+      "hi": "Tooling, automation, ya observability ke examples yahan strong hote hain.",
+      "en": "Tooling, automation or observability wins make strong examples here."
+    }
+  },
+  {
+    "id": "g-impact-04",
+    "group": "impact",
+    "q": {
+      "hi": "Aapne kabhi system ki performance, cost ya reliability kaise improve ki?",
+      "en": "Describe a time you improved performance, cost or reliability of a system."
+    },
+    "checks": {
+      "hi": "Engineering depth aur kya aap bottleneck ko data se identify karte ho.",
+      "en": "Engineering depth and whether you find bottlenecks with data, not guesses."
+    },
+    "points": {
+      "hi": [
+        "Symptom aur kaise profile/measure kiya",
+        "Root cause (N+1 query, missing index, GC, lock contention)",
+        "Fix aur considered alternatives",
+        "Before/after numbers aur regression kaise roka"
+      ],
+      "en": [
+        "The symptom and how you profiled or measured it",
+        "Root cause (N+1 query, missing index, GC, lock contention)",
+        "The fix and alternatives considered",
+        "Before/after numbers and how you prevented regression"
+      ]
+    },
+    "tip": {
+      "hi": "Pehle measure, phir optimize; interviewer \"kaise pata chala?\" zaroor poochega.",
+      "en": "Measure first, then optimize; expect \"how did you know?\" as the follow-up."
+    }
+  },
+  {
+    "id": "g-impact-05",
+    "group": "impact",
+    "q": {
+      "hi": "Agar aapka manager aapke last saal ke kaam ko ek line mein summarize kare to kya bolega?",
+      "en": "If your manager summarized your last year of work in one line, what would it say?"
+    },
+    "checks": {
+      "hi": "Self-awareness aur kya aapki self-image feedback se match karti hai.",
+      "en": "Self-awareness and whether your self-image matches real feedback."
+    },
+    "points": {
+      "hi": [
+        "Ek clear theme (e.g. \"payments reliability ka owner\")",
+        "1-2 concrete achievements jo isko back karein",
+        "Performance review se actual feedback",
+        "Ek area jahan manager improvement chahta hai"
+      ],
+      "en": [
+        "One clear theme (e.g. \"owner of payments reliability\")",
+        "1-2 concrete achievements that back it",
+        "Real feedback from performance reviews",
+        "One area your manager wants you to grow in"
+      ]
+    },
+    "tip": {
+      "hi": "Overclaim mat karo; reference check mein yahi poocha ja sakta hai.",
+      "en": "Do not overclaim; this is exactly what a reference check might verify."
+    }
+  },
+  {
+    "id": "g-project-01",
+    "group": "project",
+    "q": {
+      "hi": "Apna resume walk through kariye aur current role par focus kariye.",
+      "en": "Walk me through your resume, focusing on your current role."
+    },
+    "checks": {
+      "hi": "Communication, career story ka flow, aur aage deep dive ke liye hooks.",
+      "en": "Communication, the arc of your career, and hooks for the deep dive."
+    },
+    "points": {
+      "hi": [
+        "2 minute ka crisp summary, chronological",
+        "Har role mein scope aur 1 highlight",
+        "Current team, product aur aapki responsibility",
+        "Aage kya dhoondh rahe ho, us par end karo"
+      ],
+      "en": [
+        "A crisp 2-minute summary in order",
+        "Scope and one highlight per role",
+        "Current team, product and your responsibility",
+        "End with what you are looking for next"
+      ]
+    },
+    "tip": {
+      "hi": "Resume line by line mat padho; story batao aur ek strong project par hook chhodo.",
+      "en": "Do not read the resume aloud; tell a story and leave a hook to your best project."
+    }
+  },
+  {
+    "id": "g-project-02",
+    "group": "project",
+    "q": {
+      "hi": "Apne current project ka high-level architecture whiteboard par samjhaiye.",
+      "en": "Explain the high-level architecture of your current project on a whiteboard."
+    },
+    "checks": {
+      "hi": "Kya aapko poora system samajh aata hai ya sirf apna component.",
+      "en": "Whether you understand the whole system or only your own component."
+    },
+    "points": {
+      "hi": [
+        "Main components aur data flow (client, services, DB, queue, cache)",
+        "Scale numbers: QPS, data size, users",
+        "Aapka component kahan fit hota hai",
+        "Known bottlenecks ya failure points"
+      ],
+      "en": [
+        "Main components and data flow (client, services, DB, queue, cache)",
+        "Scale numbers: QPS, data size, users",
+        "Where your component fits",
+        "Known bottlenecks or failure points"
+      ]
+    },
+    "tip": {
+      "hi": "Pehle box diagram, phir zoom in; scale numbers yaad karke jao.",
+      "en": "Start with boxes, then zoom in; memorize your real scale numbers."
+    }
+  },
+  {
+    "id": "g-project-03",
+    "group": "project",
+    "q": {
+      "hi": "Is project mein aapka exact contribution kya tha, team ke kaam se alag?",
+      "en": "What exactly was your contribution to this project, separate from the team?"
+    },
+    "checks": {
+      "hi": "Credit inflation pakadna aur aapki actual depth jaanchna.",
+      "en": "Catching credit inflation and probing your real depth."
+    },
+    "points": {
+      "hi": [
+        "Kaun se modules/PRs aapne design aur likhe",
+        "Kaun se decisions aapne liye ya influence kiye",
+        "Kya dusron ne kiya, clearly batao",
+        "Ek tricky detail jo sirf author ko pata hoti hai"
+      ],
+      "en": [
+        "Which modules/PRs you designed and wrote",
+        "Which decisions you made or influenced",
+        "What others did, stated clearly",
+        "One tricky detail only the author would know"
+      ]
+    },
+    "tip": {
+      "hi": "\"Hum ne kiya\" ke bajaye \"maine X design kiya, Y ne Z kiya\" bolo.",
+      "en": "Replace \"we did\" with \"I designed X, while Y built Z\"."
+    }
+  },
+  {
+    "id": "g-project-04",
+    "group": "project",
+    "q": {
+      "hi": "Is system ko 10x traffic ke liye scale karna ho to aap kya badloge?",
+      "en": "If this system had to handle 10x traffic, what would you change?"
+    },
+    "checks": {
+      "hi": "Kya aap apne system ki limits jaante ho aur scaling sochte ho.",
+      "en": "Whether you know your system's limits and can reason about scaling."
+    },
+    "points": {
+      "hi": [
+        "Pehle kya tootega (DB, single instance, hot partition)",
+        "Caching, sharding, async/queues, read replicas",
+        "Cost aur complexity trade-off",
+        "Load test ya capacity planning kaise karoge"
+      ],
+      "en": [
+        "What breaks first (DB, single instance, hot partition)",
+        "Caching, sharding, async/queues, read replicas",
+        "Cost and complexity trade-offs",
+        "How you would load test or capacity plan"
+      ]
+    },
+    "tip": {
+      "hi": "Generic answers se bacho; apne system ka specific bottleneck naam lo.",
+      "en": "Avoid generic answers; name your system's specific bottleneck."
+    }
+  },
+  {
+    "id": "g-project-05",
+    "group": "project",
+    "q": {
+      "hi": "Aapke project mein data model / database schema kaise design kiya gaya tha aur kyon?",
+      "en": "How was the data model or database schema designed in your project, and why?"
+    },
+    "checks": {
+      "hi": "Data modelling ki samajh aur DB choice ka reasoning.",
+      "en": "Understanding of data modelling and reasoning behind the DB choice."
+    },
+    "points": {
+      "hi": [
+        "Main entities aur relationships",
+        "SQL vs NoSQL choice aur reason",
+        "Indexes, partitioning, access patterns",
+        "Consistency aur transactions kaise handle hue"
+      ],
+      "en": [
+        "Main entities and relationships",
+        "SQL vs NoSQL choice and why",
+        "Indexes, partitioning and access patterns",
+        "How consistency and transactions were handled"
+      ]
+    },
+    "tip": {
+      "hi": "Access patterns se shuru karo, schema unse nikalta hai.",
+      "en": "Start from access patterns; the schema follows from them."
+    }
+  },
+  {
+    "id": "g-project-06",
+    "group": "project",
+    "q": {
+      "hi": "Aapka system production mein kaise monitor hota hai aur failure aane par kya hota hai?",
+      "en": "How is your system monitored in production, and what happens when it fails?"
+    },
+    "checks": {
+      "hi": "Operational maturity: observability, alerting, on-call aur resilience.",
+      "en": "Operational maturity: observability, alerting, on-call and resilience."
+    },
+    "points": {
+      "hi": [
+        "Metrics, logs, traces aur dashboards (Grafana, Datadog)",
+        "Alerts aur SLOs",
+        "Retries, timeouts, circuit breakers, fallbacks",
+        "Deploy/rollback strategy"
+      ],
+      "en": [
+        "Metrics, logs, traces and dashboards (Grafana, Datadog)",
+        "Alerts and SLOs",
+        "Retries, timeouts, circuit breakers, fallbacks",
+        "Deploy and rollback strategy"
+      ]
+    },
+    "tip": {
+      "hi": "Ek real incident ka zikr karo jo monitoring ne pakda.",
+      "en": "Mention a real incident that monitoring caught."
+    }
+  },
+  {
+    "id": "g-project-07",
+    "group": "project",
+    "q": {
+      "hi": "Agar aapko yeh project aaj scratch se dobara banana ho to aap kya alag karoge?",
+      "en": "If you rebuilt this project from scratch today, what would you do differently?"
+    },
+    "checks": {
+      "hi": "Reflection, critical thinking aur growth mindset.",
+      "en": "Reflection, critical thinking and growth mindset."
+    },
+    "points": {
+      "hi": [
+        "1-2 concrete changes (architecture, tech, process)",
+        "Original decision us waqt kyon sahi laga",
+        "Ab kya naya pata hai (scale, requirements)",
+        "Change ka expected benefit"
+      ],
+      "en": [
+        "1-2 concrete changes (architecture, tech, process)",
+        "Why the original choice made sense then",
+        "What you know now (scale, requirements)",
+        "Expected benefit of the change"
+      ]
+    },
+    "tip": {
+      "hi": "\"Kuch nahi badlunga\" kabhi mat bolo; purane context ki respect bhi rakho.",
+      "en": "Never say \"nothing\"; but respect the context the original choice was made in."
+    }
+  },
+  {
+    "id": "g-decisions-01",
+    "group": "decisions",
+    "q": {
+      "hi": "Ek technical decision bataiye jisme aapne do approaches ke beech trade-off kiya.",
+      "en": "Tell me about a technical decision where you weighed trade-offs between two approaches."
+    },
+    "checks": {
+      "hi": "Structured decision making aur alternatives sochne ki aadat.",
+      "en": "Structured decision making and the habit of considering alternatives."
+    },
+    "points": {
+      "hi": [
+        "Options kya the",
+        "Criteria: latency, cost, complexity, time-to-market, team skill",
+        "Kaise evaluate kiya (POC, benchmark, design doc)",
+        "Final choice aur uska outcome"
+      ],
+      "en": [
+        "What the options were",
+        "Criteria: latency, cost, complexity, time-to-market, team skill",
+        "How you evaluated (POC, benchmark, design doc)",
+        "Final choice and its outcome"
+      ]
+    },
+    "tip": {
+      "hi": "Har option ke pros aur cons dono bolo; ek-tarfa answer shaky lagta hai.",
+      "en": "State pros and cons of every option; one-sided answers sound shallow."
+    }
+  },
+  {
+    "id": "g-decisions-02",
+    "group": "decisions",
+    "q": {
+      "hi": "Aisa koi design decision jo aapko baad mein galat laga ya jiska aapko regret hai?",
+      "en": "Describe a design decision you later regretted."
+    },
+    "checks": {
+      "hi": "Honesty, ownership aur galti se seekhne ki ability.",
+      "en": "Honesty, ownership and the ability to learn from mistakes."
+    },
+    "points": {
+      "hi": [
+        "Decision aur us waqt ka reasoning",
+        "Kab aur kaise pata chala ki galat tha",
+        "Kaise fix ya migrate kiya",
+        "Ab decisions mein kya alag karte ho"
+      ],
+      "en": [
+        "The decision and the reasoning at the time",
+        "When and how you found out it was wrong",
+        "How you fixed or migrated",
+        "What you now do differently"
+      ]
+    },
+    "tip": {
+      "hi": "Real galti chuno, fake weakness nahi; zyada time learning par do.",
+      "en": "Pick a real mistake, not a humblebrag; spend most time on the learning."
+    }
+  },
+  {
+    "id": "g-decisions-03",
+    "group": "decisions",
+    "q": {
+      "hi": "Aapne apne project mein yeh specific technology (DB, queue, framework) kyon choose ki?",
+      "en": "Why did you choose this specific technology (DB, queue, framework) for your project?"
+    },
+    "checks": {
+      "hi": "Kya choice soch samajh kar thi ya default/hype se.",
+      "en": "Whether the choice was deliberate or just default or hype."
+    },
+    "points": {
+      "hi": [
+        "Requirement jisne choice drive ki",
+        "Alternatives jo consider kiye (e.g. Kafka vs RabbitMQ vs SQS)",
+        "Iski known limitations",
+        "Kya yeh choice sahi saabit hui"
+      ],
+      "en": [
+        "The requirement that drove the choice",
+        "Alternatives considered (e.g. Kafka vs RabbitMQ vs SQS)",
+        "Its known limitations",
+        "Whether the choice held up"
+      ]
+    },
+    "tip": {
+      "hi": "Agar choice aapki nahi thi to seedha bolo, phir apni raay do.",
+      "en": "If it was not your choice, say so, then give your own view."
+    }
+  },
+  {
+    "id": "g-decisions-04",
+    "group": "decisions",
+    "q": {
+      "hi": "Kabhi aapne speed aur quality ke beech trade-off kiya, jaise tech debt lena?",
+      "en": "Tell me about a time you traded quality for speed, such as taking on tech debt."
+    },
+    "checks": {
+      "hi": "Pragmatism aur tech debt ko consciously manage karna.",
+      "en": "Pragmatism and managing tech debt consciously."
+    },
+    "points": {
+      "hi": [
+        "Deadline ya business pressure kya tha",
+        "Kaun sa shortcut liya aur risk kya tha",
+        "Debt ko track kaise kiya (ticket, TODO, doc)",
+        "Baad mein pay down kiya ya nahi"
+      ],
+      "en": [
+        "What the deadline or business pressure was",
+        "Which shortcut you took and its risk",
+        "How you tracked the debt (ticket, doc)",
+        "Whether and how you paid it down"
+      ]
+    },
+    "tip": {
+      "hi": "Dikhao ki debt intentional tha aur plan ke saath tha, laaparwahi nahi.",
+      "en": "Show the debt was intentional and planned, not careless."
+    }
+  },
+  {
+    "id": "g-decisions-05",
+    "group": "decisions",
+    "q": {
+      "hi": "Jab requirements unclear ya ambiguous thi tab aapne kaise decision liya?",
+      "en": "How did you make a decision when requirements were unclear or ambiguous?"
+    },
+    "checks": {
+      "hi": "Ambiguity handle karna aur bina perfect info ke aage badhna.",
+      "en": "Handling ambiguity and moving forward without perfect information."
+    },
+    "points": {
+      "hi": [
+        "Kya unknown tha",
+        "Clarity ke liye kisse aur kya poocha",
+        "Assumptions likhe aur reversible decision liya",
+        "Iterate kaise kiya aur result"
+      ],
+      "en": [
+        "What was unknown",
+        "Whom you asked and what for clarity",
+        "Wrote down assumptions and chose a reversible path",
+        "How you iterated and the result"
+      ]
+    },
+    "tip": {
+      "hi": "Assumptions document karna aur feedback loop chhota rakhna highlight karo.",
+      "en": "Highlight documenting assumptions and keeping feedback loops short."
+    }
+  },
+  {
+    "id": "g-decisions-06",
+    "group": "decisions",
+    "q": {
+      "hi": "Aapne kabhi senior ya architect ke technical decision se disagree kiya? Kya hua?",
+      "en": "Have you disagreed with a senior engineer's or architect's technical decision? What happened?"
+    },
+    "checks": {
+      "hi": "Backbone with respect: data se argue karna aur \"disagree and commit\".",
+      "en": "Backbone with respect: arguing with data and disagree-and-commit."
+    },
+    "points": {
+      "hi": [
+        "Disagreement kis baat par tha",
+        "Data/POC se kaise point rakha",
+        "Final outcome, chahe aap jeete ya nahi",
+        "Decision ke baad kaise commit kiya"
+      ],
+      "en": [
+        "What the disagreement was about",
+        "How you made your case with data or a POC",
+        "Final outcome, whether or not you won",
+        "How you committed after the decision"
+      ]
+    },
+    "tip": {
+      "hi": "Person nahi, idea par focus; ego wali kahani avoid karo.",
+      "en": "Focus on the idea, not the person; avoid ego-driven stories."
+    }
+  },
+  {
+    "id": "g-failure-01",
+    "group": "failure",
+    "q": {
+      "hi": "Aapka sabse mushkil bug kaun sa tha aur aapne use kaise debug kiya?",
+      "en": "What is the hardest bug you have debugged, and how did you find it?"
+    },
+    "checks": {
+      "hi": "Debugging approach, persistence aur technical depth.",
+      "en": "Debugging approach, persistence and technical depth."
+    },
+    "points": {
+      "hi": [
+        "Symptom aur kyon mushkil tha (intermittent, prod-only)",
+        "Hypotheses aur unhe kaise eliminate kiya",
+        "Tools: logs, profiler, heap dump, tcpdump",
+        "Root cause, fix aur repeat rokne ka tareeka"
+      ],
+      "en": [
+        "The symptom and why it was hard (intermittent, prod-only)",
+        "Hypotheses and how you eliminated them",
+        "Tools: logs, profiler, heap dump, tcpdump",
+        "Root cause, fix and how you prevented recurrence"
+      ]
+    },
+    "tip": {
+      "hi": "Kahani ko detective story ki tarah batao; root cause technically specific ho.",
+      "en": "Tell it like a detective story; make the root cause technically specific."
+    }
+  },
+  {
+    "id": "g-failure-02",
+    "group": "failure",
+    "q": {
+      "hi": "Koi production incident bataiye jisme aap involved the; aapne kya kiya?",
+      "en": "Tell me about a production incident you were involved in and what you did."
+    },
+    "checks": {
+      "hi": "Pressure mein calm rehna, mitigation vs root cause ki samajh.",
+      "en": "Staying calm under pressure and knowing mitigation from root cause."
+    },
+    "points": {
+      "hi": [
+        "Impact: kitne users, kitna time, kitna revenue",
+        "Pehle mitigate kiya (rollback, feature flag, scale up)",
+        "Communication stakeholders ke saath",
+        "RCA aur action items jo implement hue"
+      ],
+      "en": [
+        "Impact: users affected, duration, revenue",
+        "Mitigation first (rollback, feature flag, scale up)",
+        "Communication with stakeholders",
+        "RCA and the action items that shipped"
+      ]
+    },
+    "tip": {
+      "hi": "Blameless tone rakho aur postmortem ke concrete action items batao.",
+      "en": "Keep a blameless tone and name concrete postmortem action items."
+    }
+  },
+  {
+    "id": "g-failure-03",
+    "group": "failure",
+    "q": {
+      "hi": "Apni koi badi galti ya failure bataiye aur usse kya seekha.",
+      "en": "Tell me about a significant mistake or failure of yours and what you learned."
+    },
+    "checks": {
+      "hi": "Accountability aur self-reflection.",
+      "en": "Accountability and self-reflection."
+    },
+    "points": {
+      "hi": [
+        "Galti kya thi, bina excuse ke",
+        "Impact kya hua",
+        "Turant kaise sambhala",
+        "Process ya habit mein permanent change"
+      ],
+      "en": [
+        "What the mistake was, without excuses",
+        "What the impact was",
+        "How you handled it right away",
+        "The lasting change to your process or habits"
+      ]
+    },
+    "tip": {
+      "hi": "Blame shift mat karo; \"maine\" se shuru karo aur learning par khatam.",
+      "en": "Do not shift blame; start with \"I\" and end with the learning."
+    }
+  },
+  {
+    "id": "g-failure-04",
+    "group": "failure",
+    "q": {
+      "hi": "Aisa project jo fail hua, cancel hua ya deadline miss hua; kya hua tha?",
+      "en": "Tell me about a project that failed, got cancelled or missed its deadline."
+    },
+    "checks": {
+      "hi": "Risk ko jaldi pehchanna aur bure outcome ko handle karna.",
+      "en": "Spotting risk early and handling a bad outcome."
+    },
+    "points": {
+      "hi": [
+        "Project ka goal aur kya galat gaya",
+        "Warning signs kab dikhe",
+        "Aapne kya kiya: escalate, re-scope, communicate",
+        "Agli baar ke liye learning"
+      ],
+      "en": [
+        "The goal and what went wrong",
+        "When the warning signs appeared",
+        "What you did: escalate, re-scope, communicate",
+        "Learning for next time"
+      ]
+    },
+    "tip": {
+      "hi": "Early escalation aur re-scoping dikhana maturity ka sign hai.",
+      "en": "Showing early escalation and re-scoping signals maturity."
+    }
+  },
+  {
+    "id": "g-failure-05",
+    "group": "failure",
+    "q": {
+      "hi": "Aapke kariyar ka sabse bada technical challenge kya tha aur aapne use kaise overcome kiya?",
+      "en": "What was the biggest technical challenge of your career and how did you overcome it?"
+    },
+    "checks": {
+      "hi": "Complexity handle karne ki capacity aur problem-solving approach.",
+      "en": "Capacity to handle complexity and your problem-solving approach."
+    },
+    "points": {
+      "hi": [
+        "Challenge kyon mushkil tha (scale, legacy, constraints)",
+        "Problem ko kaise tod kar solve kiya",
+        "Kisse help li aur kya research kiya",
+        "Final result aur metrics"
+      ],
+      "en": [
+        "Why it was hard (scale, legacy, constraints)",
+        "How you broke the problem down",
+        "Who you asked and what you researched",
+        "Final result and metrics"
+      ]
+    },
+    "tip": {
+      "hi": "STAR use karo; \"Action\" part sabse lamba hona chahiye.",
+      "en": "Use STAR; the Action part should be the longest."
+    }
+  },
+  {
+    "id": "g-failure-06",
+    "group": "failure",
+    "q": {
+      "hi": "Tight deadline mein aapne kaam kaise deliver kiya, aur kya cut kiya?",
+      "en": "How did you deliver under a tight deadline, and what did you cut?"
+    },
+    "checks": {
+      "hi": "Prioritization aur scope negotiation.",
+      "en": "Prioritization and scope negotiation."
+    },
+    "points": {
+      "hi": [
+        "Deadline aur scope ka gap",
+        "Must-have vs nice-to-have kaise decide kiya",
+        "Stakeholders se scope negotiate kiya",
+        "Quality kaise bachayi aur result"
+      ],
+      "en": [
+        "The gap between deadline and scope",
+        "How you split must-have from nice-to-have",
+        "How you negotiated scope with stakeholders",
+        "How you protected quality, and the result"
+      ]
+    },
+    "tip": {
+      "hi": "Heroic overtime nahi, smart prioritization dikhao.",
+      "en": "Show smart prioritization, not heroic overtime."
+    }
+  },
+  {
+    "id": "g-ownership-01",
+    "group": "ownership",
+    "q": {
+      "hi": "Aisa project bataiye jo aapne end-to-end own kiya, design se production tak.",
+      "en": "Tell me about a project you owned end-to-end, from design to production."
+    },
+    "checks": {
+      "hi": "Ownership level: sirf code ya poora lifecycle.",
+      "en": "Level of ownership: just code, or the full lifecycle."
+    },
+    "points": {
+      "hi": [
+        "Requirements aur design doc",
+        "Implementation, testing, rollout plan",
+        "Launch ke baad monitoring aur iteration",
+        "Cross-team dependencies kaise manage ki"
+      ],
+      "en": [
+        "Requirements and design doc",
+        "Implementation, testing, rollout plan",
+        "Post-launch monitoring and iteration",
+        "How you managed cross-team dependencies"
+      ]
+    },
+    "tip": {
+      "hi": "Launch ke baad ka kaam bhi batao; wahin real ownership dikhti hai.",
+      "en": "Cover what happened after launch; that is where real ownership shows."
+    }
+  },
+  {
+    "id": "g-ownership-02",
+    "group": "ownership",
+    "q": {
+      "hi": "Aapne kabhi kisi junior ya naye team member ko mentor kiya? Kaise?",
+      "en": "Have you mentored a junior or new team member? How?"
+    },
+    "checks": {
+      "hi": "Leadership aur force multiplier banne ki ability (SDE-2/3 ke liye key).",
+      "en": "Leadership and being a force multiplier (key for SDE-2/3)."
+    },
+    "points": {
+      "hi": [
+        "Unki starting state aur goal",
+        "Kya kiya: pairing, code reviews, docs, stretch tasks",
+        "Unki growth ka measurable sign",
+        "Aapne mentoring se kya seekha"
+      ],
+      "en": [
+        "Their starting point and goal",
+        "What you did: pairing, code reviews, docs, stretch tasks",
+        "A measurable sign of their growth",
+        "What you learned from mentoring"
+      ]
+    },
+    "tip": {
+      "hi": "Unki success ki baat karo, apni nahi.",
+      "en": "Talk about their success, not yours."
+    }
+  },
+  {
+    "id": "g-ownership-03",
+    "group": "ownership",
+    "q": {
+      "hi": "Aisi situation jab aapne apne scope se bahar jaakar koi problem fix ki.",
+      "en": "Describe a time you went beyond your scope to fix a problem."
+    },
+    "checks": {
+      "hi": "Ownership mindset: \"not my job\" attitude to nahi.",
+      "en": "Ownership mindset versus a \"not my job\" attitude."
+    },
+    "points": {
+      "hi": [
+        "Problem kis team/area ki thi",
+        "Aapne kyon step in kiya",
+        "Owner team ke saath kaise coordinate kiya",
+        "Outcome aur long-term fix"
+      ],
+      "en": [
+        "Which team or area owned the problem",
+        "Why you stepped in",
+        "How you coordinated with the owning team",
+        "Outcome and long-term fix"
+      ]
+    },
+    "tip": {
+      "hi": "Dikhao ki aapne owners ko bypass nahi kiya, saath liya.",
+      "en": "Show you brought the owners along rather than bypassing them."
+    }
+  },
+  {
+    "id": "g-ownership-04",
+    "group": "ownership",
+    "q": {
+      "hi": "Aapne kabhi cross-team project lead kiya ya multiple teams ko align kiya?",
+      "en": "Have you led a cross-team project or aligned multiple teams?"
+    },
+    "checks": {
+      "hi": "Influence without authority aur communication skills.",
+      "en": "Influence without authority and communication skills."
+    },
+    "points": {
+      "hi": [
+        "Kaun si teams aur unke conflicting goals",
+        "Alignment kaise banaya (RFC, sync, shared doc)",
+        "Blockers aur dependencies kaise track kiye",
+        "Result aur learning"
+      ],
+      "en": [
+        "Which teams and their conflicting goals",
+        "How you built alignment (RFC, syncs, shared doc)",
+        "How you tracked blockers and dependencies",
+        "Result and learning"
+      ]
+    },
+    "tip": {
+      "hi": "SDE-3 ke liye yeh must-have story hai; ready rakho.",
+      "en": "For SDE-3 this story is a must-have; keep one ready."
+    }
+  },
+  {
+    "id": "g-ownership-05",
+    "group": "ownership",
+    "q": {
+      "hi": "Aapne team ke engineering process ya code quality ko kaise improve kiya?",
+      "en": "How have you improved your team's engineering process or code quality?"
+    },
+    "checks": {
+      "hi": "Team-level impact aur standards raise karna.",
+      "en": "Team-level impact and raising the bar."
+    },
+    "points": {
+      "hi": [
+        "Kya problem thi (flaky tests, slow CI, bugs)",
+        "Kya introduce kiya (linting, review checklist, CI, testing)",
+        "Team ko adopt kaise karwaya",
+        "Measurable improvement"
+      ],
+      "en": [
+        "The problem (flaky tests, slow CI, bugs)",
+        "What you introduced (linting, review checklist, CI, tests)",
+        "How you drove adoption",
+        "Measurable improvement"
+      ]
+    },
+    "tip": {
+      "hi": "Adoption ki kahani bhi batao; tool banana easy hai, team se use karwana mushkil.",
+      "en": "Tell the adoption story; building a tool is easy, getting it used is hard."
+    }
+  },
+  {
+    "id": "g-team-01",
+    "group": "team",
+    "q": {
+      "hi": "Kabhi kisi teammate ke saath conflict hua? Aapne use kaise resolve kiya?",
+      "en": "Tell me about a conflict with a teammate and how you resolved it."
+    },
+    "checks": {
+      "hi": "Emotional maturity aur collaboration.",
+      "en": "Emotional maturity and collaboration."
+    },
+    "points": {
+      "hi": [
+        "Conflict kis baat par tha (technical, priorities)",
+        "Unka perspective samajhne ki koshish",
+        "Common ground aur resolution",
+        "Relationship baad mein kaisa raha"
+      ],
+      "en": [
+        "What it was about (technical, priorities)",
+        "How you sought their perspective",
+        "Common ground and resolution",
+        "How the relationship was afterwards"
+      ]
+    },
+    "tip": {
+      "hi": "Doosre ko villain mat banao; dono taraf fair raho.",
+      "en": "Do not make the other person the villain; stay fair to both sides."
+    }
+  },
+  {
+    "id": "g-team-02",
+    "group": "team",
+    "q": {
+      "hi": "Aapne product manager ya non-tech stakeholder ke saath disagreement kaise handle kiya?",
+      "en": "How did you handle a disagreement with a product manager or non-technical stakeholder?"
+    },
+    "checks": {
+      "hi": "Business context samajhna aur tech ko simple bhasha mein samjhana.",
+      "en": "Understanding business context and explaining tech in plain terms."
+    },
+    "points": {
+      "hi": [
+        "Unki requirement aur aapki concern",
+        "Trade-off ko business terms mein samjhaya",
+        "Alternatives offer kiye (phased rollout, MVP)",
+        "Final decision aur outcome"
+      ],
+      "en": [
+        "Their ask and your concern",
+        "How you framed the trade-off in business terms",
+        "Alternatives offered (phased rollout, MVP)",
+        "Final decision and outcome"
+      ]
+    },
+    "tip": {
+      "hi": "\"No\" ke bajaye \"haan, agar...\" wala approach dikhao.",
+      "en": "Show a \"yes, if...\" approach rather than a flat \"no\"."
+    }
+  },
+  {
+    "id": "g-team-03",
+    "group": "team",
+    "q": {
+      "hi": "Code review mein tough feedback diya ya liya ho, aisa example bataiye.",
+      "en": "Give an example of giving or receiving tough feedback in a code review."
+    },
+    "checks": {
+      "hi": "Feedback culture aur ego-free collaboration.",
+      "en": "Feedback culture and ego-free collaboration."
+    },
+    "points": {
+      "hi": [
+        "Feedback kya tha",
+        "Kaise deliver kiya ya receive kiya",
+        "Kya change hua code ya behaviour mein",
+        "Iska long-term asar"
+      ],
+      "en": [
+        "What the feedback was",
+        "How you delivered or received it",
+        "What changed in the code or behaviour",
+        "The longer-term effect"
+      ]
+    },
+    "tip": {
+      "hi": "Specific aur kind dono raho; defensive reaction ki kahani mat batao.",
+      "en": "Be specific and kind; avoid stories where you got defensive."
+    }
+  },
+  {
+    "id": "g-team-04",
+    "group": "team",
+    "q": {
+      "hi": "Aisa teammate jo underperform kar raha tha ya cooperate nahi kar raha tha, use kaise handle kiya?",
+      "en": "How did you handle a teammate who was underperforming or not cooperating?"
+    },
+    "checks": {
+      "hi": "Empathy, directness aur kab escalate karna hai.",
+      "en": "Empathy, directness and knowing when to escalate."
+    },
+    "points": {
+      "hi": [
+        "Issue ka impact team par",
+        "Private conversation aur root cause samajhna",
+        "Help offer ki ya expectations clear kiye",
+        "Zaroorat padne par manager ko involve kiya"
+      ],
+      "en": [
+        "The impact on the team",
+        "A private conversation to understand the cause",
+        "Offered help or set clear expectations",
+        "Involved the manager when needed"
+      ]
+    },
+    "tip": {
+      "hi": "Pehle empathy, phir escalation; gossip ya blame ka tone nahi.",
+      "en": "Empathy first, escalation second; no gossip or blame."
+    }
+  },
+  {
+    "id": "g-team-05",
+    "group": "team",
+    "q": {
+      "hi": "Aapki team mein aapka role kya hota hai aur log aapke paas kis cheez ke liye aate hain?",
+      "en": "What role do you play on your team, and what do people come to you for?"
+    },
+    "checks": {
+      "hi": "Team mein aapki reputation aur strengths.",
+      "en": "Your reputation and strengths on the team."
+    },
+    "points": {
+      "hi": [
+        "Domain ya skill jisme aap go-to ho",
+        "Ek example jab kisi ko unblock kiya",
+        "Team dynamics mein aapka contribution",
+        "Kaise yeh role build hua"
+      ],
+      "en": [
+        "The domain or skill you are the go-to for",
+        "An example of unblocking someone",
+        "Your contribution to team dynamics",
+        "How you grew into that role"
+      ]
+    },
+    "tip": {
+      "hi": "Strength ko real example se prove karo, sirf adjective nahi.",
+      "en": "Prove the strength with an example, not just adjectives."
+    }
+  },
+  {
+    "id": "g-growth-01",
+    "group": "growth",
+    "q": {
+      "hi": "Aapne kabhi koi nayi technology bahut jaldi seekh kar use kiya? Kaise?",
+      "en": "Tell me about a time you had to learn a new technology quickly and apply it."
+    },
+    "checks": {
+      "hi": "Learning agility aur self-learning ka tareeka.",
+      "en": "Learning agility and how you teach yourself."
+    },
+    "points": {
+      "hi": [
+        "Kya seekhna tha aur deadline",
+        "Learning approach: docs, POC, experts, source code",
+        "Kaise production mein apply kiya",
+        "Mistakes aur result"
+      ],
+      "en": [
+        "What you had to learn and the deadline",
+        "Approach: docs, POC, experts, source code",
+        "How you applied it in production",
+        "Mistakes and result"
+      ]
+    },
+    "tip": {
+      "hi": "Concrete learning plan dikhao, sirf \"YouTube dekha\" nahi.",
+      "en": "Show a concrete learning plan, not just \"watched tutorials\"."
+    }
+  },
+  {
+    "id": "g-growth-02",
+    "group": "growth",
+    "q": {
+      "hi": "Aapko mila sabse critical feedback kya tha aur aapne uspe kya kiya?",
+      "en": "What is the most critical feedback you have received, and what did you do about it?"
+    },
+    "checks": {
+      "hi": "Coachability aur self-improvement.",
+      "en": "Coachability and self-improvement."
+    },
+    "points": {
+      "hi": [
+        "Feedback kya tha aur kisne diya",
+        "Pehla reaction honestly",
+        "Kya action liye",
+        "Ab kaise change dikhta hai"
+      ],
+      "en": [
+        "What the feedback was and who gave it",
+        "Your honest first reaction",
+        "The actions you took",
+        "How the change shows today"
+      ]
+    },
+    "tip": {
+      "hi": "Real feedback chuno jo thoda chubhta ho; \"main bahut kaam karta hoon\" nahi.",
+      "en": "Pick feedback that actually stung; not \"I work too hard\"."
+    }
+  },
+  {
+    "id": "g-growth-03",
+    "group": "growth",
+    "q": {
+      "hi": "Aapki technical strengths aur weaknesses kya hain?",
+      "en": "What are your technical strengths and weaknesses?"
+    },
+    "checks": {
+      "hi": "Self-awareness aur role-fit.",
+      "en": "Self-awareness and fit for the role."
+    },
+    "points": {
+      "hi": [
+        "1-2 strengths with evidence",
+        "1 real weakness jo job-critical nahi",
+        "Weakness par kya kaam kar rahe ho",
+        "Role ke saath kaise match hota hai"
+      ],
+      "en": [
+        "1-2 strengths with evidence",
+        "One real weakness that is not job-critical",
+        "What you are doing about the weakness",
+        "How it fits the role"
+      ]
+    },
+    "tip": {
+      "hi": "Weakness ke saath improvement plan zaroor do.",
+      "en": "Always pair the weakness with an improvement plan."
+    }
+  },
+  {
+    "id": "g-growth-04",
+    "group": "growth",
+    "q": {
+      "hi": "Last 6 mahine mein aapne kya naya seekha, kaam ke andar ya bahar?",
+      "en": "What have you learned recently, at work or outside it, in the last six months?"
+    },
+    "checks": {
+      "hi": "Curiosity aur kya aap current rehte ho.",
+      "en": "Curiosity and whether you stay current."
+    },
+    "points": {
+      "hi": [
+        "Topic aur kyon chuna",
+        "Kaise seekha (course, book, side project, open source)",
+        "Kahan apply kiya",
+        "Aage kya seekhna hai"
+      ],
+      "en": [
+        "The topic and why you chose it",
+        "How you learned it (course, book, side project, open source)",
+        "Where you applied it",
+        "What you want to learn next"
+      ]
+    },
+    "tip": {
+      "hi": "Interviewer usi topic par deep question pooch sakta hai; ready raho.",
+      "en": "Expect a deep follow-up on that topic; be ready for it."
+    }
+  },
+  {
+    "id": "g-growth-05",
+    "group": "growth",
+    "q": {
+      "hi": "Apne pichle project mein aap ek cheez improve kar sakte to kya karte?",
+      "en": "If you could improve one thing in a past project, what would it be?"
+    },
+    "checks": {
+      "hi": "Critical thinking aur ownership of quality.",
+      "en": "Critical thinking and ownership of quality."
+    },
+    "points": {
+      "hi": [
+        "Specific gap (testing, observability, design, process)",
+        "Uska kya cost tha",
+        "Aap kaise fix karte",
+        "Ab naye projects mein yeh kaise apply karte ho"
+      ],
+      "en": [
+        "A specific gap (testing, observability, design, process)",
+        "What it cost",
+        "How you would fix it",
+        "How you apply this in new projects"
+      ]
+    },
+    "tip": {
+      "hi": "Doosron ki galti nahi, system ya apni gap batao.",
+      "en": "Name a gap in the system or in your own work, not someone else's mistake."
+    }
+  },
+  {
+    "id": "g-career-01",
+    "group": "career",
+    "q": {
+      "hi": "Aap apni current company kyon chhodna chahte ho?",
+      "en": "Why do you want to leave your current company?"
+    },
+    "checks": {
+      "hi": "Motivation, red flags, aur kya aap jaldi phir chhod doge.",
+      "en": "Motivation, red flags, and flight risk."
+    },
+    "points": {
+      "hi": [
+        "Positive framing: growth, scale, domain",
+        "Current company mein kya seekha",
+        "Naye role mein kya chahiye",
+        "Koi badmouthing nahi"
+      ],
+      "en": [
+        "Positive framing: growth, scale, domain",
+        "What you gained at the current company",
+        "What you want from the next role",
+        "No badmouthing"
+      ]
+    },
+    "tip": {
+      "hi": "\"Run away from\" nahi, \"run towards\" wali story batao.",
+      "en": "Tell a \"running towards\" story, not \"running away from\"."
+    }
+  },
+  {
+    "id": "g-career-02",
+    "group": "career",
+    "q": {
+      "hi": "Aap is company aur is role mein kyon interested ho?",
+      "en": "Why are you interested in this company and this role?"
+    },
+    "checks": {
+      "hi": "Research kiya hai ya nahi aur genuine interest.",
+      "en": "Whether you did your research and are genuinely interested."
+    },
+    "points": {
+      "hi": [
+        "Company ka product/engineering challenge jo pasand hai",
+        "Aapke experience ka role se match",
+        "Engineering blog ya tech stack ka reference",
+        "Aap kya contribute kar sakte ho"
+      ],
+      "en": [
+        "The product or engineering challenge that excites you",
+        "How your experience maps to the role",
+        "A reference to their engineering blog or stack",
+        "What you can contribute"
+      ]
+    },
+    "tip": {
+      "hi": "Company ka engineering blog padh kar jao; generic praise se bacho.",
+      "en": "Read their engineering blog beforehand; avoid generic praise."
+    }
+  },
+  {
+    "id": "g-career-03",
+    "group": "career",
+    "q": {
+      "hi": "Aap 3-5 saal baad khud ko kahan dekhte ho?",
+      "en": "Where do you see yourself in 3 to 5 years?"
+    },
+    "checks": {
+      "hi": "Ambition aur role ke saath alignment.",
+      "en": "Ambition and alignment with the role."
+    },
+    "points": {
+      "hi": [
+        "IC track vs management preference",
+        "Technical depth ya domain jahan grow karna hai",
+        "Yeh role us path mein kaise fit hota hai",
+        "Realistic aur flexible tone"
+      ],
+      "en": [
+        "IC versus management preference",
+        "The technical depth or domain you want to grow in",
+        "How this role fits that path",
+        "A realistic, flexible tone"
+      ]
+    },
+    "tip": {
+      "hi": "Ambitious par realistic raho; role se mismatch wala goal mat bolo.",
+      "en": "Be ambitious but realistic; do not name a goal the role cannot offer."
+    }
+  },
+  {
+    "id": "g-career-04",
+    "group": "career",
+    "q": {
+      "hi": "Aapne apne career mein job ya domain kyon switch kiya? Resume ke gaps samjhaiye.",
+      "en": "Why did you switch jobs or domains, and can you explain any gaps on your resume?"
+    },
+    "checks": {
+      "hi": "Career decisions ka logic aur stability.",
+      "en": "The logic behind career moves and stability."
+    },
+    "points": {
+      "hi": [
+        "Har switch ka ek clear reason",
+        "Har move se kya mila",
+        "Gap ho to honest explanation aur us time kya kiya",
+        "Overall story jo current goal tak le aaye"
+      ],
+      "en": [
+        "A clear reason for each move",
+        "What each move gave you",
+        "An honest explanation of any gap and what you did then",
+        "A through-line leading to your current goal"
+      ]
+    },
+    "tip": {
+      "hi": "Short aur confident raho; over-explain mat karo.",
+      "en": "Keep it short and confident; do not over-explain."
+    }
+  },
+  {
+    "id": "g-career-05",
+    "group": "career",
+    "q": {
+      "hi": "Aapka ideal team ya work environment kaisa hota hai?",
+      "en": "What does your ideal team or work environment look like?"
+    },
+    "checks": {
+      "hi": "Culture fit aur kya aap is team mein khush rahoge.",
+      "en": "Culture fit and whether you would thrive on this team."
+    },
+    "points": {
+      "hi": [
+        "Ownership, autonomy, feedback culture jaise values",
+        "Kis tarah ke kaam se energy milti hai",
+        "Pichle team ka example jo kaam kiya",
+        "Company ke culture se match"
+      ],
+      "en": [
+        "Values like ownership, autonomy and feedback culture",
+        "The kind of work that energizes you",
+        "An example from a past team that worked",
+        "How it matches the company's culture"
+      ]
+    },
+    "tip": {
+      "hi": "Honest raho par company ki known culture ke against mat bolo.",
+      "en": "Be honest, but do not contradict the company's known culture."
+    }
+  },
+  {
+    "id": "g-career-06",
+    "group": "career",
+    "q": {
+      "hi": "Kya aapke paas humare liye koi sawaal hain?",
+      "en": "Do you have any questions for us?"
+    },
+    "checks": {
+      "hi": "Curiosity, seriousness aur aap kis cheez ko value karte ho.",
+      "en": "Curiosity, seriousness and what you value."
+    },
+    "points": {
+      "hi": [
+        "Team ke current challenges aur roadmap",
+        "Success pehle 6 mahine mein kaisi dikhti hai",
+        "On-call, release aur code review culture",
+        "Interviewer ka khud ka experience"
+      ],
+      "en": [
+        "The team's current challenges and roadmap",
+        "What success looks like in the first six months",
+        "On-call, release and code review culture",
+        "The interviewer's own experience there"
+      ]
+    },
+    "tip": {
+      "hi": "2-3 thoughtful sawaal ready rakho; \"nahi, sab clear hai\" kabhi mat bolo.",
+      "en": "Have 2-3 thoughtful questions ready; never say \"no, all clear\"."
+    }
+  }
+]

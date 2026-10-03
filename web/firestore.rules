@@ -24,6 +24,10 @@ service cloud.firestore {
     // Each user can read and write only their own progress, profile and notes
     match /users/{uid} {
       allow read, write: if isOwner(uid);
+      // Resume page: practice answers + AI feedback (the resume text itself stays in the browser)
+      match /resume/{docId} {
+        allow read, write: if isOwner(uid);
+      }
       match /notes/{slug} {
         allow read, delete: if isOwner(uid);
         // Notes are plain `text` (short) or deflate-compressed `z` bytes (long). Cap the size either way.
