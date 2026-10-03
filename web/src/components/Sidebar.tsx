@@ -1,6 +1,6 @@
 import { href } from '../router'
 import { useEffect, useState } from 'react'
-import { agentPages, behavioral, cs, db, java, lld, lldProblems, localize, questions, route, topics, type Page } from '../content'
+import { agentPages, behavioral, cs, db, java, lld, lldProblems, localize, questions, rag, route, topics, type Page } from '../content'
 import { readLocal, useStore, writeLocal } from '../store'
 import { useLang, useTr } from '../i18n'
 import { groupStats, pageStats } from '../progress'
@@ -52,6 +52,7 @@ const SECTIONS: Section[] = [
     ],
   },
   { id: 'beh', label: 'Behavioral', icon: 'chat', subs: [{ pages: behavioral }] },
+  { id: 'rag', label: 'RAG', icon: 'search', subs: [{ pages: rag }] },
   { id: 'agents', label: 'Agentic AI', icon: 'bot', subs: [{ pages: agentPages }] },
 ]
 

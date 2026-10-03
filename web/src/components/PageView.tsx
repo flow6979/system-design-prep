@@ -1,4 +1,4 @@
-import { allPages, behavioral, cs, db, java, lld, lldProblems, localize, pageBySlug, revisionBody, route, type Page } from '../content'
+import { allPages, behavioral, cs, rag, db, java, lld, lldProblems, localize, pageBySlug, revisionBody, route, type Page } from '../content'
 import { useLang, useTr } from '../i18n'
 import { Markdown } from './Markdown'
 import { Checklist } from './Checklist'
@@ -34,14 +34,14 @@ export function PageView({
   const related = page.related.map((s) => pageBySlug.get(s)).filter((p): p is Page => !!p)
   const isLld = page.kind === 'lld'
   // LLD and Java are multi-page sections shown with sub-tabs, a star filter and a jump list
-  const TABS: Partial<Record<Page['kind'], Page[]>> = { lld, lldp: lldProblems, java, db, cs, beh: behavioral }
+  const TABS: Partial<Record<Page['kind'], Page[]>> = { lld, lldp: lldProblems, java, db, cs, beh: behavioral, rag }
   const tabs = TABS[page.kind] ?? []
   const tabbed = tabs.length > 0
   // ⭐ filter for star-based sections; problems keep the regular revision mode
   const starFilter = tabbed && page.kind !== 'lldp'
   const body = revision ? revisionBody(page) : page.body
 
-  const eyebrow = { topic: 'Topic', question: `HLD problem · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', lldp: 'LLD problem', java: 'Java', db: 'Databases', cs: 'CS fundamentals', beh: 'Behavioral', agent: 'Agentic AI' }[page.kind]
+  const eyebrow = { topic: 'Topic', question: `HLD problem · Tier ${page.tier ?? 2}`, lld: 'LLD · Design patterns', lldp: 'LLD problem', java: 'Java', db: 'Databases', cs: 'CS fundamentals', beh: 'Behavioral', rag: 'RAG', agent: 'Agentic AI' }[page.kind]
   const revisionNote = {
     question: tr(
       'Revision mode: sirf clarifying sawal, decision table aur 2-minute recap dikh rahe hain.',
@@ -56,6 +56,7 @@ export function PageView({
     db: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
     cs: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
     beh: tr('Sirf ⭐ wale (must-prepare) sections dikh rahe hain.', 'Showing only ⭐ sections (must-prepare).'),
+    rag: tr('Sirf ⭐ wale (sabse zyada pooche jaane wale) sections dikh rahe hain.', 'Showing only ⭐ sections (the most asked ones).'),
     lldp: tr('Revision mode: sirf requirements, patterns aur 2-minute recap dikh rahe hain.', 'Revision mode: showing only requirements, patterns and the 2-minute recap.'),
     agent: '',
   }[page.kind]

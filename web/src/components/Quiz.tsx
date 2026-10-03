@@ -4,6 +4,7 @@ import { useLang, useTr } from '../i18n'
 import { readLocal, useStore, writeLocal } from '../store'
 import { generateQuestions, loadBank, SECTIONS, thinnestTopic, topicsOf, type QuizQuestion, type Section } from '../quizBank'
 import { Markdown } from './Markdown'
+import { QuizAsk } from './QuizAsk'
 import { shortTitle } from './Sidebar'
 
 type Filter = 'all' | Section | 'starred'
@@ -14,6 +15,7 @@ const LABEL: Record<Filter, { hi: string; en: string }> = {
   java: { hi: 'Java', en: 'Java' },
   db: { hi: 'Databases', en: 'Databases' },
   cs: { hi: 'CS', en: 'CS' },
+  rag: { hi: 'RAG', en: 'RAG' },
   agents: { hi: 'Agentic AI', en: 'Agentic AI' },
   starred: { hi: '⭐ Starred', en: '⭐ Starred' },
 }
@@ -193,6 +195,7 @@ export function Quiz({ hasKey, onOpenSettings }: { hasKey: boolean; onOpenSettin
               )}
             </div>
           )}
+          <QuizAsk question={current} answered={picked !== null} hasKey={hasKey} onOpenSettings={onOpenSettings} />
           {picked !== null && (
             <div className="row end">
               <button className="btn primary" onClick={next}>

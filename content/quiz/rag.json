@@ -1,0 +1,1742 @@
+[
+ {
+  "id": "rag-01-what-is-rag-01",
+  "section": "rag",
+  "topic": "01-what-is-rag",
+  "level": "easy",
+  "q": {
+   "hi": "RAG me LLM answer kis cheez ke basis pe likhta hai?",
+   "en": "In RAG, what does the LLM base its answer on?"
+  },
+  "options": {
+   "hi": [
+    "Sirf apni training memory",
+    "Prompt me diye gaye retrieved chunks",
+    "Fine-tuned weights me store kiye docs",
+    "User ki pichli chat history"
+   ],
+   "en": [
+    "Only its training memory",
+    "Retrieved chunks placed in the prompt",
+    "Docs stored in fine-tuned weights",
+    "The user's previous chat history"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "RAG pehle relevant chunks retrieve karta hai aur unhe prompt me daalta hai; LLM usi context se answer deta hai.",
+   "en": "RAG retrieves relevant chunks first and puts them in the prompt; the LLM answers from that context."
+  }
+ },
+ {
+  "id": "rag-01-what-is-rag-02",
+  "section": "rag",
+  "topic": "01-what-is-rag",
+  "level": "medium",
+  "q": {
+   "hi": "Company docs har hafte badalte hain aur answers me citations chahiye. Best approach?",
+   "en": "Company docs change every week and answers need citations. Best approach?"
+  },
+  "options": {
+   "hi": [
+    "Har hafte model fine-tune karo",
+    "Saare docs har request me long context me bhejo",
+    "RAG with re-indexing on doc change",
+    "Bada LLM use karo"
+   ],
+   "en": [
+    "Fine-tune the model every week",
+    "Send all docs in long context on every request",
+    "RAG with re-indexing on doc change",
+    "Use a bigger LLM"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Fresh/private data aur citations ke liye RAG; doc badla to sirf re-index, retraining nahi.",
+   "en": "RAG suits fresh/private data and citations; a changed doc only needs re-indexing, not retraining."
+  }
+ },
+ {
+  "id": "rag-01-what-is-rag-03",
+  "section": "rag",
+  "topic": "01-what-is-rag",
+  "level": "medium",
+  "q": {
+   "hi": "Fine-tuning kis cheez ke liye sabse sahi hai?",
+   "en": "What is fine-tuning best suited for?"
+  },
+  "options": {
+   "hi": [
+    "Output ka format, tone ya task behaviour badalna",
+    "Har hafte naye facts add karna",
+    "Per-user access control",
+    "Answers ke saath citations dena"
+   ],
+   "en": [
+    "Changing output format, tone or task behaviour",
+    "Adding new facts every week",
+    "Per-user access control",
+    "Giving citations with answers"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Fine-tuning behaviour/style sikhata hai; facts yaad karane ka reliable tareeka nahi aur citations nahi deta.",
+   "en": "Fine-tuning teaches behaviour/style; it is not a reliable way to memorise facts and gives no citations."
+  }
+ },
+ {
+  "id": "rag-01-what-is-rag-04",
+  "section": "rag",
+  "topic": "01-what-is-rag",
+  "level": "easy",
+  "q": {
+   "hi": "RAG pipeline me rerank step kahan aata hai?",
+   "en": "Where does the rerank step sit in a RAG pipeline?"
+  },
+  "options": {
+   "hi": [
+    "Chunking se pehle",
+    "Embedding aur store ke beech",
+    "LLM generation ke baad",
+    "Retrieve ke baad, generate se pehle"
+   ],
+   "en": [
+    "Before chunking",
+    "Between embedding and storing",
+    "After LLM generation",
+    "After retrieve, before generate"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Query path: retrieve top 20–50 → rerank to top 3–5 → LLM generate.",
+   "en": "Query path: retrieve top 20–50 → rerank to top 3–5 → LLM generates."
+  }
+ },
+ {
+  "id": "rag-01-what-is-rag-05",
+  "section": "rag",
+  "topic": "01-what-is-rag",
+  "level": "hard",
+  "q": {
+   "hi": "RAG bot galat answer de raha hai. Debug ka pehla step kya hona chahiye?",
+   "en": "A RAG bot gives wrong answers. What should the first debugging step be?"
+  },
+  "options": {
+   "hi": [
+    "Bade LLM pe switch karo",
+    "Check karo ki answer retrieved chunks me tha ya nahi",
+    "Prompt rewrite karo",
+    "Embedding dims badhao"
+   ],
+   "en": [
+    "Switch to a bigger LLM",
+    "Check whether the answer was in the retrieved chunks",
+    "Rewrite the prompt",
+    "Increase embedding dimensions"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Answer context me nahi tha to retrieval problem; tha to generation/prompt problem. Pehle ye alag karo.",
+   "en": "If the answer was not in the context it is a retrieval problem; if it was, it is a generation/prompt problem. Separate these first."
+  }
+ },
+ {
+  "id": "rag-01-what-is-rag-06",
+  "section": "rag",
+  "topic": "01-what-is-rag",
+  "level": "medium",
+  "q": {
+   "hi": "User error code 'ERR_CONN_RESET_4XX' poochta hai par retrieval galat docs laata hai. Kaunsa fix sabse relevant hai?",
+   "en": "A user asks about error code 'ERR_CONN_RESET_4XX' but retrieval returns the wrong docs. Which fix is most relevant?"
+  },
+  "options": {
+   "hi": [
+    "Parent-child chunking",
+    "Long context",
+    "Hybrid search (BM25 + dense)",
+    "LLM temperature kam karo"
+   ],
+   "en": [
+    "Parent-child chunking",
+    "Long context",
+    "Hybrid search (BM25 + dense)",
+    "Lower the LLM temperature"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Dense embeddings exact identifiers ko blur kar dete hain; BM25 exact tokens pakadta hai, isliye hybrid.",
+   "en": "Dense embeddings blur exact identifiers; BM25 catches exact tokens, hence hybrid."
+  }
+ },
+ {
+  "id": "rag-02-semantic-search-01",
+  "section": "rag",
+  "topic": "02-semantic-search",
+  "level": "easy",
+  "q": {
+   "hi": "Semantic search kis cheez ko match karta hai?",
+   "en": "What does semantic search match?"
+  },
+  "options": {
+   "hi": [
+    "Meaning, chahe words alag hon",
+    "Sirf exact words",
+    "Regex patterns",
+    "Prefix of words"
+   ],
+   "en": [
+    "Meaning, even if words differ",
+    "Only exact words",
+    "Regex patterns",
+    "Word prefixes"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Embeddings meaning capture karte hain, isliye 'khana thanda aaya' aur 'cold food refund' paas aate hain.",
+   "en": "Embeddings capture meaning, so 'food came cold' and 'refund for cold food' land close together."
+  }
+ },
+ {
+  "id": "rag-02-semantic-search-02",
+  "section": "rag",
+  "topic": "02-semantic-search",
+  "level": "medium",
+  "q": {
+   "hi": "Kis query pe pure dense semantic search sabse kamzor hoga?",
+   "en": "On which query is pure dense semantic search weakest?"
+  },
+  "options": {
+   "hi": [
+    "'Golden Brown jaise songs'",
+    "'leave policy samjhao'",
+    "'refund kaise milega'",
+    "'SKU-7821-B ka stock'"
+   ],
+   "en": [
+    "'songs like Golden Brown'",
+    "'explain the leave policy'",
+    "'how do I get a refund'",
+    "'stock for SKU-7821-B'"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "SKU jaise exact identifiers embedding me blur ho jaate hain; yahan keyword/BM25 strong hai.",
+   "en": "Exact identifiers like SKUs get blurred in embeddings; keyword/BM25 is strong here."
+  }
+ },
+ {
+  "id": "rag-02-semantic-search-03",
+  "section": "rag",
+  "topic": "02-semantic-search",
+  "level": "medium",
+  "q": {
+   "hi": "Query aur documents ko alag embedding models se embed kiya. Kya hoga?",
+   "en": "Queries and documents were embedded with different models. What happens?"
+  },
+  "options": {
+   "hi": [
+    "Thoda better recall",
+    "Vectors alag spaces me hain, similarity scores bekaar",
+    "Sirf latency badhegi",
+    "Koi fark nahi agar dims same hain"
+   ],
+   "en": [
+    "Slightly better recall",
+    "Vectors live in different spaces, similarity scores are meaningless",
+    "Only latency increases",
+    "No difference if dimensions match"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Same model zaroori hai; alag models ke vectors comparable nahi hote, dims same hon tab bhi.",
+   "en": "The same model is required; vectors from different models are not comparable, even with equal dimensions."
+  }
+ },
+ {
+  "id": "rag-02-semantic-search-04",
+  "section": "rag",
+  "topic": "02-semantic-search",
+  "level": "medium",
+  "q": {
+   "hi": "Bi-encoder retrieval itna fast kyun hai?",
+   "en": "Why is bi-encoder retrieval so fast?"
+  },
+  "options": {
+   "hi": [
+    "Wo query aur doc ko ek saath model me daalta hai",
+    "Wo GPU pe hi chalta hai",
+    "Document vectors offline precompute ho jaate hain, query time pe sirf query encode hoti hai",
+    "Wo BM25 use karta hai"
+   ],
+   "en": [
+    "It feeds query and doc into the model together",
+    "It only runs on GPUs",
+    "Document vectors are precomputed offline; only the query is encoded at query time",
+    "It uses BM25"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Bi-encoder query aur doc alag encode karta hai, isliye docs ke vectors pehle se ban jaate hain aur ANN se fast search hota hai.",
+   "en": "A bi-encoder encodes query and doc separately, so doc vectors are built ahead of time and ANN search is fast."
+  }
+ },
+ {
+  "id": "rag-02-semantic-search-05",
+  "section": "rag",
+  "topic": "02-semantic-search",
+  "level": "hard",
+  "q": {
+   "hi": "Bi-encoder ki ranking imprecise kyun hoti hai?",
+   "en": "Why is bi-encoder ranking imprecise?"
+  },
+  "options": {
+   "hi": [
+    "Query aur doc ke tokens kabhi ek saath attend nahi hote, sirf gist-to-gist compare",
+    "Wo sirf 384 dims use karta hai",
+    "Cosine similarity galat metric hai",
+    "ANN hamesha galat neighbours deta hai"
+   ],
+   "en": [
+    "Query and doc tokens never attend to each other, only gist-to-gist comparison",
+    "It only uses 384 dims",
+    "Cosine similarity is the wrong metric",
+    "ANN always returns wrong neighbours"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Docs query ke bina independently encode hote hain; precise ranking ke liye cross-encoder reranker chahiye.",
+   "en": "Docs are encoded independently of the query; precise ranking needs a cross-encoder reranker."
+  }
+ },
+ {
+  "id": "rag-02-semantic-search-06",
+  "section": "rag",
+  "topic": "02-semantic-search",
+  "level": "medium",
+  "q": {
+   "hi": "Embedding model chunne ka sabse reliable tareeka?",
+   "en": "Most reliable way to choose an embedding model?"
+  },
+  "options": {
+   "hi": [
+    "MTEB leaderboard ka top model",
+    "Sabse zyada dimensions wala model",
+    "Sabse sasta API model",
+    "Apne golden query set pe recall@k compare karna"
+   ],
+   "en": [
+    "The top model on the MTEB leaderboard",
+    "The model with the most dimensions",
+    "The cheapest API model",
+    "Comparing recall@k on your own golden query set"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Leaderboard sirf starting point; apne domain aur queries pe eval karke cost/latency ke saath decide karo.",
+   "en": "The leaderboard is only a starting point; evaluate on your domain and queries, then weigh cost/latency."
+  }
+ },
+ {
+  "id": "rag-03-chunking-01",
+  "section": "rag",
+  "topic": "03-chunking",
+  "level": "easy",
+  "q": {
+   "hi": "Recursive chunking kaise todta hai?",
+   "en": "How does recursive chunking split text?"
+  },
+  "options": {
+   "hi": [
+    "Har N characters pe bina dekhe",
+    "Pehle bade separator (paragraph), phir chhote (line, sentence) jab tak size limit me na aaye",
+    "Sirf page boundaries pe",
+    "Embedding similarity girne pe"
+   ],
+   "en": [
+    "Every N characters blindly",
+    "Bigger separator first (paragraph), then smaller (line, sentence) until within the size limit",
+    "Only on page boundaries",
+    "Where embedding similarity drops"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Recursive splitter natural boundaries respect karta hai: \\n\\n → \\n → sentence → word.",
+   "en": "A recursive splitter respects natural boundaries: \\n\\n → \\n → sentence → word."
+  }
+ },
+ {
+  "id": "rag-03-chunking-02",
+  "section": "rag",
+  "topic": "03-chunking",
+  "level": "medium",
+  "q": {
+   "hi": "Bahut bade chunks (jaise 1500 tokens) ka main nuksaan?",
+   "en": "Main downside of very large chunks (e.g. 1500 tokens)?"
+  },
+  "options": {
+   "hi": [
+    "Embedding kai topics ka average ban jaata hai aur precise retrieval nahi hota",
+    "Overlap kaam nahi karta",
+    "Metadata store nahi ho sakta",
+    "LLM ko context kam milta hai"
+   ],
+   "en": [
+    "The embedding becomes an average of many topics, hurting precise retrieval",
+    "Overlap stops working",
+    "Metadata cannot be stored",
+    "The LLM gets less context"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Bada chunk = blurred embedding + prompt me noise; chhota chunk = sharp par context kam.",
+   "en": "Big chunk = blurred embedding + noise in the prompt; small chunk = sharp but less context."
+  }
+ },
+ {
+  "id": "rag-03-chunking-03",
+  "section": "rag",
+  "topic": "03-chunking",
+  "level": "easy",
+  "q": {
+   "hi": "Chunks ke beech overlap kyun rakhte hain?",
+   "en": "Why keep overlap between chunks?"
+  },
+  "options": {
+   "hi": [
+    "Storage kam karne ke liye",
+    "Embedding fast karne ke liye",
+    "Boundary pe pada sentence kat ke lost na ho",
+    "Duplicate chunks hataane ke liye"
+   ],
+   "en": [
+    "To reduce storage",
+    "To speed up embedding",
+    "So a sentence on the boundary is not lost to the cut",
+    "To remove duplicate chunks"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Overlap boundary text ko dono chunks me rakhta hai; zyada overlap storage aur cost badhata hai.",
+   "en": "Overlap keeps boundary text in both chunks; too much overlap raises storage and cost."
+  }
+ },
+ {
+  "id": "rag-03-chunking-04",
+  "section": "rag",
+  "topic": "03-chunking",
+  "level": "medium",
+  "q": {
+   "hi": "Parent-child (small-to-big) retrieval me kya hota hai?",
+   "en": "What happens in parent-child (small-to-big) retrieval?"
+  },
+  "options": {
+   "hi": [
+    "Bade parents pe search, chhote children LLM ko",
+    "Parent aur child dono same index me embed",
+    "Sirf page-level embedding",
+    "Chhote child chunks pe search, unka bada parent section LLM ko"
+   ],
+   "en": [
+    "Search big parents, give small children to the LLM",
+    "Embed parents and children in the same index",
+    "Only page-level embeddings",
+    "Search small child chunks, give their larger parent section to the LLM"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Search small for precision, serve big for context; child ke metadata me parent_id hota hai.",
+   "en": "Search small for precision, serve big for context; each child stores a parent_id in metadata."
+  }
+ },
+ {
+  "id": "rag-03-chunking-05",
+  "section": "rag",
+  "topic": "03-chunking",
+  "level": "hard",
+  "q": {
+   "hi": "Chunk 'iski limit 10 din hai' retrieve nahi ho raha. Sabse achha fix?",
+   "en": "The chunk 'its limit is 10 days' is not getting retrieved. Best fix?"
+  },
+  "options": {
+   "hi": [
+    "Overlap 50% kar do",
+    "Chunk ke aage heading path / doc context prepend karo",
+    "Chunk size 100 tokens karo",
+    "Embedding dims kam karo"
+   ],
+   "en": [
+    "Raise overlap to 50%",
+    "Prepend the heading path / doc context to the chunk",
+    "Make chunks 100 tokens",
+    "Reduce embedding dims"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Heading path (jaise 'HR Policy > Leave > Maternity') jodne se chunk ka topic embedding me aa jaata hai (contextual chunking).",
+   "en": "Prepending the heading path (e.g. 'HR Policy > Leave > Maternity') puts the chunk's topic into its embedding (contextual chunking)."
+  }
+ },
+ {
+  "id": "rag-03-chunking-06",
+  "section": "rag",
+  "topic": "03-chunking",
+  "level": "medium",
+  "q": {
+   "hi": "Semantic chunking ka split point kaise decide hota hai?",
+   "en": "How does semantic chunking decide split points?"
+  },
+  "options": {
+   "hi": [
+    "Fixed token count pe",
+    "Markdown headings pe",
+    "Consecutive sentences ki embedding similarity achanak girne pe",
+    "Page number badalne pe"
+   ],
+   "en": [
+    "At a fixed token count",
+    "At Markdown headings",
+    "Where embedding similarity between consecutive sentences drops sharply",
+    "When the page number changes"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Semantic chunking topic shift detect karta hai; ingestion pe extra embedding cost lagta hai.",
+   "en": "Semantic chunking detects topic shifts; it adds extra embedding cost at ingestion."
+  }
+ },
+ {
+  "id": "rag-04-hybrid-search-01",
+  "section": "rag",
+  "topic": "04-hybrid-search",
+  "level": "easy",
+  "q": {
+   "hi": "Query me exact error code `ERR_CONN_RESET_4XX` hai. Dense-only search kyun fail ho sakta hai?",
+   "en": "A query contains the exact error code `ERR_CONN_RESET_4XX`. Why can dense-only search fail?"
+  },
+  "options": {
+   "hi": [
+    "Embedding exact identifier ki specificity average out kar deta hai",
+    "Vector DB special characters store nahi kar sakta",
+    "Cosine similarity sirf English words pe kaam karti hai",
+    "ANN index me code wala page kabhi insert hi nahi hota"
+   ],
+   "en": [
+    "The embedding averages out the specificity of the exact identifier",
+    "Vector DBs cannot store special characters",
+    "Cosine similarity only works on English words",
+    "The page with the code is never inserted into the ANN index"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Ye vocabulary mismatch problem hai: embedding meaning pakadta hai, rare exact token ko nahi. BM25 ka high IDF use #1 pe laata hai.",
+   "en": "This is the vocabulary mismatch problem: embeddings capture meaning, not a rare exact token. BM25's high IDF puts it at #1."
+  }
+ },
+ {
+  "id": "rag-04-hybrid-search-02",
+  "section": "rag",
+  "topic": "04-hybrid-search",
+  "level": "medium",
+  "q": {
+   "hi": "k=60 ke saath RRF. Doc X dense me rank 1 aur sparse me rank 4 pe; doc Y dense me rank 3 aur sparse me rank 1 pe. Kaun upar aayega?",
+   "en": "RRF with k=60. Doc X is rank 1 in dense and rank 4 in sparse; doc Y is rank 3 in dense and rank 1 in sparse. Which ranks higher?"
+  },
+  "options": {
+   "hi": [
+    "X, kyunki dense ka #1 hamesha jeet-ta hai",
+    "Dono ka score bilkul barabar hoga",
+    "Y, kyunki 1/63 + 1/61 > 1/61 + 1/64",
+    "Raw scores ke bina decide nahi ho sakta"
+   ],
+   "en": [
+    "X, because dense's #1 always wins",
+    "Both get exactly the same score",
+    "Y, because 1/63 + 1/61 > 1/61 + 1/64",
+    "It can't be decided without the raw scores"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Y = 0.0323, X = 0.0320. Dono lists me consistently upar rehna ek list me #1 hone se zyada value deta hai.",
+   "en": "Y = 0.0323, X = 0.0320. Being consistently high in both lists is worth more than being #1 in one."
+  }
+ },
+ {
+  "id": "rag-04-hybrid-search-03",
+  "section": "rag",
+  "topic": "04-hybrid-search",
+  "level": "medium",
+  "q": {
+   "hi": "BM25 aur cosine scores ko min-max normalize karke add karne ke bajaye RRF kyun prefer kiya jaata hai?",
+   "en": "Why is RRF preferred over min-max normalizing and adding BM25 and cosine scores?"
+  },
+  "options": {
+   "hi": [
+    "RRF scores ko GPU pe compute karta hai",
+    "RRF sirf rank use karta hai, alag scales aur outliers ka asar nahi",
+    "RRF BM25 ko completely ignore karta hai",
+    "RRF ko har corpus ke liye labeled data chahiye"
+   ],
+   "en": [
+    "RRF computes scores on a GPU",
+    "RRF uses only ranks, so different scales and outliers don't matter",
+    "RRF ignores BM25 completely",
+    "RRF needs labeled data for every corpus"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "BM25 (0–15) aur cosine (0.6–0.95) ke distributions alag hain; ek outlier min-max ko bigaad deta hai. RRF rank-based hai, normalization nahi chahiye.",
+   "en": "BM25 (0–15) and cosine (0.6–0.95) have different distributions; one outlier breaks min-max. RRF is rank-based and needs no normalization."
+  }
+ },
+ {
+  "id": "rag-04-hybrid-search-04",
+  "section": "rag",
+  "topic": "04-hybrid-search",
+  "level": "hard",
+  "q": {
+   "hi": "80-document pilot pe hybrid (RRF k=60) dense-only se bhi bura de raha hai. Sabse pehla sensible fix?",
+   "en": "On an 80-document pilot, hybrid (RRF k=60) is doing worse than dense-only. What is the first sensible fix?"
+  },
+  "options": {
+   "hi": [
+    "SPLADE pe switch karo",
+    "Embedding dimension 768 se 1536 karo",
+    "Sparse retriever hata do",
+    "RRF k ko ~10–20 tak ghatao"
+   ],
+   "en": [
+    "Switch to SPLADE",
+    "Raise embedding dimension from 768 to 1536",
+    "Remove the sparse retriever",
+    "Lower RRF k to about 10–20"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "k=60 bade corpus ke liye tuned hai; chhote corpus pe rank differences zyada meaningful hote hain, isliye steeper k=10–20. Author ka pilot k=10 pe theek hua.",
+   "en": "k=60 is tuned for large corpora; on small ones rank differences mean more, so use a steeper k=10–20. The author's pilot was fixed with k=10."
+  }
+ },
+ {
+  "id": "rag-04-hybrid-search-05",
+  "section": "rag",
+  "topic": "04-hybrid-search",
+  "level": "easy",
+  "q": {
+   "hi": "SPLADE ke baare me kaunsa statement sahi hai?",
+   "en": "Which statement about SPLADE is correct?"
+  },
+  "options": {
+   "hi": [
+    "Ye learned sparse vectors banata hai aur related terms pe bhi weight deta hai",
+    "Ye ek dense 768-dim embedding model hai",
+    "Ye BM25 ka naya naam hai, koi model nahi",
+    "Ye naye internal error codes pe BM25 se hamesha better hai"
+   ],
+   "en": [
+    "It produces learned sparse vectors and also puts weight on related terms",
+    "It is a dense 768-dim embedding model",
+    "It is just a new name for BM25, not a model",
+    "It is always better than BM25 on new internal error codes"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "SPLADE vocab-size sparse vector deta hai with term expansion (car → vehicle). Out-of-vocabulary naye codes pe BM25 better hai.",
+   "en": "SPLADE gives a vocab-size sparse vector with term expansion (car → vehicle). For new out-of-vocabulary codes BM25 is better."
+  }
+ },
+ {
+  "id": "rag-04-hybrid-search-06",
+  "section": "rag",
+  "topic": "04-hybrid-search",
+  "level": "medium",
+  "q": {
+   "hi": "Legal contracts ka corpus jisme clause numbers bahut hain. Hybrid me kya tune karoge?",
+   "en": "A corpus of legal contracts full of clause numbers. What would you tune in hybrid?"
+  },
+  "options": {
+   "hi": [
+    "Sparse retriever hata ke sirf dense rakho",
+    "RRF k ko 1000 kar do",
+    "Sparse ko zyada candidates do, e.g. sparse top-100, dense top-30",
+    "BM25 aur dense ko sequentially chalao"
+   ],
+   "en": [
+    "Drop sparse and keep only dense",
+    "Set RRF k to 1000",
+    "Give sparse more candidates, e.g. sparse top-100, dense top-30",
+    "Run BM25 and dense sequentially"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Jargon/identifier-heavy corpus me sparse signal zyada reliable hai, isliye usko zyada weight/candidates. Sequential chalana sirf latency badhata hai.",
+   "en": "In jargon/identifier-heavy corpora the sparse signal is more reliable, so give it more weight/candidates. Running sequentially only adds latency."
+  }
+ },
+ {
+  "id": "rag-05-reranking-01",
+  "section": "rag",
+  "topic": "05-reranking",
+  "level": "easy",
+  "q": {
+   "hi": "Bi-encoder aur cross-encoder ka core difference kya hai?",
+   "en": "What is the core difference between a bi-encoder and a cross-encoder?"
+  },
+  "options": {
+   "hi": [
+    "Bi-encoder sirf images ke liye hota hai",
+    "Cross-encoder query aur doc ko saath me ek model me daal ke cross-attention karta hai",
+    "Cross-encoder ke doc embeddings offline precompute ho jaate hain",
+    "Bi-encoder har query pe har doc ke saath forward pass karta hai"
+   ],
+   "en": [
+    "A bi-encoder is only for images",
+    "A cross-encoder feeds query and doc together into one model with cross-attention",
+    "A cross-encoder's doc embeddings are precomputed offline",
+    "A bi-encoder does a forward pass with every doc per query"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Bi-encoder alag-alag encode karta hai (precompute, fast). Cross-encoder `[CLS] query [SEP] doc` joint score karta hai: accurate par O(N) per query.",
+   "en": "A bi-encoder encodes separately (precomputed, fast). A cross-encoder scores `[CLS] query [SEP] doc` jointly: accurate but O(N) per query."
+  }
+ },
+ {
+  "id": "rag-05-reranking-02",
+  "section": "rag",
+  "topic": "05-reranking",
+  "level": "medium",
+  "q": {
+   "hi": "Two-stage pipeline me sensible default numbers kya hain?",
+   "en": "What are sensible default numbers in a two-stage pipeline?"
+  },
+  "options": {
+   "hi": [
+    "Retrieve 5, rerank karke top 3",
+    "Retrieve 1000, sab LLM ko bhejo",
+    "Retrieve 10, rerank karke top 10",
+    "Retrieve ~50, rerank karke top ~5"
+   ],
+   "en": [
+    "Retrieve 5, rerank to top 3",
+    "Retrieve 1000, send all to the LLM",
+    "Retrieve 10, rerank to top 10",
+    "Retrieve ~50, rerank to top ~5"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "N >> K chahiye: N=50 recall ke liye, K=3–7 precision aur token cost ke liye. 100 se upar N rarely help karta hai.",
+   "en": "You need N >> K: N=50 for recall, K=3–7 for precision and token cost. N above 100 rarely helps."
+  }
+ },
+ {
+  "id": "rag-05-reranking-03",
+  "section": "rag",
+  "topic": "05-reranking",
+  "level": "medium",
+  "q": {
+   "hi": "CPU-only infra, sub-200ms SLA. Kaunsa reranker sabse practical start hai?",
+   "en": "CPU-only infra, sub-200ms SLA. Which reranker is the most practical start?"
+  },
+  "options": {
+   "hi": [
+    "FlashRank (quantized small model, ~15–30ms for 50 on CPU)",
+    "GPT-4 listwise reranking",
+    "Cohere Rerank without any fallback",
+    "Full ms-marco-electra-base on CPU"
+   ],
+   "en": [
+    "FlashRank (quantized small model, ~15–30ms for 50 on CPU)",
+    "GPT-4 listwise reranking",
+    "Cohere Rerank without any fallback",
+    "Full ms-marco-electra-base on CPU"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "FlashRank CPU pe ~20ms me roughly 85–90% cross-encoder quality deta hai. LLM reranking seconds leta hai; Cohere 150–400ms + network aur p99 spikes.",
+   "en": "FlashRank gives roughly 85–90% of cross-encoder quality in ~20ms on CPU. LLM reranking takes seconds; Cohere is 150–400ms + network with p99 spikes."
+  }
+ },
+ {
+  "id": "rag-05-reranking-04",
+  "section": "rag",
+  "topic": "05-reranking",
+  "level": "hard",
+  "q": {
+   "hi": "Pipeline me HyDE se query rewrite hoti hai. Reranker ko kaunsi query deni chahiye?",
+   "en": "The pipeline rewrites queries with HyDE. Which query should go to the reranker?"
+  },
+  "options": {
+   "hi": [
+    "HyDE ka hypothetical answer",
+    "Rewritten aur original ka concatenation",
+    "Original user query",
+    "Koi query nahi, sirf doc scores"
+   ],
+   "en": [
+    "The HyDE hypothetical answer",
+    "A concatenation of rewritten and original",
+    "The original user query",
+    "No query, only doc scores"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Reranker ko judge karna hai ki doc user ke asli sawaal ka jawab deta hai ya nahi; rewritten/HyDE query dene se subtle ranking errors aate hain.",
+   "en": "The reranker must judge whether a doc answers the user's actual question; passing the rewritten/HyDE query causes subtle ranking errors."
+  }
+ },
+ {
+  "id": "rag-05-reranking-05",
+  "section": "rag",
+  "topic": "05-reranking",
+  "level": "medium",
+  "q": {
+   "hi": "NDCG@5 low hai. Gold answer top-50 candidates me maujood hai par neeche score hua. Problem kahan hai?",
+   "en": "NDCG@5 is low. The gold answer is in the top-50 candidates but scored low. Where is the problem?"
+  },
+  "options": {
+   "hi": [
+    "Retrieval stage (recall)",
+    "Reranking stage (precision)",
+    "LLM ka temperature",
+    "Chunk overlap"
+   ],
+   "en": [
+    "Retrieval stage (recall)",
+    "Reranking stage (precision)",
+    "The LLM's temperature",
+    "Chunk overlap"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Gold top-50 me nahi → retrieval problem. Top-50 me hai par neeche → reranker problem (model, domain mismatch, truncation).",
+   "en": "Gold not in top-50 → retrieval problem. In top-50 but low → reranker problem (model, domain mismatch, truncation)."
+  }
+ },
+ {
+  "id": "rag-05-reranking-06",
+  "section": "rag",
+  "topic": "05-reranking",
+  "level": "hard",
+  "q": {
+   "hi": "Kis case me reranking add karna sabse kam worth hai?",
+   "en": "In which case is adding reranking least worth it?"
+  },
+  "options": {
+   "hi": [
+    "Long complex queries, noisy dense-only retrieval",
+    "Bada corpus jahan gold chunk aksar position 3–5 pe aata hai",
+    "Medical Q&A jahan precision critical hai",
+    "Real-time autocomplete jahan 20ms bhi zyada hai aur answer already #1 pe hai"
+   ],
+   "en": [
+    "Long complex queries with noisy dense-only retrieval",
+    "A large corpus where the gold chunk often lands at position 3–5",
+    "Medical Q&A where precision is critical",
+    "Real-time autocomplete where even 20ms is too much and the answer is already #1"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Tight latency budget aur already-#1 results pe reranker sirf latency add karta hai. Baaki teen cases me reranking ka gain sabse zyada hota hai.",
+   "en": "With a tight latency budget and results already at #1, the reranker only adds latency. The other three are where reranking gains most."
+  }
+ },
+ {
+  "id": "rag-06-pageindex-01",
+  "section": "rag",
+  "topic": "06-pageindex",
+  "level": "easy",
+  "q": {
+   "hi": "PageIndex ka core idea kya hai?",
+   "en": "What is the core idea of PageIndex?"
+  },
+  "options": {
+   "hi": [
+    "Document ke natural structure (pages/sections) ko retrieval unit banana",
+    "Chunk size 512 se 128 karna",
+    "Sirf BM25 use karna, embeddings kabhi nahi",
+    "Har sentence ka alag embedding banana"
+   ],
+   "en": [
+    "Make the document's natural structure (pages/sections) the retrieval unit",
+    "Reduce chunk size from 512 to 128",
+    "Use only BM25, never embeddings",
+    "Create a separate embedding for every sentence"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Chunking ko random strips me kaatne jaisa samjho; PageIndex binding pe kaat-ta hai, jahan author ne khud boundaries rakhi.",
+   "en": "Think of chunking as cutting into random strips; PageIndex cuts at the binding, where the author placed the boundaries."
+  }
+ },
+ {
+  "id": "rag-06-pageindex-02",
+  "section": "rag",
+  "topic": "06-pageindex",
+  "level": "medium",
+  "q": {
+   "hi": "Vectorless tree-index retrieval me sahi section kaise milta hai?",
+   "en": "In vectorless tree-index retrieval, how is the right section found?"
+  },
+  "options": {
+   "hi": [
+    "HNSW graph pe cosine search se",
+    "Random sampling se",
+    "LLM ToC-jaise tree pe reason karke node choose aur descend karta hai",
+    "BM25 se tree ke saare nodes score karke"
+   ],
+   "en": [
+    "Via cosine search on an HNSW graph",
+    "Via random sampling",
+    "The LLM reasons over a ToC-like tree, choosing and descending into nodes",
+    "By scoring every tree node with BM25"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Tree nodes pe titles + summaries hote hain; LLM human analyst ki tarah 'answer kahan hona chahiye' socha ke navigate karta hai, embeddings nahi.",
+   "en": "Tree nodes carry titles + summaries; the LLM navigates like a human analyst reasoning 'where should the answer be', with no embeddings."
+  }
+ },
+ {
+  "id": "rag-06-pageindex-03",
+  "section": "rag",
+  "topic": "06-pageindex",
+  "level": "medium",
+  "q": {
+   "hi": "PageIndex kis use case me sabse kam fit hai?",
+   "en": "For which use case is PageIndex the worst fit?"
+  },
+  "options": {
+   "hi": [
+    "200-page annual report",
+    "Legal contract with cross-page clauses",
+    "Technical manual with tables spanning pages",
+    "Chhote uniform FAQ entries ka collection"
+   ],
+   "en": [
+    "A 200-page annual report",
+    "A legal contract with cross-page clauses",
+    "A technical manual with tables spanning pages",
+    "A collection of short uniform FAQ entries"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Rule: print karke page-by-page padhne wale docs → PageIndex; scan aur search wale chhote docs → chunking theek hai, PageIndex overkill.",
+   "en": "Rule: docs made to be printed and read page by page → PageIndex; short scan-and-search docs → chunking is fine, PageIndex is overkill."
+  }
+ },
+ {
+  "id": "rag-06-pageindex-04",
+  "section": "rag",
+  "topic": "06-pageindex",
+  "level": "hard",
+  "q": {
+   "hi": "Vectorless tree retrieval ka sabse bada trade-off kya hai?",
+   "en": "What is the biggest trade-off of vectorless tree retrieval?"
+  },
+  "options": {
+   "hi": [
+    "Har query pe kai LLM calls: zyada latency aur cost, aur bahut saare docs pe scale nahi",
+    "Ye answers ke saath page citations nahi de sakta",
+    "Isme vector DB ka cost sabse zyada hota hai",
+    "Ye sirf scanned PDFs pe kaam karta hai"
+   ],
+   "en": [
+    "Several LLM calls per query: more latency and cost, and it doesn't scale across many docs",
+    "It cannot give page citations with answers",
+    "It has the highest vector DB cost",
+    "It only works on scanned PDFs"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Tree navigation me multiple reasoning steps lagte hain (seconds). Explainability high hai, par pehle doc select karna padta hai bade collections pe.",
+   "en": "Tree navigation needs several reasoning steps (seconds). Explainability is high, but on large collections you must select the doc first."
+  }
+ },
+ {
+  "id": "rag-06-pageindex-05",
+  "section": "rag",
+  "topic": "06-pageindex",
+  "level": "medium",
+  "q": {
+   "hi": "Page-level index me top-K pages LLM ko kis order me dene chahiye?",
+   "en": "In a page-level index, in what order should the top-K pages go to the LLM?"
+  },
+  "options": {
+   "hi": [
+    "Random order, taaki bias na ho",
+    "Page order, kyunki narrative structure matter karta hai",
+    "Alphabetical order of section title",
+    "Sabse chhota page pehle"
+   ],
+   "en": [
+    "Random order, to avoid bias",
+    "Page order, because narrative structure matters",
+    "Alphabetical order of section title",
+    "Shortest page first"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Article ka recommendation: retrieval score se select karo, par context page order me assemble karo taaki cross-page flow bana rahe.",
+   "en": "The article's recommendation: select by retrieval score, but assemble the context in page order so the cross-page flow stays intact."
+  }
+ },
+ {
+  "id": "rag-06-pageindex-06",
+  "section": "rag",
+  "topic": "06-pageindex",
+  "level": "hard",
+  "q": {
+   "hi": "Ek page 1,500+ words ka hai aur embedding token limit cross ho rahi hai. Article ka suggested fix?",
+   "en": "A page has 1,500+ words and exceeds the embedding token limit. What fix does the article suggest?"
+  },
+  "options": {
+   "hi": [
+    "Page skip kar do",
+    "Sirf pehle 100 characters embed karo",
+    "Pehle ~800 tokens + aakhri ~200 tokens embed karo",
+    "Page ko 10 random chunks me tod ke unka average lo"
+   ],
+   "en": [
+    "Skip the page",
+    "Embed only the first 100 characters",
+    "Embed the first ~800 tokens + the last ~200 tokens",
+    "Split into 10 random chunks and average them"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "'Semantic bookends' page ka intro aur conclusion pakadte hain; careless truncation embedding ko corrupt karta hai.",
+   "en": "'Semantic bookends' capture the page's intro and conclusion; careless truncation corrupts the embedding."
+  }
+ },
+ {
+  "id": "rag-07-advanced-retrieval-01",
+  "section": "rag",
+  "topic": "07-advanced-retrieval",
+  "level": "easy",
+  "q": {
+   "hi": "HyDE technique me search kis cheez ke embedding se hota hai?",
+   "en": "In HyDE, what is embedded and used for the search?"
+  },
+  "options": {
+   "hi": [
+    "User ke original question se",
+    "LLM ke likhe hypothetical answer se",
+    "Document ke title se",
+    "Query ke BM25 keywords se"
+   ],
+   "en": [
+    "The user's original question",
+    "A hypothetical answer written by the LLM",
+    "The document title",
+    "The query's BM25 keywords"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "HyDE me LLM pehle ek fake answer likhta hai; answer jaisa text real answer chunks ke zyada paas hota hai.",
+   "en": "In HyDE the LLM first writes a fake answer; answer-like text sits closer to real answer chunks."
+  }
+ },
+ {
+  "id": "rag-07-advanced-retrieval-02",
+  "section": "rag",
+  "topic": "07-advanced-retrieval",
+  "level": "medium",
+  "q": {
+   "hi": "Parent-child (small-to-big) retrieval ka main idea kya hai?",
+   "en": "What is the main idea of parent-child (small-to-big) retrieval?"
+  },
+  "options": {
+   "hi": [
+    "Bade chunks se search, chhote LLM ko",
+    "Sirf parent documents embed karna",
+    "Chhote chunks se search, bada parent LLM ko",
+    "Child chunks ko delete karke index chhota karna"
+   ],
+   "en": [
+    "Search with big chunks, give small ones to the LLM",
+    "Embed only parent documents",
+    "Search with small chunks, give the bigger parent to the LLM",
+    "Delete child chunks to shrink the index"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Chhota chunk precise match deta hai, bada parent LLM ko poora context.",
+   "en": "Small chunks give precise matches; the bigger parent gives the LLM full context."
+  }
+ },
+ {
+  "id": "rag-07-advanced-retrieval-03",
+  "section": "rag",
+  "topic": "07-advanced-retrieval",
+  "level": "medium",
+  "q": {
+   "hi": "'Lost in the middle' ka matlab kya hai?",
+   "en": "What does 'lost in the middle' mean?"
+  },
+  "options": {
+   "hi": [
+    "LLM context ke beech wali info ko sabse kam use karta hai",
+    "Vector DB beech ke chunks index nahi karta",
+    "Reranker beech ke candidates skip karta hai",
+    "Chunking me document ka middle part kho jaata hai"
+   ],
+   "en": [
+    "LLMs use information in the middle of the context the least",
+    "The vector DB doesn't index middle chunks",
+    "The reranker skips middle candidates",
+    "Chunking loses the middle of the document"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Models start aur end ki info best use karte hain; isliye kam, reranked chunks bhejo.",
+   "en": "Models use start and end information best, so send fewer, reranked chunks."
+  }
+ },
+ {
+  "id": "rag-07-advanced-retrieval-04",
+  "section": "rag",
+  "topic": "07-advanced-retrieval",
+  "level": "easy",
+  "q": {
+   "hi": "Chat me follow-up 'aur uska?' ke liye sabse sasta fix kya hai?",
+   "en": "What is the cheapest fix for a chat follow-up like 'and that one?'"
+  },
+  "options": {
+   "hi": [
+    "GraphRAG",
+    "Embedding model fine-tune karna",
+    "Top-k ko 50 karna",
+    "History se query rewriting"
+   ],
+   "en": [
+    "GraphRAG",
+    "Fine-tuning the embedding model",
+    "Raising top-k to 50",
+    "Query rewriting from history"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Rewriting follow-up ko standalone search query bana deta hai, ek chhoti LLM call me.",
+   "en": "Rewriting turns the follow-up into a standalone search query with one small LLM call."
+  }
+ },
+ {
+  "id": "rag-07-advanced-retrieval-05",
+  "section": "rag",
+  "topic": "07-advanced-retrieval",
+  "level": "hard",
+  "q": {
+   "hi": "GraphRAG kis tarah ke question pe sabse zyada help karta hai?",
+   "en": "Which kind of question does GraphRAG help with most?"
+  },
+  "options": {
+   "hi": [
+    "Ek exact error code lookup",
+    "Poore dataset ke main themes jaise global questions",
+    "Ek single FAQ answer",
+    "Typo wali short query"
+   ],
+   "en": [
+    "An exact error code lookup",
+    "Global questions like main themes across the dataset",
+    "A single FAQ answer",
+    "A short query with a typo"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Community summaries global questions answer karte hain jahan top-k chunks kaafi nahi.",
+   "en": "Community summaries answer global questions where top-k chunks are not enough."
+  }
+ },
+ {
+  "id": "rag-07-advanced-retrieval-06",
+  "section": "rag",
+  "topic": "07-advanced-retrieval",
+  "level": "medium",
+  "q": {
+   "hi": "Contextual retrieval me indexing ke time kya kiya jaata hai?",
+   "en": "What does contextual retrieval do at indexing time?"
+  },
+  "options": {
+   "hi": [
+    "Chunks ko compress karke chhota karna",
+    "Har chunk ko do models se embed karna",
+    "Har chunk ke aage uske document ka short context jodna",
+    "Chunks ko graph me convert karna"
+   ],
+   "en": [
+    "Compress chunks to make them smaller",
+    "Embed each chunk with two models",
+    "Prepend short document context to each chunk",
+    "Convert chunks into a graph"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "1-2 line context se akela chunk bhi samajh aata hai aur better retrieve hota hai.",
+   "en": "1-2 lines of context make a lone chunk understandable and better retrievable."
+  }
+ },
+ {
+  "id": "rag-08-rag-evaluation-01",
+  "section": "rag",
+  "topic": "08-rag-evaluation",
+  "level": "easy",
+  "q": {
+   "hi": "Gold chunk rank 4 pe aaya. Us query ka reciprocal rank kya hai?",
+   "en": "The gold chunk is at rank 4. What is that query's reciprocal rank?"
+  },
+  "options": {
+   "hi": [
+    "0.25",
+    "4",
+    "0.4",
+    "1.0"
+   ],
+   "en": [
+    "0.25",
+    "4",
+    "0.4",
+    "1.0"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Reciprocal rank = 1/rank = 1/4 = 0.25.",
+   "en": "Reciprocal rank = 1/rank = 1/4 = 0.25."
+  }
+ },
+ {
+  "id": "rag-08-rag-evaluation-02",
+  "section": "rag",
+  "topic": "08-rag-evaluation",
+  "level": "medium",
+  "q": {
+   "hi": "Context sahi tha par answer me unsupported claims hain. Kaunsa metric low hoga?",
+   "en": "The context was right but the answer has unsupported claims. Which metric is low?"
+  },
+  "options": {
+   "hi": [
+    "Recall@k",
+    "nDCG",
+    "MRR",
+    "Faithfulness"
+   ],
+   "en": [
+    "Recall@k",
+    "nDCG",
+    "MRR",
+    "Faithfulness"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Faithfulness check karta hai ki har claim context se supported hai ya nahi.",
+   "en": "Faithfulness checks whether every claim is supported by the context."
+  }
+ },
+ {
+  "id": "rag-08-rag-evaluation-03",
+  "section": "rag",
+  "topic": "08-rag-evaluation",
+  "level": "medium",
+  "q": {
+   "hi": "Recall@50 bahut kam hai. Reranker add karne se kya hoga?",
+   "en": "Recall@50 is very low. What will adding a reranker do?"
+  },
+  "options": {
+   "hi": [
+    "Problem poori solve ho jaayegi",
+    "Zyada help nahi; jo chunk aaya hi nahi use rerank nahi kar sakte",
+    "Faithfulness kam ho jaayegi",
+    "Recall@50 double ho jaayega"
+   ],
+   "en": [
+    "It will fully solve the problem",
+    "Little help; you can't rerank a chunk that never arrived",
+    "Faithfulness will drop",
+    "Recall@50 will double"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Reranker sirf candidates ka order badalta hai; pehle retrieval recall fix karo.",
+   "en": "A reranker only reorders candidates; fix retrieval recall first."
+  }
+ },
+ {
+  "id": "rag-08-rag-evaluation-04",
+  "section": "rag",
+  "topic": "08-rag-evaluation",
+  "level": "easy",
+  "q": {
+   "hi": "Notes ke hisaab se useful golden set ka rough size kya hai?",
+   "en": "Per the notes, what is a rough useful golden set size?"
+  },
+  "options": {
+   "hi": [
+    "5-10 demo questions",
+    "10,000 synthetic questions",
+    "50-100 query-doc pairs per domain",
+    "Sirf ek question per document"
+   ],
+   "en": [
+    "5-10 demo questions",
+    "10,000 synthetic questions",
+    "50-100 query-doc pairs per domain",
+    "Just one question per document"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Real logs se 50-100 annotated pairs bhi meaningful signal dete hain.",
+   "en": "Even 50-100 annotated pairs from real logs give meaningful signal."
+  }
+ },
+ {
+  "id": "rag-08-rag-evaluation-05",
+  "section": "rag",
+  "topic": "08-rag-evaluation",
+  "level": "hard",
+  "q": {
+   "hi": "nDCG, MRR se kis baat me alag hai?",
+   "en": "How does nDCG differ from MRR?"
+  },
+  "options": {
+   "hi": [
+    "nDCG graded relevance aur saare relevant results ki position count karta hai",
+    "nDCG position ignore karta hai",
+    "nDCG sirf generation ke liye hai",
+    "nDCG ko ground truth nahi chahiye"
+   ],
+   "en": [
+    "nDCG counts graded relevance and positions of all relevant results",
+    "nDCG ignores position",
+    "nDCG is only for generation",
+    "nDCG needs no ground truth"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "MRR sirf pehle relevant result ko dekhta hai; nDCG graded relevance with position discount.",
+   "en": "MRR looks only at the first relevant result; nDCG uses graded relevance with a position discount."
+  }
+ },
+ {
+  "id": "rag-08-rag-evaluation-06",
+  "section": "rag",
+  "topic": "08-rag-evaluation",
+  "level": "medium",
+  "q": {
+   "hi": "Inme se kaunsa online evaluation signal hai?",
+   "en": "Which of these is an online evaluation signal?"
+  },
+  "options": {
+   "hi": [
+    "Golden set pe recall@k",
+    "CI me RAGAS run",
+    "Synthetic questions pe nDCG",
+    "Production me thumbs-down aur regenerate rate"
+   ],
+   "en": [
+    "Recall@k on the golden set",
+    "A RAGAS run in CI",
+    "nDCG on synthetic questions",
+    "Thumbs-down and regenerate rate in production"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Online eval real users ke production signals se hota hai; baaki offline hain.",
+   "en": "Online eval uses real users' production signals; the others are offline."
+  }
+ },
+ {
+  "id": "rag-09-production-rag-api-01",
+  "section": "rag",
+  "topic": "09-production-rag-api",
+  "level": "easy",
+  "q": {
+   "hi": "200-page PDF ingest ke liye API ko kya return karna chahiye?",
+   "en": "What should the API return for a 200-page PDF ingest?"
+  },
+  "options": {
+   "hi": [
+    "Poora ingest karke 200 OK",
+    "202 Accepted with job_id, kaam worker kare",
+    "504 timeout",
+    "WebSocket connection"
+   ],
+   "en": [
+    "Ingest it fully, then 200 OK",
+    "202 Accepted with a job_id, a worker does the work",
+    "504 timeout",
+    "A WebSocket connection"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Ingestion minutes leta hai; proxies 60-100s pe kaat dete hain, isliye async job.",
+   "en": "Ingestion takes minutes and proxies cut at 60-100s, so use an async job."
+  }
+ },
+ {
+  "id": "rag-09-production-rag-api-02",
+  "section": "rag",
+  "topic": "09-production-rag-api",
+  "level": "medium",
+  "q": {
+   "hi": "SSE stream me saare tokens end me ek saath aa rahe hain. Sabse likely wajah?",
+   "en": "All SSE tokens arrive at once at the end. Most likely cause?"
+  },
+  "options": {
+   "hi": [
+    "LLM slow hai",
+    "Embedding cache miss",
+    "Nginx proxy buffering on hai",
+    "Reranker ka top-k bada hai"
+   ],
+   "en": [
+    "The LLM is slow",
+    "Embedding cache miss",
+    "Nginx proxy buffering is on",
+    "Reranker top-k is large"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "proxy_buffering off aur X-Accel-Buffering: no set karna padta hai.",
+   "en": "You must set proxy_buffering off and X-Accel-Buffering: no."
+  }
+ },
+ {
+  "id": "rag-09-production-rag-api-03",
+  "section": "rag",
+  "topic": "09-production-rag-api",
+  "level": "medium",
+  "q": {
+   "hi": "Embedding cache key me model name aur version kyun?",
+   "en": "Why include model name and version in the embedding cache key?"
+  },
+  "options": {
+   "hi": [
+    "Model badalne pe cache apne aap invalid ho",
+    "Key chhoti karne ke liye",
+    "Redis ko fast karne ke liye",
+    "Tenant isolation ke liye"
+   ],
+   "en": [
+    "So the cache auto-invalidates on a model change",
+    "To make the key shorter",
+    "To make Redis faster",
+    "For tenant isolation"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Alag model ke vectors comparable nahi; key me version se purane entries use nahi hote.",
+   "en": "Vectors from different models aren't comparable; the version in the key avoids stale entries."
+  }
+ },
+ {
+  "id": "rag-09-production-rag-api-04",
+  "section": "rag",
+  "topic": "09-production-rag-api",
+  "level": "hard",
+  "q": {
+   "hi": "Multi-tenant RAG me permission check kahan hona chahiye?",
+   "en": "Where should the permission check live in multi-tenant RAG?"
+  },
+  "options": {
+   "hi": [
+    "LLM ke prompt me 'mat dikhana' likh ke",
+    "Answer ke baad output filter me",
+    "Frontend me",
+    "Retrieval me metadata pre-filter ke roop me"
+   ],
+   "en": [
+    "In the LLM prompt saying 'don't show it'",
+    "In an output filter after the answer",
+    "In the frontend",
+    "As a metadata pre-filter during retrieval"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "LLM ko woh chunk milna hi nahi chahiye jo user nahi dekh sakta.",
+   "en": "The LLM should never receive a chunk the user isn't allowed to see."
+  }
+ },
+ {
+  "id": "rag-09-production-rag-api-05",
+  "section": "rag",
+  "topic": "09-production-rag-api",
+  "level": "medium",
+  "q": {
+   "hi": "Embedding API 429 pe retry me jitter kyun zaroori hai?",
+   "en": "Why is jitter important when retrying embedding API 429s?"
+  },
+  "options": {
+   "hi": [
+    "Tokens kam karne ke liye",
+    "Saare clients ek saath retry karke retry storm na banayein",
+    "Cache hit rate badhane ke liye",
+    "Latency zero karne ke liye"
+   ],
+   "en": [
+    "To reduce tokens",
+    "So all clients don't retry together and cause a retry storm",
+    "To raise cache hit rate",
+    "To make latency zero"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Random delay retries ko spread karta hai; notes me ye sabse bada stability win tha.",
+   "en": "Random delay spreads retries; in the notes it was the biggest stability win."
+  }
+ },
+ {
+  "id": "rag-09-production-rag-api-06",
+  "section": "rag",
+  "topic": "09-production-rag-api",
+  "level": "hard",
+  "q": {
+   "hi": "RAG API me workers ko kis basis pe autoscale karna chahiye?",
+   "en": "What should ingestion workers autoscale on in a RAG API?"
+  },
+  "options": {
+   "hi": [
+    "HTTP requests per second",
+    "LLM output tokens",
+    "Queue depth",
+    "Cache hit rate"
+   ],
+   "en": [
+    "HTTP requests per second",
+    "LLM output tokens",
+    "Queue depth",
+    "Cache hit rate"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Workers CPU/memory heavy hain aur queue se kaam lete hain; API HTTP load pe scale hota hai.",
+   "en": "Workers are CPU/memory heavy and pull from the queue; the API scales on HTTP load."
+  }
+ },
+ {
+  "id": "rag-10-rag-interview-qa-01",
+  "section": "rag",
+  "topic": "10-rag-interview-qa",
+  "level": "easy",
+  "q": {
+   "hi": "Company ki fresh, private knowledge + citations ke liye default choice?",
+   "en": "Default choice for fresh, private company knowledge + citations?"
+  },
+  "options": {
+   "hi": [
+    "RAG",
+    "Fine-tuning",
+    "Bigger model",
+    "Sirf prompt engineering"
+   ],
+   "en": [
+    "RAG",
+    "Fine-tuning",
+    "A bigger model",
+    "Prompt engineering only"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "RAG data update sasta rakhta hai aur sources cite kar sakta hai; fine-tuning style ke liye hai.",
+   "en": "RAG keeps data updates cheap and can cite sources; fine-tuning is for style."
+  }
+ },
+ {
+  "id": "rag-10-rag-interview-qa-02",
+  "section": "rag",
+  "topic": "10-rag-interview-qa",
+  "level": "medium",
+  "q": {
+   "hi": "Queries me SKU codes aur error codes bahut hain. Kya add karoge?",
+   "en": "Queries contain many SKU and error codes. What do you add?"
+  },
+  "options": {
+   "hi": [
+    "Bada embedding model",
+    "Hybrid search (BM25 + dense)",
+    "Zyada chunk overlap",
+    "GraphRAG"
+   ],
+   "en": [
+    "A bigger embedding model",
+    "Hybrid search (BM25 + dense)",
+    "More chunk overlap",
+    "GraphRAG"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Dense exact terms miss karta hai; BM25 unhe pakadta hai, RRF se merge.",
+   "en": "Dense misses exact terms; BM25 catches them, merged with RRF."
+  }
+ },
+ {
+  "id": "rag-10-rag-interview-qa-03",
+  "section": "rag",
+  "topic": "10-rag-interview-qa",
+  "level": "medium",
+  "q": {
+   "hi": "Bi-encoder vs cross-encoder: sahi statement?",
+   "en": "Bi-encoder vs cross-encoder: which is correct?"
+  },
+  "options": {
+   "hi": [
+    "Cross-encoder retrieval ke liye pre-compute hota hai",
+    "Bi-encoder query aur doc saath padhta hai",
+    "Cross-encoder query aur doc saath padhta hai, accurate par slow",
+    "Dono ki speed same hai"
+   ],
+   "en": [
+    "A cross-encoder is pre-computed for retrieval",
+    "A bi-encoder reads query and doc together",
+    "A cross-encoder reads query and doc together, accurate but slow",
+    "Both have the same speed"
+   ]
+  },
+  "answer": 2,
+  "why": {
+   "hi": "Isliye bi-encoder retrieval me, cross-encoder sirf rerank me.",
+   "en": "That's why bi-encoders are used for retrieval and cross-encoders only for reranking."
+  }
+ },
+ {
+  "id": "rag-10-rag-interview-qa-04",
+  "section": "rag",
+  "topic": "10-rag-interview-qa",
+  "level": "hard",
+  "q": {
+   "hi": "Embedding model badalna hai. Sahi tarika?",
+   "en": "You need to change the embedding model. Right approach?"
+  },
+  "options": {
+   "hi": [
+    "Sirf naye docs naye model se embed karo",
+    "Purane vectors ko normalize kar do",
+    "Query ko dono models se embed karke average",
+    "Naye index me sab re-embed, eval, phir alias switch"
+   ],
+   "en": [
+    "Embed only new docs with the new model",
+    "Normalize the old vectors",
+    "Embed the query with both models and average",
+    "Re-embed everything into a new index, eval, then switch an alias"
+   ]
+  },
+  "answer": 3,
+  "why": {
+   "hi": "Alag models ke vectors comparable nahi; blue-green re-index safe hai.",
+   "en": "Vectors from different models aren't comparable; a blue-green re-index is safe."
+  }
+ },
+ {
+  "id": "rag-10-rag-interview-qa-05",
+  "section": "rag",
+  "topic": "10-rag-interview-qa",
+  "level": "easy",
+  "q": {
+   "hi": "RAG ke baad bhi hallucination ka ek common reason?",
+   "en": "A common reason for hallucination even with RAG?"
+  },
+  "options": {
+   "hi": [
+    "Retrieval ne galat ya adhoora context diya",
+    "Vector DB me HNSW use hua",
+    "Streaming on thi",
+    "Temperature 0 thi"
+   ],
+   "en": [
+    "Retrieval returned wrong or partial context",
+    "The vector DB used HNSW",
+    "Streaming was on",
+    "Temperature was 0"
+   ]
+  },
+  "answer": 0,
+  "why": {
+   "hi": "Kharab context pe model guess ya training knowledge pe chala jaata hai.",
+   "en": "With bad context the model guesses or falls back on training knowledge."
+  }
+ },
+ {
+  "id": "rag-10-rag-interview-qa-06",
+  "section": "rag",
+  "topic": "10-rag-interview-qa",
+  "level": "medium",
+  "q": {
+   "hi": "RAG chatbot HLD me senior signal ke liye kaunse do points khud se bolne chahiye?",
+   "en": "Which two points should you raise yourself in a RAG chatbot HLD as a senior signal?"
+  },
+  "options": {
+   "hi": [
+    "Framework ka naam aur GPU type",
+    "Permissions (ACL) aur evaluation",
+    "Font aur UI theme",
+    "Sirf vector DB ka naam"
+   ],
+   "en": [
+    "Framework name and GPU type",
+    "Permissions (ACL) and evaluation",
+    "Font and UI theme",
+    "Only the vector DB name"
+   ]
+  },
+  "answer": 1,
+  "why": {
+   "hi": "Zyada candidates ACL aur eval bhool jaate hain.",
+   "en": "Most candidates forget ACLs and eval."
+  }
+ }
+]

@@ -1,9 +1,9 @@
 // Personal study plan: turns "days left + what I'm preparing + hours per day" into a day-by-day list.
 // Deterministic (no LLM): same inputs and progress always give the same plan, and finished pages
 // drop out, so the plan re-balances itself every day from today.
-import { agentPages, behavioral, cs, db, java, lld, lldProblems, pageBySlug, questions, topics, type Page } from './content'
+import { agentPages, behavioral, cs, rag, db, java, lld, lldProblems, pageBySlug, questions, topics, type Page } from './content'
 
-export type Track = 'hld' | 'lld' | 'java' | 'db' | 'cs' | 'beh' | 'agents'
+export type Track = 'hld' | 'lld' | 'java' | 'db' | 'cs' | 'beh' | 'rag' | 'agents'
 export type Level = 'junior' | 'mid' | 'senior'
 
 export interface PlanInput {
@@ -43,6 +43,7 @@ export const TRACKS: { id: Track; label: { hi: string; en: string } }[] = [
   { id: 'db', label: { hi: 'Databases', en: 'Databases' } },
   { id: 'cs', label: { hi: 'CS fundamentals', en: 'CS fundamentals' } },
   { id: 'beh', label: { hi: 'Behavioral', en: 'Behavioral' } },
+  { id: 'rag', label: { hi: 'RAG', en: 'RAG' } },
   { id: 'agents', label: { hi: 'Agentic AI', en: 'Agentic AI' } },
 ]
 
@@ -69,11 +70,13 @@ const CS_P1 = ['01-how-the-internet-works', '02-tcp-udp', '03-http', '06-process
 const CS_P2 = ['04-dns', '05-tls', '07-memory-management']
 const BEH_P1 = ['01-star-method', '02-tell-me-about-yourself', '03-common-questions', '05-story-bank']
 const BEH_P2 = ['04-leadership-principles']
+const RAG_P1 = ['01-what-is-rag', '02-semantic-search', '03-chunking', '04-hybrid-search', '05-reranking', '10-rag-interview-qa']
+const RAG_P2 = ['09-production-rag-api', '08-rag-evaluation', '07-advanced-retrieval', '06-pageindex']
 const AGENT_P1 = ['agents-map', 'agents-react', 'agents-rag']
 const AGENT_P2 = ['agents-prod', 'agents-multi', 'agents-comm', 'agents-web']
 
 // Reading time × factor = study time (questions need practice, labs need running)
-const FACTOR: Record<Page['kind'], number> = { topic: 3, question: 2.5, lld: 2, lldp: 2.5, java: 1.5, db: 1.5, cs: 1.5, beh: 2, agent: 2 }
+const FACTOR: Record<Page['kind'], number> = { topic: 3, question: 2.5, lld: 2, lldp: 2.5, java: 1.5, db: 1.5, cs: 1.5, beh: 2, rag: 2, agent: 2 }
 
 function tiers(track: Track, level: Level): string[][] {
   if (track === 'hld') {
@@ -90,6 +93,7 @@ function tiers(track: Track, level: Level): string[][] {
   if (track === 'lld') return [LLD_P1, LLD_P2, [...lld, ...lldProblems].map((p) => p.slug).filter((s) => !LLD_P1.includes(s) && !LLD_P2.includes(s))]
   if (track === 'cs') return [CS_P1, CS_P2, cs.map((p) => p.slug).filter((s) => !CS_P1.includes(s) && !CS_P2.includes(s))]
   if (track === 'beh') return [BEH_P1, BEH_P2, behavioral.map((p) => p.slug).filter((s) => !BEH_P1.includes(s) && !BEH_P2.includes(s))]
+  if (track === 'rag') return [RAG_P1, RAG_P2, rag.map((p) => p.slug).filter((s) => !RAG_P1.includes(s) && !RAG_P2.includes(s))]
   if (track === 'db') return [DB_P1, DB_P2, db.map((p) => p.slug).filter((s) => !DB_P1.includes(s) && !DB_P2.includes(s))]
   if (track === 'java') return [JAVA_P1, JAVA_P2, java.map((p) => p.slug).filter((s) => !JAVA_P1.includes(s) && !JAVA_P2.includes(s))]
   return [AGENT_P1, AGENT_P2, agentPages.map((p) => p.slug).filter((s) => !AGENT_P1.includes(s) && !AGENT_P2.includes(s))]

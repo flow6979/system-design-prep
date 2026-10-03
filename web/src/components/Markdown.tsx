@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm'
 import { Mermaid } from './Mermaid'
 import { CodeBlock, ShowAllCodeContext, useVisibleCode } from './CodeBlock'
 import { resolveMdLink } from '../content'
+import { BASE } from '../router'
 
 export function Markdown({ text, showAllCode = false }: { text: string; showAllCode?: boolean }) {
   return (
@@ -32,6 +33,8 @@ export function Markdown({ text, showAllCode = false }: { text: string; showAllC
           a({ href = '', children }) {
             const internal = resolveMdLink(href)
             if (internal) return <a href={internal}>{children}</a>
+            // In-app paths like /viewinter/agents/labs/rag stay in the same tab
+            if (href?.startsWith(BASE)) return <a href={href}>{children}</a>
             return (
               <a href={href} target="_blank" rel="noreferrer">
                 {children}
