@@ -10,9 +10,9 @@ askedAt: [OpenAI, Anthropic, Google, Microsoft, Meta, Amazon]
 
 # Design a ChatGPT-style LLM Chat App
 
-**Ek line me:** user message bhejta hai, LLM jawab **token by token stream** karta hai, aur poori conversation save hoti hai. Core challenge ye hai ki **GPU mehenga aur limited hai**, isliye queueing, rate limits, caching aur routing se usse sahi use karna.
+**Ek line me:** LLM jawab **token by token stream** kare, conversation save ho. Core challenge: **GPU mehenga aur limited** → queueing, rate limits, caching, routing.
 
-**Is question me interviewer kya check karta hai:** streaming (SSE), context window management, GPU fleet pe scheduling aur backpressure, per-tier rate limits, cost control, aur safety layer. Ye 2026 me bahut poocha jaane wala question hai.
+**Is question me interviewer kya check karta hai:** streaming (SSE), context window, GPU scheduling + backpressure, per-tier rate limits, cost control, safety.
 
 ---
 
@@ -20,45 +20,44 @@ askedAt: [OpenAI, Anthropic, Google, Microsoft, Meta, Amazon]
 
 | Tum poochho | Typical jawab | Design pe asar |
 |---|---|---|
-| "Model hum khud host karenge ya third-party API?" | Khud host, GPU fleet | Inference scheduling design karna hai |
-| "Response stream hona chahiye?" | Haan, token by token | SSE, long-lived connections |
-| "Conversation history save karni hai? Kitni lambi?" | Haan, unlimited threads | Context window management chahiye |
-| "Free aur paid tiers hain?" | Haan, free/plus/enterprise | Per-tier rate limits aur priority queue |
-| "File upload / knowledge base (RAG) chahiye?" | Basic RAG | Vector DB + retrieval step |
-| "Images, voice, agents/tools?" | Out of scope | Mention karke chhod do |
+| "Model khud host ya third-party API?" | Khud host, GPU fleet | Inference scheduling design karna |
+| "Response stream ho?" | Haan, token by token | SSE, long-lived connections |
+| "History save? Kitni lambi?" | Haan, unlimited threads | Context window management |
+| "Free/paid tiers?" | Haan, free/plus/enterprise | Per-tier rate limits + priority queue |
+| "File upload / RAG?" | Basic RAG | Vector DB + retrieval step |
 
-> **Bolo:** "Main 3 cheezein focus karunga: chat ka streaming flow, GPU capacity ko fairly aur cheaply use karna, aur conversation + context management. Safety aur observability bhi cover karunga."
+> **Bolo:** "Focus 3 cheezon pe: streaming flow, GPU ka fair aur sasta use, conversation + context management. Saath me safety, observability."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Users naya chat shuru karein, message bhejein, aur jawab stream ho
-2. Users purani conversations list aur continue kar sakein
-3. Users response beech me stop aur regenerate kar sakein
-4. Users documents upload karke unke baare me sawal pooch sakein (basic RAG)
+1. Naya chat, message bhejna, jawab stream
+2. Purani conversations list + continue
+3. Response beech me stop + regenerate
+4. Documents upload karke sawal (basic RAG)
 
 **Out of scope:** images, voice, agents/tools, fine-tuning, chat sharing.
 
 **Non-functional (priority order)**
-1. **TTFT (time to first token):** p50 < 1s, p99 < 3s paid tiers ke liye
+1. **TTFT (time to first token):** p50 < 1s, p99 < 3s (paid tiers)
 2. **Streaming:** ~30+ tokens/sec per user, smooth
-3. **Availability:** 99.9%. Overload me graceful degrade (queue/smaller model/429), crash nahi
+3. **Availability:** 99.9%. Overload → graceful degrade (queue/smaller model/429), crash nahi
 4. **Durability:** completed message history lose na ho
 5. **Cost:** GPU utilization high, per-query cost kam (GPU hi bill hai)
-6. **Safety:** harmful input/output block ho
+6. **Safety:** harmful input/output block
 7. **Scale:** 50M DAU, peak ~20K messages/sec, ~2 lakh concurrent streams
 
-**CAP choice:** conversation history ke liye **availability** + ek conversation me read-your-writes (same partition key). Usage/billing aur rate-limit counters **eventual/approximate** chalenge: rate limiter down ho to fail-open with local limits.
+**CAP choice:** history → **availability** + conversation me read-your-writes (same partition key). Usage/billing + rate-limit counters **eventual/approximate**: rate limiter down → fail-open with local limits.
 
 ## Step 3: Estimation (sirf jo design badle)
 
 - 50M DAU × 10 messages = 500M/day ≈ **~6K req/sec avg, peak ~20K**.
-- Har response ~500 output tokens, ~10 sec stream. Peak pe **~2 lakh concurrent streams** open.
-- Ek GPU (H100 class) batching ke saath ~2–3K output tokens/sec deta hai, yaani ek GPU ~50–100 streams. Peak ke liye **~3,000+ GPUs**. GPU cost hi asli bill hai.
-- Conversation storage: 500M user + 500M assistant messages × ~1.5KB ≈ **~1.5TB/day** (~0.5PB/saal), ~12K message writes/sec avg + partial checkpoints. Sasta hai, par ek Postgres ke liye bada → DynamoDB/Cassandra.
-- Usage events: ~20K/sec peak, aur unke 3 consumers: billing, analytics, abuse detection.
+- Response ~500 output tokens, ~10 sec stream → peak **~2 lakh concurrent streams**.
+- H100-class GPU + batching ≈ 2–3K output tokens/sec ≈ 50–100 streams → peak **~3,000+ GPUs**. GPU hi asli bill.
+- Storage: 500M user + 500M assistant messages × ~1.5KB ≈ **~1.5TB/day** (~0.5PB/saal), ~12K writes/sec avg + partial checkpoints. Ek Postgres ke liye bada → DynamoDB/Cassandra.
+- Usage events: ~20K/sec peak, 3 consumers: billing, analytics, abuse detection.
 
-> **Bolo:** "Storage aur API servers sasta hissa hai. Bottleneck aur cost GPU hai, isliye mera design ka bada hissa GPU ko kam aur smartly use karne pe hai: routing, caching, batching, aur rate limits."
+> **Bolo:** "Storage, API servers saste hain. GPU bottleneck + cost hai, isliye focus routing, caching, batching, rate limits."
 
 ## Step 4: Core entities
 
@@ -81,11 +80,16 @@ POST /conversations/{id}/messages/{msgId}/stop
 POST /files {file}                                  → {fileId} (async indexing)
 ```
 
-> **Bolo:** "Message POST ka response hi SSE stream hai. WebSocket ki zarurat nahi kyunki stream ek hi direction me hai: server se client. Stop ke liye alag chhoti API."
+> **Bolo:** "Message POST ka response hi SSE stream hai. Stream one-way hai, isliye WebSocket nahi; stop ke liye alag chhoti API."
 
 ## Step 6: High-level design
 
-**Simple v1 pehle:** client → Chat Service (SSE) → ek inference server, history ek Postgres me, usage bhi wahi table. Saare FRs chal jaate hain. Par **~2 lakh concurrent streams = ~3,000 GPUs** (→ Model Router + priority queue + admission control), har sawal large model pe 5–10x mehenga (→ small/large routing), **~1.5TB/day messages** (→ DynamoDB/Cassandra), tiers aur abuse (→ gateway rate limit Redis me), aur usage ke 3 consumers (→ Kafka).
+**Simple v1:** client → Chat Service (SSE) → ek inference server; history + usage ek Postgres me. FRs chal jaate hain. Kahan tootega:
+- **~2 lakh streams = ~3,000 GPUs** → Model Router + priority queue + admission control
+- Har sawal large model pe 5–10x mehenga → small/large routing
+- **~1.5TB/day messages** → DynamoDB/Cassandra
+- Tiers + abuse → gateway rate limit (Redis)
+- Usage ke 3 consumers → Kafka
 
 ```mermaid
 flowchart LR
@@ -105,14 +109,13 @@ flowchart LR
 ```
 
 **Har component kyun:**
-- **API Gateway + Redis:** auth, per-user/tier rate limit (requests/min aur tokens/day). 20K req/sec kai gateway nodes pe, isliye shared counters Redis me. Local in-memory limit se user alag nodes pe limit bypass kar leta.
-- **Chat Service:** SSE hold karta hai, tokens forward karta hai, message save karta hai. **Context builder iske andar ek module hai**, alag service nahi: alag scale karne ki koi wajah nahi, sirf ek extra hop hota.
-- **Safety / Moderation:** input/output pe chhota classifier model. Alag service kyunki ye apne GPU/CPU pool pe chalta hai aur alag scale hota hai.
-- **Model Router + scheduler:** small ya large model chunta hai, aur pools ki KV-cache capacity dekh ke admission karta hai. Cost NFR (5–10x) aur overload NFR isi se.
-- **In-memory priority queue (per model):** tier ke hisaab se priority, wait sirf seconds. **Kafka/SQS nahi:** request interactive hai, client SSE pe wait kar raha hai. Durable queue sirf latency add karti, crash pe client retry kar leta hai.
-- **DynamoDB/Cassandra:** ~1.5TB/day, ~12K writes/sec, access sirf "ek conversation ke messages in order". Postgres me heavy sharding karni padti.
-- **Vector DB (pgvector):** basic RAG, har query `user_id` filter ke saath chhote set pe. Pehle se Postgres hai (accounts), alag Pinecone/Milvus tab jab chunks billions me hon.
-- **Kafka → Billing + ClickHouse:** **~20K usage events/sec, 3 independent consumers** (billing, analytics, abuse detection), aur billing bug pe **replay** chahiye. Isliye Kafka, SQS nahi (ek message ek consumer). Latency metrics (TTFT) Prometheus se, Kafka se nahi.
+- **API Gateway + Redis:** auth + per-user/tier limits (requests/min, tokens/day), shared counters across nodes.
+- **Chat Service:** SSE hold, tokens forward, message save. **Context builder andar ka module**, alag service nahi (alag scale ki wajah nahi, extra hop).
+- **Safety / Moderation:** input/output pe chhota classifier. Alag service: apna GPU/CPU pool, alag scale.
+- **Model Router + scheduler:** small vs large chune, pool ki KV-cache capacity dekh ke admission. Cost (5–10x) + overload NFR.
+- **In-memory priority queue (per model):** tier priority, wait sirf seconds. **Kafka/SQS nahi:** client SSE pe wait kar raha, crash pe khud retry.
+- **Vector DB (pgvector):** RAG, `user_id` filter → chhota set.
+- **Kafka → Billing + ClickHouse:** 3 independent consumers + billing bug pe **replay**. TTFT metrics Prometheus se, Kafka se nahi.
 
 **FR → component:** FR1 → Gateway + Chat Service + Router + GPU pools, FR2 → DynamoDB/Cassandra, FR3 → Chat Service cancel → Router → GPU, FR4 → pgvector + context builder.
 
@@ -150,102 +153,97 @@ usage           Kafka → ClickHouse/warehouse (analytics + billing)
 doc_chunks      Vector DB (pgvector / Pinecone / Milvus), filter by user_id
 ```
 
-**DynamoDB/Cassandra** messages ke liye: ~1.5TB/day, ~12K writes/sec, simple access pattern (ek conversation ke messages in order), easy horizontal scale. Transactions ki zarurat nahi. User accounts, billing plans aur pgvector chunks Postgres me (chhota, relational). Billing ke liye `token_count` message pe bhi hai, taaki Kafka se aaye usage ko reconcile kar sakein.
+- **DynamoDB/Cassandra** messages: access sirf "ek conversation ke messages in order", easy horizontal scale, transactions nahi.
+- Accounts, billing plans, pgvector chunks → Postgres (chhota, relational).
+- Message pe `token_count` → Kafka usage se billing reconcile.
 
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 Streaming: SSE aur connection handling
 **NFR: TTFT + smooth streaming, partial jawab lose na ho.**
 
-- **SSE** (HTTP response jo khula rehta hai, `text/event-stream`). Proxies/CDN friendly, auto-reconnect built-in, sirf server → client. WebSocket overkill hai.
-- Chat Service aur inference server ke beech gRPC stream. Chat Service tokens forward karta hai aur saath me buffer karta hai.
-- Har ~N tokens pe partial message DB me checkpoint, taaki client disconnect ho to reload pe partial jawab dikhe. Generation background me poora hota rahe ya stop ho, product decision.
-- **Stop button:** stop API → Chat Service inference ko cancel signal → GPU slot turant free. Ye cost bachata hai.
+- **SSE** (`text/event-stream`, khula HTTP response): proxy/CDN friendly, auto-reconnect. Chat Service ↔ inference: gRPC stream, tokens forward + buffer.
+- Har ~N tokens pe partial checkpoint → disconnect ke baad reload pe dikhe. Background me poora ya stop: product decision.
+- **Stop button:** stop API → inference ko cancel → GPU slot turant free (cost bachat).
 
-**Trade-off:** ~2 lakh long-lived connections ke liye Chat Service nodes pe connection limits aur graceful drain sambhalna padta hai.
+**Trade-off:** ~2 lakh long-lived connections → Chat Service nodes pe connection limits + graceful drain.
 
 ### 9.2 Context window management
 **NFR: cost + TTFT (har input token ka paisa aur latency).**
 
-Model ka context limited hai (jaise 128K tokens) aur har input token ka paisa aur latency lagti hai.
-- **Sliding window / truncation:** system prompt + last K turns jo token budget me fit hon.
-- **Summarization:** purani turns ka running summary banao (chhote model se, async), aur `conversation.summary` me rakho. Context = system prompt + summary + recent turns.
-- **RAG:** user ke documents chunk karke embeddings vector DB me. Query aaye to query embedding se top 5 chunks lao aur context me daalo. Poora document context me nahi.
-- Token budget order: system prompt > current message > RAG chunks > recent turns > summary. Overflow pe neeche wale kaato.
-- File upload: S3 + SQS job → embedding worker (retry + DLQ). Ek consumer, task distribution, isliye Kafka ki zarurat nahi.
+Context limited (jaise 128K tokens):
+- **Sliding window / truncation:** system prompt + last K turns jo budget me fit.
+- **Summarization:** purani turns ka running summary (chhota model, async) → `conversation.summary`. Context = system prompt + summary + recent turns.
+- **RAG:** docs chunk → embeddings vector DB; query se top 5 chunks context me, poora doc nahi.
+- Budget order: system prompt > current message > RAG chunks > recent turns > summary. Overflow → neeche wale kaato.
+- File upload: S3 + SQS job → embedding worker (retry + DLQ). Ek consumer, task distribution → Kafka nahi.
 
-**Trade-off:** summary sasta hai par lossy. Purani detail kabhi kabhi model bhool jaata hai.
+**Trade-off:** summary sasta par lossy; purani detail kabhi model bhool jaata hai.
 
 ### 9.3 GPU fleet, queueing aur model routing
 **NFR: 99.9% availability under overload + GPU cost.**
 
-- **Continuous batching:** inference server ek saath kai requests ko batch me chalata hai, naye requests beech me join karte hain. GPU utilization 2–5x.
-- **Admission control:** har model pool ki capacity (KV cache memory) limited. Queue me wait karao, queue bahut lambi ho to free tier ko "high demand, try later" (429) ya chhota model. Backpressure, crash nahi.
-- **Priority:** enterprise > plus > free. Free tier ka max queue wait limit ho.
-- **Model routing:** chhota classifier ya rules: "hi", simple factual, title generation → small model (10x sasta). Coding/reasoning/lambe sawal → large model. User ne explicit model chuna ho to woh.
-- **Autoscaling:** GPU dheere scale hote hain (model load minutes leta hai), isliye queue depth pe scale + daily pattern pe pre-warm. Peak ke liye reserved capacity.
+- **Continuous batching:** kai requests ek batch me, naye beech me join → GPU utilization 2–5x.
+- **Admission control:** pool capacity (KV cache memory) limited → queue me wait; bahut lambi → free tier ko 429 ya chhota model. Backpressure, crash nahi.
+- **Priority:** enterprise > plus > free; free tier ka max queue wait limit.
+- **Model routing:** "hi", simple factual, title generation → small (10x sasta). Coding/reasoning/lambe → large. User ka chuna model → woh.
+- **Autoscaling:** model load minutes leta hai → queue depth pe scale, daily pattern pe pre-warm, peak + enterprise ke liye reserved capacity.
 
-**Trade-off:** free tier ko peak pe kharab experience (429/small model) dete hain taaki paid users ka TTFT bache.
+**Trade-off:** peak pe free tier ko kharab experience (429/small model), taaki paid TTFT bache.
 
 ### 9.4 Caching, rate limits, cost aur safety
 **NFR: cost, abuse se GPU waste nahi, safety.**
 
-- **Prompt caching (prefix/KV cache):** system prompt aur conversation ka shuru hissa har turn same hota hai. Inference server us prefix ka KV cache rakhe, to agli turn me sirf naye tokens compute. TTFT aur cost dono kam. Isliye same conversation ko **same GPU node pe sticky route** karo.
-- **Response cache:** exact same sawal (jaise "what is GST") ke liye semantic cache sirf generic queries pe. Personal chats pe nahi.
-- **Rate limits:** token bucket per user per tier, do dimensions: requests/min aur tokens/day. Gateway pe Redis se. Enterprise ke liye org-level quota.
-- **Cost control:** max output tokens per tier, routing to small model, stop button pe cancel, prompt caching, usage dashboards aur per-user cost alerts.
-- **Safety:** input pe fast classifier (jailbreak, harmful). Output pe streaming ke saath chunks check, unsafe mila to stream rok ke safe message. Abuse users ko flag/ban. PII ko logs me mask.
+- **Prompt caching (prefix/KV cache):** system prompt + conversation start har turn same → prefix KV cache, sirf naye tokens compute. Isliye **same GPU node pe sticky route**.
+- **Response cache:** semantic, sirf generic queries ("what is GST"), personal chats nahi.
+- **Rate limits:** token bucket per user per tier: requests/min + tokens/day, gateway pe Redis. Enterprise → org-level quota.
+- **Cost control:** max output tokens per tier, small model routing, stop pe cancel, prompt caching, batching, per-user cost alerts.
+- **Safety:** input pe fast classifier (jailbreak, harmful). Output chunks stream ke saath check; unsafe → stream rok, safe message. Abusers flag/ban, logs me PII mask.
 
-**Trade-off:** sticky routing se cache hit badhta hai par kuch GPU nodes hot ho sakte hain. Output moderation thoda latency aur cost add karta hai.
+**Trade-off:** output moderation → thoda latency + cost.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **SSE** for streaming | One-way stream, simple HTTP, proxies ke saath chalta, auto-reconnect | **WebSocket:** bi-directional chahiye hi nahi, LB/infra complexity zyada. **Polling:** token-by-token feel nahi. Sacrifice: stop ke liye alag POST |
-| **In-memory priority queue + admission control** | GPU limited, overload pe graceful degrade, paid users ko priority | **Seedha GPU pe:** spike pe OOM/timeouts. **Kafka/SQS:** interactive request ke liye durability bekar, latency zyada. Sacrifice: router crash pe queued requests client ko retry karni padti hain |
-| **Model routing small vs large** | Bahut se sawal simple, 5–10x cost bachat | **Sab large pe:** bill aur latency zyada. **Sab small pe:** hard sawalon pe quality kharab. Sacrifice: galat routing pe kabhi weak jawab |
-| **Summary + recent turns** for context | Token cost kam, lambi chats bhi chalti | **Poori history:** context overflow, har turn mehenga. Sacrifice: summary lossy hai |
-| **Prefix/KV cache + sticky routing** | Repeat prefix ka compute bachta, TTFT kam | **Random load balancing:** har turn pe poora prefix dobara compute. Sacrifice: hot nodes, uneven load |
-| **DynamoDB/Cassandra** for messages | ~1.5TB/day, ~12K writes/sec, simple key access | **Postgres:** is scale pe heavy sharding, joins chahiye nahi. Sacrifice: ad-hoc queries/joins nahi |
-| **Kafka** for usage events | ~20K events/sec, 3 consumers, billing ke liye replay | **SQS:** ek message ek consumer, replay nahi. **Sync billing call:** billing slow to chat slow. Sacrifice: Kafka cluster chalane ka ops cost |
-| **Redis** for rate limits | Kai gateway nodes pe shared counters, sub-ms | **Local per-node limits:** user nodes badal ke bypass kare. Sacrifice: Redis down pe fail-open, limits approximate |
-| **pgvector** for RAG | Basic RAG, per-user chhota set, Postgres pehle se hai | **Pinecone/Milvus:** billions chunks pe sahi, abhi extra system. Sacrifice: bahut bade scale pe migrate karna padega |
+| **SSE** for streaming | One-way, simple HTTP, auto-reconnect | **WebSocket:** infra complex. **Polling:** token feel nahi. Sacrifice: stop ke liye alag POST |
+| **In-memory priority queue + admission control** | Graceful degrade, paid priority | **Seedha GPU:** spike pe OOM. **Kafka/SQS:** durability bekar, latency. Sacrifice: router crash pe client retry |
+| **Model routing small vs large** | 5–10x bachat | **Sab large:** bill + latency. **Sab small:** hard sawal kharab. Sacrifice: galat route → weak jawab |
+| **Summary + recent turns** for context | Token cost kam, lambi chats chalein | **Poori history:** overflow, har turn mehenga. Sacrifice: summary lossy |
+| **Prefix/KV cache + sticky routing** | Prefix compute bache, TTFT kam | **Random LB:** har turn prefix dobara. Sacrifice: hot nodes |
+| **DynamoDB/Cassandra** for messages | ~1.5TB/day, ~12K writes/sec, simple key access | **Postgres:** heavy sharding, joins chahiye nahi. Sacrifice: ad-hoc queries/joins nahi |
+| **Kafka** for usage events | ~20K events/sec, 3 consumers, replay | **SQS:** ek consumer, replay nahi. **Sync billing:** billing slow → chat slow. Sacrifice: Kafka ops cost |
+| **Redis** for rate limits | Shared counters across gateways, sub-ms | **Local limits:** nodes badal ke bypass. Sacrifice: Redis down → fail-open, approximate |
+| **pgvector** for RAG | Per-user chhota set, Postgres pehle se | **Pinecone/Milvus:** billions pe sahi, abhi extra system. Sacrifice: bade scale pe migrate |
 
 ## Step 11: Failures & bottlenecks
 
 | Kya fail hua | Kya hoga | Handle kaise |
 |---|---|---|
-| GPU pool overload | Queue lambi, TTFT badha | Free tier ko small model ya 429, autoscale, enterprise reserved capacity |
-| Inference node crash mid-stream | Jawab beech me ruk gaya | Chat Service retry doosre node pe (partial ke baad continue ya regenerate), message `FAILED` mark |
-| Client disconnect | Stream tooti | Partial checkpoint DB me, reconnect pe dikhao. Configurable: generation cancel karke GPU free |
-| Moderation service down | Safety risk | Fail closed for high-risk categories, ya simple rule-based fallback |
-| Vector DB slow | RAG latency | Timeout, bina RAG ke jawab do aur bata do |
-| Ek user bot se spam kare | GPU waste | Token bucket rate limit, CAPTCHA, abuse detection |
+| Inference node crash mid-stream | Jawab beech me ruka | Doosre node pe retry (continue ya regenerate), `FAILED` mark |
+| Client disconnect | Stream tooti | Partial checkpoint, reconnect pe dikhao; configurable cancel → GPU free |
+| Moderation down | Safety risk | High-risk categories pe fail closed, ya rule-based fallback |
+| Vector DB slow | RAG latency | Timeout, bina RAG jawab + user ko batao |
+| Bot spam | GPU waste | Token bucket, CAPTCHA, abuse detection |
 
 ## Step 12: "Isko aur better kaise karein" (end me khud bolo)
 
 > "Agar aur time ho to main ye improve karunga:"
-- **Speculative decoding:** chhota model draft tokens banaye, bada verify kare, tokens/sec 2–3x
-- **Multi-region GPU fleet** aur region-aware routing, ek region ki GPU capacity khatam ho to doosre me spill
+- **Speculative decoding:** small model draft, large verify → tokens/sec 2–3x
+- **Multi-region GPU fleet:** region-aware routing, capacity khatam → doosre region me spill
 - **Batch/offline tier:** non-urgent jobs (summaries, evals) off-peak sasti GPU pe
-- **Learned router:** quality feedback (thumbs up/down) se train hua router jo better small vs large decide kare
-- **Observability:** TTFT p50/p99, tokens/sec, queue wait, GPU utilization, cost per 1K tokens per tier, cache hit rate, aur quality evals dashboards
-- **Memory feature:** user ki long-term preferences alag store, context me chhota sa profile
+- **Learned router:** thumbs up/down feedback se small vs large better decide
+- **Observability:** TTFT p50/p99, tokens/sec, queue wait, GPU utilization, cost per 1K tokens per tier, cache hit rate, quality evals
 
 ## Step 13: Interviewer ke likely follow-up sawal
 
-- "SSE vs WebSocket kyun?" → stream one-way hai, SSE simple aur HTTP friendly. Stop ke liye alag POST kaafi
-- "Conversation context window se bada ho jaye to?" → summary + recent turns + RAG, token budget order se kaato
-- "Traffic 5x ho jaye aur GPU nahi hain to?" → admission control, priority queue, free tier ko small model, rate limits tight
-- "Cost kaise kam karoge?" → model routing, prompt caching, max tokens, cancel on stop, batching
-- "TTFT kya hai aur kaise kam karoge?" → pehla token aane ka time. Queue wait kam, prefix cache, chhota prompt, nearby region
-- "Response me harmful content aa jaye to?" → output moderation streaming chunks pe, stream rok ke safe message
+- "Traffic 5x, GPU nahi?" → admission control, priority queue, free tier small model, tight rate limits
+- "TTFT kaise kam?" → pehla token ka time: kam queue wait, prefix cache, chhota prompt, nearby region
 - **Senior signal:** khud bolo ki GPU pe concurrency FLOPs se nahi, **KV-cache memory** se limited hai. Admission control KV-cache headroom pe ho, aur sticky routing se bane hot nodes pe fallback (doosre node pe bhejo, prefix cache miss accept karo)
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> ChatGPT jaisa app me asli cost aur bottleneck GPU hai. Client message POST karta hai aur response SSE stream hota hai. Chat Service (andar ke context builder se) system prompt + conversation summary + recent turns + pgvector RAG chunks ka context banata hai, input moderation karata hai, aur Model Router se small ya large model chunta hai. Request Router ki in-memory priority queue me jaati hai (tier ke hisaab se, Kafka nahi kyunki request interactive hai), jahan admission control GPU ko overload se bachata hai. Inference servers continuous batching aur prefix KV cache use karte hain, isliye same conversation sticky route hoti hai. Tokens stream hote hain, output moderation chunks pe, aur message DynamoDB/Cassandra me save. Usage events (~20K/sec, 3 consumers, replay chahiye) Kafka se billing aur ClickHouse me. Rate limits per user per tier Redis me: requests/min aur tokens/day. Overload pe graceful degrade: small model, 429 for free tier.
+> GPU = cost + bottleneck. POST → SSE stream. Chat Service context banaye (system prompt + summary + recent turns + RAG chunks), input moderation, Router small/large chune. In-memory priority queue (tier wise, Kafka nahi) + admission control. Continuous batching + prefix KV cache → sticky routing. Output moderation chunks pe, message DynamoDB/Cassandra me. Usage Kafka → billing + ClickHouse. Redis rate limits: requests/min + tokens/day. Overload → small model, free tier 429.
 
 ## Checklist
 

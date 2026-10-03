@@ -10,9 +10,9 @@ askedAt: [Swiggy, Zomato, Uber, DoorDash, Amazon, Flipkart]
 
 # Design Swiggy / Zomato (Food Delivery)
 
-**In one line:** a user finds nearby restaurants, builds a cart from the menu, pays, and a delivery partner picks up the food and delivers it with live tracking.
+**In one line:** nearby restaurant → cart → pay → a partner picks up and delivers with live tracking.
 
-**What the interviewer checks in this question:** geo search (nearby restaurants), a clean order state machine, making sure **the same order is never assigned twice** to delivery partners (lock), the scale of live location tracking, and async events between services.
+**What the interviewer checks:** geo search, order state machine, **no double assignment** (lock), live location scale, async events.
 
 ---
 
@@ -20,41 +20,40 @@ askedAt: [Swiggy, Zomato, Uber, DoorDash, Amazon, Flipkart]
 
 | You ask | Typical answer | Impact on design |
 |---|---|---|
-| "Scope: search, menu, cart, order, partner assignment, tracking? Payment via a third-party gateway?" | Yes | Payment gateway is a black box, result comes via webhook |
-| "What is the delivery radius? 5–7 km?" | Yes, ~7 km | Geohash precision 5–6 cells, query nearby cells |
-| "How often does partner location come in?" | Every 5 sec | Very high location writes, so Redis geo, not the DB |
-| "One order per partner at a time? Or batching?" | One first, batching is a bonus | Lock on the partner during assignment |
-| "Scale?" | ~20M orders/day, peaks city-wise at lunch/dinner, 500K active partners | Search is read-heavy, location is write-heavy |
-| "Ratings, offers engine, grocery in scope?" | No | Out of scope |
+| "Search, cart, order, assignment, tracking? Third-party payment?" | Yes | Gateway is a black box, result via webhook |
+| "Delivery radius? 5–7 km?" | ~7 km | Geohash precision 5–6, query neighbour cells |
+| "How often does partner location come?" | Every 5 sec | Heavy writes → Redis geo, not the DB |
+| "One order per partner? Batching?" | One first, batching is a bonus | Lock on the partner during assignment |
+| "Scale?" | 20M orders/day, 500K partners | Search read-heavy, location write-heavy |
 
-> **Say:** "I will design 4 core flows: nearby restaurant search, placing an order, assigning a partner, and live tracking. I will keep consistency on orders and assignment, and low latency and availability on search and tracking."
+> **Say:** "4 flows: search, order, assignment, tracking. Consistency on orders/assignment, latency + availability on search/tracking."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Users should be able to search nearby open restaurants (cuisine, dish name, rating filters)
-2. Users should be able to view the menu, build a cart, place an order and pay
-3. Users should be able to get a nearby free partner assigned as soon as the restaurant accepts
-4. Users should be able to see the partner on a live map with ETA, and get a push on every status change
+1. Users should be able to search nearby open restaurants (cuisine, dish, rating)
+2. Users should be able to build a cart from the menu, order and pay
+3. Users should be able to get a nearby free partner when the restaurant accepts
+4. Users should be able to see the partner on a live map with ETA + status pushes
 
 **Out of scope:** ratings/reviews, offers engine, grocery, partner payouts, order batching.
 
 **Non-functional (in priority order)**
-1. **Correctness:** one order to one partner, one order per partner at a time, no double charge
-2. **Latency:** search p99 < 300 ms, partner location reaches the user in < 2 sec
-3. **Availability:** search and menu at 99.99%, even at lunch/dinner peak
-4. **Scale:** 20M orders/day, 500K active partners, search read-heavy (~10 searches per order), location write-heavy
+1. **Correctness:** one order to one partner, one order per partner, no double charge
+2. **Latency:** search p99 < 300 ms, location reaches the user in < 2 sec
+3. **Availability:** search and menu 99.99%, even at peak
+4. **Scale:** 20M orders/day, 500K partners, ~10 searches/order
 
-**CAP choice:** consistency for orders, payment and assignment (a wrong assignment costs money and trust). Availability for search, menu and tracking: a 1–2 min old list or a 5 sec old location is fine.
+**CAP choice:** order, payment, assignment → consistency (a wrong assignment costs money + trust). Search, menu, tracking → availability (a 1–2 min old list or 5 sec old location is fine).
 
 ## Step 3: Estimation (only what changes the design)
 
-- 20M orders/day, peak 3x → ~**700 orders/sec** at peak. SQL sharded by city can handle it.
-- Order events: ~6 status changes per order → peak ~**4K events/sec**, 3 separate consumers (assignment, notification, analytics).
-- Search: ~10 searches per order → 200M/day ≈ 2.3K/sec avg, peak 3x ≈ **7K QPS**. The geohash cache absorbs most of it.
-- Location: 500K partners / 5 sec → **100K writes/sec**. This will not go to Postgres, it stays in-memory in Redis GEO.
+- 20M orders/day, peak 3x → ~**700 orders/sec**. City-sharded SQL is enough.
+- ~6 status changes/order → peak ~**4K events/sec**, 3 consumers (assignment, notification, analytics).
+- Search: 200M/day ≈ 2.3K/sec avg, peak ≈ **7K QPS**, mostly geohash cache hits.
+- Location: 500K / 5 sec → **100K writes/sec** → Redis GEO, not Postgres.
 
-> **Say:** "Order write load is manageable. The real load is partner location updates, 100K/sec, so location stays in Redis and only sampled history goes to S3."
+> **Say:** "The real load is location, 100K/sec: keep it in Redis, sampled history in S3."
 
 ## Step 4: Core entities
 
@@ -78,7 +77,7 @@ WS   /orders/{orderId}/track                            → live location + ETA 
 
 ## Step 6: High-level design
 
-**Start with a simple v1:** apps → one backend service → one Postgres + PostGIS (restaurants, orders, partner location), the user polls for tracking. All FRs are met. Then the numbers break it: 100K location writes/sec (→ Redis GEO + Location Service), dish text search at 7K QPS (→ Elasticsearch), 3 consumers per order event (→ Kafka), hundreds of thousands of users polling every 5 sec (→ WebSocket gateway).
+**Simple v1:** apps → one service → Postgres + PostGIS, tracking by polling. The numbers break it → the components below.
 
 ```mermaid
 flowchart LR
@@ -100,14 +99,13 @@ flowchart LR
   T --> C
 ```
 
-**Why each component:** (FR1 → Search + ES, FR2 → Order Service + Postgres + Payment, FR3 → Assignment + Redis GEO, FR4 → Location + Tracking WS + Notification)
-- **Elasticsearch:** typo-tolerant text on dish names ("paneer tikka") + geo + filters, 7K QPS. For a geo-only filter **PostGIS + read replicas** would be enough. Synced via CDC.
-- **Redis search cache:** key `geohash6 + filters`, 1–2 min TTL. All users in an area get the same list, less ES load.
-- **Order Service + Postgres:** the state machine and payment need ACID. City-sharded Postgres handles 700 orders/sec.
-- **Kafka:** ~4K events/sec, but **3 independent consumers** + analytics replay. With one consumer, outbox + an SQS worker would be enough.
-- **Assignment Service:** a separate worker, so 30 sec offer windows and retries do not block the order request path.
-- **Location Service + Redis GEO:** 100K writes/sec, 100x different scale from the order flow, hence a separate service.
-- **Tracking WS Gateway:** push, because hundreds of thousands of users polling every 5 sec is wasted load.
+**Why each component:** (FR1 → Search + ES, FR2 → Order + Postgres + Payment, FR3 → Assignment + Redis GEO, FR4 → Location + Tracking WS + Notification)
+- **Elasticsearch:** 7K QPS of dish text (typos) + geo + filters. Geo only → PostGIS + replicas is enough. CDC sync.
+- **Redis search cache:** key `geohash6 + filters`, 1–2 min TTL → less ES load.
+- **Postgres:** state machine + payment need ACID.
+- **Kafka:** 3 consumers + replay. One consumer → outbox + SQS is enough.
+- **Assignment Service:** so 30 sec offers/retries do not block the order path.
+- **Location Service + WS Gateway:** 100K writes/sec (100x the order flow); polling every 5 sec by lakhs of users → push.
 
 ## Step 7: Main flow: from order to delivery
 
@@ -141,22 +139,21 @@ order_events(order_id, from_status, to_status, at)       -- audit trail
 restaurants(id PK, name, lat, lng, geohash, is_open, cuisines)
 ```
 
-- **Postgres** for orders (transactions, conditional update). Shard by city, because an order never crosses a city.
-- **Redis GEO** for partner live location. **Location history:** a point every 30 sec in a Redis list, on `DELIVERED` the route goes to S3 (key `order_id`). It is only read per order, so no Cassandra.
-- **Elasticsearch** for restaurant + dish search (Postgres is the source of truth, ES is only a read copy).
+- **Postgres** for orders, sharded by city (an order never crosses a city).
+- **Location history:** a point every 30 sec in a Redis list, on `DELIVERED` the route goes to S3 (key `order_id`). Read only per order → no Cassandra.
+- **ES** is only a read copy; Postgres is the source of truth.
 
 ## Step 9: Deep dives (where the interviewer will push)
 
 ### 9.1 How do you find nearby restaurants?
 **NFR:** search p99 < 300 ms, 7K QPS peak, 99.99% available.
-- Store the restaurant's **geohash** (precision 6 ≈ 1.2 km cell). Query the user's cell + 8 neighbours, then filter by exact distance.
-- In practice: Elasticsearch `geo_point` + `geo_distance` filter + `is_open` + cuisine. All in one query.
-- Cache the result in Redis for 1–2 min with the key `geohash6 + filters`. All users in an area get the same list.
-- Delivery radius can differ per restaurant, so also add a "serviceable polygon" check.
-- **Trade-off:** cache + CDC can make `is_open`/menu 1–2 min stale; a final check against Postgres happens at order time.
+- **Geohash** precision 6 ≈ 1.2 km. Query the user's cell + 8 neighbours, then filter by exact distance.
+- In practice: ES `geo_point` + `geo_distance` + `is_open` + cuisine in one query; cache in Redis for 1–2 min.
+- Radius differs per restaurant → "serviceable polygon" check.
+- **Trade-off:** `is_open`/menu can be 1–2 min stale; final Postgres check at order time.
 
 ### 9.2 Order state machine
-**NFR:** correctness, no invalid or duplicate transitions.
+**NFR:** no invalid or duplicate transitions.
 ```mermaid
 flowchart LR
   A["PLACED"] --> B["ACCEPTED"]
@@ -168,67 +165,66 @@ flowchart LR
   B --> F["PREPARING"]
   F --> C
 ```
-- Transitions happen only through a conditional update: `UPDATE orders SET status='PICKED_UP' WHERE id=? AND status='PARTNER_ASSIGNED'`. 0 rows updated means an invalid or duplicate transition.
-- Write every transition to `order_events` and publish it to Kafka (outbox pattern, so the DB and Kafka do not go out of sync).
-- **Trade-off:** outbox events are a bit late and at-least-once; consumers dedup on `order_id + status`.
+- Conditional update only: `UPDATE orders SET status='PICKED_UP' WHERE id=? AND status='PARTNER_ASSIGNED'`. 0 rows → invalid/duplicate.
+- Every transition → `order_events` + Kafka, via outbox.
+- **Trade-off:** events are a bit late and at-least-once → consumers dedup on `order_id + status`.
 
 ### 9.3 Partner assignment: one partner must not get two orders
-**NFR:** one order to one partner, one order per partner (no double assignment).
-- `GEOSEARCH` finds `AVAILABLE` partners within 3 km, score them by distance + rating + current load.
-- Put a **Redis lock** on the top partner: `SET lock:partner:p7 order1 NX PX 30000`. Send the offer only if you got the lock. If they do not accept in 30 sec, the lock expires and we try the next partner.
-- The DB is the final truth: `UPDATE orders SET partner_id=p7 WHERE id=order1 AND partner_id IS NULL`. Even if two assigners race, only one wins.
-- Mark the partner `BUSY` so they do not show up in the next search.
-- **Trade-off:** offering one partner at a time = a 30 sec wait per decline. Offering the top 2 in parallel is faster but more complex.
+**NFR:** no double assignment.
+- `GEOSEARCH` `AVAILABLE` partners within 3 km → score (distance, rating, load).
+- On the top one `SET lock:partner:p7 order1 NX PX 30000` → offer only if locked. No accept in 30 sec → expires, next one.
+- DB is the final truth: `UPDATE orders SET partner_id=p7 WHERE id=order1 AND partner_id IS NULL`. In a race only one wins.
+- Partner `BUSY` → out of the next search.
+- **Trade-off:** one offer at a time = 30 sec per decline. Top-2 in parallel is faster but complex.
 
 ### 9.4 Live tracking and ETA
 **NFR:** location reaches the user in < 2 sec, 100K writes/sec.
-- Partner app sends `lat,lng` every 5 sec → Location Service → Redis `GEOADD` + Redis pub/sub channel `order:{id}`.
-- The Tracking WS Gateway where the user is connected subscribes to that channel and pushes updates. The user has a WebSocket, not polling.
-- **ETA** = restaurant prep time (from history) + partner → restaurant + restaurant → user travel time (maps API / road graph, with traffic). Recalculate on every location update and show it to the user smoothed.
+- Partner app every 5 sec → Location Service → Redis `GEOADD` + pub/sub channel `order:{id}`.
+- The user's WS Gateway subscribes to the channel and pushes.
+- **ETA** = prep time (history) + partner → restaurant + restaurant → user (maps API, traffic). Recalculate on every update, show it smoothed.
 - **Trade-off:** pub/sub can miss an update; the next one comes in 5 sec.
 
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Elasticsearch geo** for restaurant search | Dish text + typos + geo + filters, 7K QPS | **PostGIS:** enough for geo-only, weak at text search. Sacrifice: another cluster, 1–2 min CDC lag |
-| **Redis GEO** for partner location | 100K writes/sec in-memory, fast `GEOSEARCH` | **Postgres:** index thrash. **Custom quadtree:** costly to build. Sacrifice: a crash loses the last 5 sec of locations |
-| **Redis lock + DB conditional update** for assignment | Lock = offer control, DB = final guarantee | **Only `SELECT FOR UPDATE`:** cannot hold a row lock for 30 sec. Sacrifice: logic in two places |
-| **Kafka** for order events | 3 independent consumers + replay | **Outbox + SQS:** simpler for one consumer, 3 need fan-out. **Sync REST chain:** one slow, all slow. Sacrifice: Kafka ops cost at 4K/sec |
-| **WebSocket** for tracking | Push, < 2 sec | **Polling:** wasted load. **SSE:** would work. Sacrifice: stateful connections, reconnect handling |
-| **Postgres sharded by city** | ACID, an order stays within a city | **Single DB:** limits at peak. **Cassandra:** weak conditional updates. Sacrifice: cross-city reports need a separate store |
-| **Outbox pattern** | DB write + event are atomic | **Dual write:** a failed publish loses the event. Sacrifice: a relay + a little lag |
+| **Elasticsearch geo** for search | Text + geo + filters, 7K QPS | **PostGIS:** fine for geo, weak at text. Sacrifice: extra cluster, 1–2 min CDC lag |
+| **Redis GEO** for location | 100K writes/sec, fast `GEOSEARCH` | **Postgres:** index thrash. **Quadtree:** costly. Sacrifice: crash → last 5 sec lost |
+| **Redis lock + DB conditional update** | Lock = offer, DB = guarantee | **`SELECT FOR UPDATE`:** cannot hold a row lock 30 sec. Sacrifice: logic in two places |
+| **Kafka** for order events | 3 consumers + replay | **Outbox + SQS:** for one consumer. **Sync REST:** one slow, all slow. Sacrifice: Kafka ops cost |
+| **WebSocket** for tracking | Push, < 2 sec | **Polling:** wasted load. **SSE:** would work. Sacrifice: stateful, reconnects |
+| **Postgres by city** | ACID, an order stays in a city | **Single DB:** peak limit. **Cassandra:** weak conditional updates. Sacrifice: cross-city reports elsewhere |
+| **Outbox pattern** | DB write + event atomic | **Dual write:** failed publish → lost event. Sacrifice: relay + a little lag |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle |
 |---|---|---|
-| No partner is accepting | Order is stuck | Increase radius, increase incentive, after 10 min notify the user / auto cancel + refund |
-| Redis GEO node down | Partner locations are gone | Replica failover. The partner app sends again within 5 sec, so the data recovers by itself |
-| Payment webhook missed | Money deducted, order PENDING | A reconciliation job asks the gateway for the status |
-| Partner app offline | Tracking stopped | Show last known location + "updating", give an option to call the partner |
-| Lunch peak in one city | Load on search and order service | City-wise autoscale, search cache, throttle by marking the restaurant "busy" |
+| No partner accepts | Order stuck | Raise radius/incentive; after 10 min auto cancel + refund |
+| Redis GEO node down | Locations lost | Replica failover; apps resend within 5 sec |
+| Payment webhook missed | Money deducted, order PENDING | Reconciliation job asks the gateway |
+| Partner app offline | Tracking stops | Last location + "updating", call option |
+| Lunch peak in one city | Load on search/order | City-wise autoscale, cache, throttle via restaurant "busy" |
 
 ## Step 12: How to make it better (say this yourself at the end)
 
-> "If I had more time, I would improve these:"
-- **Order batching:** give one partner 2 orders in the same direction, lower cost
-- **Pre-assignment:** send the partner before the restaurant's prep time ends, so the partner does not wait
-- **ML model** for ETA (historical prep time, weather, traffic)
-- A demand-supply heatmap on an **H3 hexagon** grid near restaurants, to reposition partners there
+- **Order batching:** 2 same-direction orders to one partner
+- **Pre-assignment:** send the partner before prep ends, so they do not wait
+- **ML ETA:** prep history, weather, traffic
+- **H3 heatmap:** reposition partners by demand-supply
 
 ## Step 13: Likely follow-up questions
 
-- "What if two assignment workers grab the same partner?" → Redis `NX` lock + DB `WHERE partner_id IS NULL` (Step 9.3)
-- "The restaurant marked an item out of stock after the order?" → the restaurant rejects, order `CANCELLED`, auto refund
-- "The user cancelled after pickup?" → the state machine will not allow it, or a cancellation fee policy applies
-- "Why location history, and where?" → disputes, ETA training. route sampled every 30 sec, in S3 per order, 90-day TTL
-- "Geohash edge problem?" → if the user is on a cell boundary, also query the neighbour cells
-- **Senior signal:** raise it yourself: at lunch peak a city runs short of partners, the assignment backlog grows and sequential 30 sec offers multiply the delay. Make assignment lag a metric, auto-adjust radius/incentive, shard Redis GEO by city.
+- "Two workers grab the same partner?" → 9.3: `NX` lock + `WHERE partner_id IS NULL`
+- "Item out of stock after the order?" → restaurant rejects, `CANCELLED`, auto refund
+- "Cancel after pickup?" → state machine disallows, or cancellation fee
+- "Location history?" → disputes, ETA training; sampled every 30 sec, S3 per order, 90-day TTL
+- "Geohash edge problem?" → on a boundary, also query neighbour cells
+- **Senior signal:** few partners at peak → backlog, sequential 30 sec offers multiply delay. Make assignment lag a metric, auto-adjust radius/incentive, shard Redis GEO by city.
 
 ## 2-minute recap (read this before the interview)
 
-> Swiggy has 4 flows: search, order, assignment, tracking. Start from a simple v1 (one service + PostGIS) and evolve on numbers. Search uses Elasticsearch (dish text + geo_distance + filters), with results cached in Redis on a geohash key. Orders live in Postgres, sharded by city, with a strict state machine driven by a conditional `UPDATE ... WHERE status=?`. Every transition goes to Kafka through the outbox (3 consumers: assignment, notification, analytics). The assignment service gets nearby free partners from Redis GEO, puts a `SET NX PX 30s` lock on the top partner, and guarantees it with a final `UPDATE WHERE partner_id IS NULL`. Partner location is 100K writes/sec, kept in Redis, and reaches the user live via Redis pub/sub + a WebSocket gateway. ETA = prep time + travel time, recalculated on every update. Payment uses an idempotency key + reconciliation, notifications go async through Kafka.
+> 4 flows, evolved from a v1 (PostGIS) on numbers. Search = ES + geohash Redis cache. Orders: city-sharded Postgres, conditional `UPDATE ... WHERE status=?`, outbox → Kafka. Assignment: Redis GEO, `SET NX PX 30s`, final `UPDATE WHERE partner_id IS NULL`. Location 100K/sec in Redis → pub/sub → WebSocket. ETA = prep + travel. Payment: idempotency key + reconciliation.
 
 ## Checklist
 

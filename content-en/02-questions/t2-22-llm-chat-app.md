@@ -10,9 +10,9 @@ askedAt: [OpenAI, Anthropic, Google, Microsoft, Meta, Amazon]
 
 # Design a ChatGPT-style LLM Chat App
 
-**In one line:** The user sends a message, the LLM **streams the answer token by token**, and the whole conversation is saved. The core challenge is that **GPUs are expensive and limited**, so you must use them well with queueing, rate limits, caching and routing.
+**In one line:** the LLM **streams the answer token by token**, the conversation is saved. Core challenge: **GPUs are expensive and limited** → queueing, rate limits, caching, routing.
 
-**What the interviewer checks in this question:** streaming (SSE), context window management, scheduling and backpressure on the GPU fleet, per-tier rate limits, cost control, and the safety layer. This is a very common question in 2026.
+**What the interviewer checks in this question:** streaming (SSE), context window, GPU scheduling + backpressure, per-tier rate limits, cost control, safety.
 
 ---
 
@@ -20,45 +20,44 @@ askedAt: [OpenAI, Anthropic, Google, Microsoft, Meta, Amazon]
 
 | You ask | Typical answer | Effect on design |
 |---|---|---|
-| "Do we host the model ourselves or use a third-party API?" | Self-hosted, GPU fleet | We must design inference scheduling |
+| "Self-host the model or third-party API?" | Self-hosted, GPU fleet | Design inference scheduling |
 | "Should the response stream?" | Yes, token by token | SSE, long-lived connections |
-| "Do we save conversation history? How long?" | Yes, unlimited threads | Need context window management |
-| "Are there free and paid tiers?" | Yes, free/plus/enterprise | Per-tier rate limits and a priority queue |
-| "Do we need file upload / knowledge base (RAG)?" | Basic RAG | Vector DB + retrieval step |
-| "Images, voice, agents/tools?" | Out of scope | Mention them and move on |
+| "Save history? How long?" | Yes, unlimited threads | Context window management |
+| "Free/paid tiers?" | Yes, free/plus/enterprise | Per-tier rate limits + priority queue |
+| "File upload / RAG?" | Basic RAG | Vector DB + retrieval step |
 
-> **Say:** "I will focus on 3 things: the chat streaming flow, using GPU capacity fairly and cheaply, and conversation + context management. I will also cover safety and observability."
+> **Say:** "Focus on 3 things: streaming flow, fair and cheap GPU use, conversation + context management. Plus safety and observability."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Users should be able to start a new chat, send a message, and get the answer streamed
-2. Users should be able to list old conversations and continue them
-3. Users should be able to stop a response midway and regenerate it
-4. Users should be able to upload documents and ask questions about them (basic RAG)
+1. Start a chat, send a message, answer streams
+2. List old conversations + continue them
+3. Stop a response midway + regenerate
+4. Upload documents and ask about them (basic RAG)
 
 **Out of scope:** images, voice, agents/tools, fine-tuning, chat sharing.
 
 **Non-functional (in priority order)**
-1. **TTFT (time to first token):** p50 < 1s, p99 < 3s for paid tiers
+1. **TTFT (time to first token):** p50 < 1s, p99 < 3s (paid tiers)
 2. **Streaming:** ~30+ tokens/sec per user, smooth
-3. **Availability:** 99.9%. Degrade gracefully under overload (queue/smaller model/429), do not crash
-4. **Durability:** completed message history is never lost
+3. **Availability:** 99.9%. Overload → degrade gracefully (queue/smaller model/429), no crash
+4. **Durability:** completed message history never lost
 5. **Cost:** high GPU utilization, low cost per query (the GPU is the bill)
 6. **Safety:** block harmful input/output
 7. **Scale:** 50M DAU, peak ~20K messages/sec, ~200K concurrent streams
 
-**CAP choice:** **availability** for conversation history + read-your-writes within a conversation (same partition key). Usage/billing and rate-limit counters can be **eventual/approximate**: if the rate limiter is down, fail open with local limits.
+**CAP choice:** history → **availability** + read-your-writes within a conversation (same partition key). Usage/billing + rate-limit counters **eventual/approximate**: rate limiter down → fail open with local limits.
 
 ## Step 3: Estimation (only what changes the design)
 
 - 50M DAU × 10 messages = 500M/day ≈ **~6K req/sec avg, peak ~20K**.
-- Each response is ~500 output tokens, ~10 sec of streaming. At peak, **~200K concurrent streams** are open.
-- One GPU (H100 class) with batching gives ~2–3K output tokens/sec, so one GPU handles ~50–100 streams. For peak we need **~3,000+ GPUs**. GPU cost is the real bill.
-- Conversation storage: 500M user + 500M assistant messages × ~1.5KB ≈ **~1.5TB/day** (~0.5PB/year), ~12K message writes/sec avg + partial checkpoints. Cheap, but too big for one Postgres → DynamoDB/Cassandra.
-- Usage events: ~20K/sec at peak, with 3 consumers: billing, analytics, abuse detection.
+- Response ~500 output tokens, ~10 sec stream → peak **~200K concurrent streams**.
+- H100-class GPU + batching ≈ 2–3K output tokens/sec ≈ 50–100 streams → peak **~3,000+ GPUs**. GPU is the real bill.
+- Storage: 500M user + 500M assistant messages × ~1.5KB ≈ **~1.5TB/day** (~0.5PB/year), ~12K writes/sec avg + partial checkpoints. Too big for one Postgres → DynamoDB/Cassandra.
+- Usage events: ~20K/sec peak, 3 consumers: billing, analytics, abuse detection.
 
-> **Say:** "Storage and API servers are the cheap part. The bottleneck and the cost is the GPU, so most of my design is about using the GPU less and more smartly: routing, caching, batching, and rate limits."
+> **Say:** "Storage and API servers are cheap. The GPU is bottleneck + cost, so focus on routing, caching, batching, rate limits."
 
 ## Step 4: Core entities
 
@@ -81,11 +80,16 @@ POST /conversations/{id}/messages/{msgId}/stop
 POST /files {file}                                  → {fileId} (async indexing)
 ```
 
-> **Say:** "The response to the message POST is itself the SSE stream. We do not need WebSocket because the stream goes in only one direction: server to client. Stop is a separate small API."
+> **Say:** "The message POST's response is the SSE stream. The stream is one-way, so no WebSocket; stop is a separate small API."
 
 ## Step 6: High-level design
 
-**Start with a simple v1:** client → Chat Service (SSE) → one inference server, history in one Postgres, usage in a table there too. Every FR works. But **~200K concurrent streams = ~3,000 GPUs** (→ Model Router + priority queue + admission control), sending every question to the large model costs 5–10x more (→ small/large routing), **~1.5TB/day of messages** (→ DynamoDB/Cassandra), tiers and abuse (→ gateway rate limits in Redis), and usage has 3 consumers (→ Kafka).
+**Simple v1:** client → Chat Service (SSE) → one inference server; history + usage in one Postgres. Every FR works. Where it breaks:
+- **~200K streams = ~3,000 GPUs** → Model Router + priority queue + admission control
+- Every question on the large model costs 5–10x → small/large routing
+- **~1.5TB/day of messages** → DynamoDB/Cassandra
+- Tiers + abuse → gateway rate limits (Redis)
+- Usage has 3 consumers → Kafka
 
 ```mermaid
 flowchart LR
@@ -105,14 +109,13 @@ flowchart LR
 ```
 
 **Why each component:**
-- **API Gateway + Redis:** auth, per-user/tier rate limits (requests/min and tokens/day). 20K req/sec spread over many gateway nodes, so the shared counters live in Redis. With local in-memory limits a user could bypass the limit by hitting different nodes.
-- **Chat Service:** holds the SSE connection, forwards tokens, saves the message. **The context builder is a module inside it**, not a separate service: there is no reason to scale it separately, it would only add a hop.
-- **Safety / Moderation:** a small classifier model on input/output. A separate service because it runs on its own GPU/CPU pool and scales separately.
-- **Model Router + scheduler:** picks the small or large model and admits requests based on the pools' KV-cache capacity. The cost NFR (5–10x) and the overload NFR come from here.
-- **In-memory priority queue (per model):** priority by tier, waits are only seconds. **Not Kafka/SQS:** the request is interactive and the client is waiting on SSE. A durable queue would only add latency; on a crash the client just retries.
-- **DynamoDB/Cassandra:** ~1.5TB/day, ~12K writes/sec, and the only access pattern is "messages of one conversation in order". Postgres would need heavy sharding.
-- **Vector DB (pgvector):** basic RAG, every query is filtered by `user_id` onto a small set. We already run Postgres (accounts); a separate Pinecone/Milvus only when chunks reach billions.
-- **Kafka → Billing + ClickHouse:** **~20K usage events/sec, 3 independent consumers** (billing, analytics, abuse detection), and billing needs **replay** after a bug. So Kafka, not SQS (one message, one consumer). Latency metrics (TTFT) go through Prometheus, not Kafka.
+- **API Gateway + Redis:** auth + per-user/tier limits (requests/min, tokens/day), shared counters across nodes.
+- **Chat Service:** holds SSE, forwards tokens, saves the message. **Context builder is a module inside it**, not a service (no reason to scale separately, extra hop).
+- **Safety / Moderation:** small classifier on input/output. Separate service: own GPU/CPU pool, scales separately.
+- **Model Router + scheduler:** picks small vs large, admits by the pool's KV-cache capacity. Cost (5–10x) + overload NFR.
+- **In-memory priority queue (per model):** tier priority, waits only seconds. **Not Kafka/SQS:** client waits on SSE and retries on a crash.
+- **Vector DB (pgvector):** RAG, `user_id` filter → small set.
+- **Kafka → Billing + ClickHouse:** 3 independent consumers + **replay** after a billing bug. TTFT metrics via Prometheus, not Kafka.
 
 **FR → component:** FR1 → Gateway + Chat Service + Router + GPU pools, FR2 → DynamoDB/Cassandra, FR3 → Chat Service cancel → Router → GPU, FR4 → pgvector + context builder.
 
@@ -150,102 +153,97 @@ usage           Kafka → ClickHouse/warehouse (analytics + billing)
 doc_chunks      Vector DB (pgvector / Pinecone / Milvus), filter by user_id
 ```
 
-**DynamoDB/Cassandra** for messages: ~1.5TB/day, ~12K writes/sec, simple access pattern (messages of one conversation in order), easy horizontal scale. No transactions needed. User accounts, billing plans and pgvector chunks go in Postgres (small, relational). `token_count` is also on the message, so usage coming through Kafka can be reconciled for billing.
+- **DynamoDB/Cassandra** for messages: only access is "one conversation's messages in order", easy horizontal scale, no transactions.
+- Accounts, billing plans, pgvector chunks → Postgres (small, relational).
+- `token_count` on each message → reconcile Kafka usage for billing.
 
 ## Step 9: Deep dives (where the interviewer will push)
 
 ### 9.1 Streaming: SSE and connection handling
 **NFR: TTFT + smooth streaming, no lost partial answers.**
 
-- **SSE** (an HTTP response that stays open, `text/event-stream`). Friendly to proxies/CDNs, auto-reconnect built in, server → client only. WebSocket is overkill.
-- A gRPC stream between the Chat Service and the inference server. The Chat Service forwards tokens and buffers them at the same time.
-- Checkpoint the partial message to the DB every ~N tokens, so if the client disconnects, the partial answer shows on reload. Whether generation keeps running in the background or stops is a product decision.
-- **Stop button:** stop API → Chat Service sends a cancel signal to inference → GPU slot is freed right away. This saves cost.
+- **SSE** (`text/event-stream`, an open HTTP response): proxy/CDN friendly, auto-reconnect. Chat Service ↔ inference: gRPC stream, tokens forwarded + buffered.
+- Checkpoint the partial every ~N tokens → shows on reload after a disconnect. Finish in background or stop: product decision.
+- **Stop button:** stop API → cancel to inference → GPU slot freed at once (saves cost).
 
-**Trade-off:** ~200K long-lived connections mean Chat Service nodes must handle connection limits and graceful drain.
+**Trade-off:** ~200K long-lived connections → connection limits + graceful drain on Chat Service nodes.
 
 ### 9.2 Context window management
 **NFR: cost + TTFT (every input token costs money and latency).**
 
-The model's context is limited (like 128K tokens), and every input token costs money and latency.
-- **Sliding window / truncation:** system prompt + the last K turns that fit in the token budget.
-- **Summarization:** build a running summary of old turns (with a small model, async), and store it in `conversation.summary`. Context = system prompt + summary + recent turns.
-- **RAG:** chunk the user's documents and store embeddings in a vector DB. When a query comes in, use the query embedding to fetch the top 5 chunks and put them in the context. Not the whole document.
-- Token budget order: system prompt > current message > RAG chunks > recent turns > summary. On overflow, cut from the bottom.
-- File upload: S3 + an SQS job → embedding worker (retry + DLQ). One consumer, task distribution, so no Kafka needed.
+Context is limited (like 128K tokens):
+- **Sliding window / truncation:** system prompt + last K turns that fit the budget.
+- **Summarization:** running summary of old turns (small model, async) → `conversation.summary`. Context = system prompt + summary + recent turns.
+- **RAG:** chunk docs → embeddings in a vector DB; query fetches top 5 chunks into context, never the whole doc.
+- Budget order: system prompt > current message > RAG chunks > recent turns > summary. Overflow → cut from the bottom.
+- File upload: S3 + SQS job → embedding worker (retry + DLQ). One consumer, task distribution → no Kafka.
 
-**Trade-off:** a summary is cheap but lossy. The model sometimes forgets an old detail.
+**Trade-off:** summary is cheap but lossy; the model sometimes forgets old details.
 
 ### 9.3 GPU fleet, queueing and model routing
 **NFR: 99.9% availability under overload + GPU cost.**
 
-- **Continuous batching:** the inference server runs many requests together in a batch, and new requests join midway. GPU utilization goes up 2–5x.
-- **Admission control:** each model pool has limited capacity (KV cache memory). Make requests wait in a queue; if the queue gets too long, give the free tier "high demand, try later" (429) or a smaller model. Backpressure, not a crash.
-- **Priority:** enterprise > plus > free. The free tier has a max queue wait limit.
-- **Model routing:** a small classifier or rules: "hi", simple factual questions, title generation → small model (10x cheaper). Coding/reasoning/long questions → large model. If the user picked a model explicitly, use that.
-- **Autoscaling:** GPUs scale slowly (loading a model takes minutes), so scale on queue depth + pre-warm on the daily pattern. Reserved capacity for peak.
+- **Continuous batching:** many requests in one batch, new ones join midway → GPU utilization 2–5x.
+- **Admission control:** pool capacity (KV cache memory) is limited → wait in queue; too long → free tier gets 429 or a smaller model. Backpressure, not a crash.
+- **Priority:** enterprise > plus > free; free tier has a max queue wait.
+- **Model routing:** "hi", simple factual, title generation → small (10x cheaper). Coding/reasoning/long → large. User-picked model → use it.
+- **Autoscaling:** model load takes minutes → scale on queue depth, pre-warm on the daily pattern, reserved capacity for peak + enterprise.
 
-**Trade-off:** at peak we give the free tier a worse experience (429/small model) to protect paid users' TTFT.
+**Trade-off:** at peak the free tier gets a worse experience (429/small model) to protect paid TTFT.
 
 ### 9.4 Caching, rate limits, cost and safety
 **NFR: cost, no GPU waste from abuse, safety.**
 
-- **Prompt caching (prefix/KV cache):** the system prompt and the start of the conversation are the same on every turn. If the inference server keeps the KV cache for that prefix, the next turn computes only the new tokens. Both TTFT and cost go down. That is why we **sticky-route the same conversation to the same GPU node**.
-- **Response cache:** a semantic cache for exactly the same question (like "what is GST"), only for generic queries. Not for personal chats.
-- **Rate limits:** token bucket per user per tier, in two dimensions: requests/min and tokens/day. Done at the gateway with Redis. Org-level quota for enterprise.
-- **Cost control:** max output tokens per tier, routing to the small model, cancel on stop, prompt caching, usage dashboards and per-user cost alerts.
-- **Safety:** a fast classifier on input (jailbreak, harmful). On output, check chunks while streaming; if something unsafe is found, stop the stream and send a safe message. Flag/ban abusive users. Mask PII in logs.
+- **Prompt caching (prefix/KV cache):** system prompt + conversation start repeat every turn → prefix KV cache, compute only new tokens. Hence **sticky-route to the same GPU node**.
+- **Response cache:** semantic, only generic queries ("what is GST"), never personal chats.
+- **Rate limits:** token bucket per user per tier: requests/min + tokens/day, at the gateway with Redis. Enterprise → org-level quota.
+- **Cost control:** max output tokens per tier, small model routing, cancel on stop, prompt caching, batching, per-user cost alerts.
+- **Safety:** fast input classifier (jailbreak, harmful). Output chunks checked while streaming; unsafe → stop, send a safe message. Flag/ban abusers, mask PII in logs.
 
-**Trade-off:** sticky routing raises cache hits but can make some GPU nodes hot. Output moderation adds a bit of latency and cost.
+**Trade-off:** output moderation → a bit of latency + cost.
 
 ## Step 10: Decision table (what we chose, why, what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **SSE** for streaming | One-way stream, simple HTTP, works with proxies, auto-reconnect | **WebSocket:** we do not need bi-directional, more LB/infra complexity. **Polling:** will not feel token-by-token. Sacrifice: a separate POST for stop |
-| **In-memory priority queue + admission control** | GPUs are limited, graceful degrade on overload, priority for paid users | **Straight to the GPU:** OOM/timeouts on a spike. **Kafka/SQS:** durability is useless for an interactive request, more latency. Sacrifice: on a router crash, queued requests must be retried by the client |
-| **Model routing small vs large** | Many questions are simple, 5–10x cost saving | **Everything on large:** higher bill and latency. **Everything on small:** poor quality on hard questions. Sacrifice: a wrong route sometimes gives a weak answer |
-| **Summary + recent turns** for context | Lower token cost, long chats still work | **Full history:** context overflow, every turn is expensive. Sacrifice: the summary is lossy |
-| **Prefix/KV cache + sticky routing** | Saves compute on the repeated prefix, lower TTFT | **Random load balancing:** the full prefix is recomputed on every turn. Sacrifice: hot nodes, uneven load |
-| **DynamoDB/Cassandra** for messages | ~1.5TB/day, ~12K writes/sec, simple key access | **Postgres:** heavy sharding at this scale, and we need no joins. Sacrifice: no ad-hoc queries/joins |
-| **Kafka** for usage events | ~20K events/sec, 3 consumers, replay for billing | **SQS:** one message, one consumer, no replay. **Sync billing call:** slow billing makes chat slow. Sacrifice: ops cost of running a Kafka cluster |
-| **Redis** for rate limits | Shared counters across many gateway nodes, sub-ms | **Local per-node limits:** users bypass them by switching nodes. Sacrifice: fail open when Redis is down, limits are approximate |
-| **pgvector** for RAG | Basic RAG, small per-user set, we already run Postgres | **Pinecone/Milvus:** right for billions of chunks, an extra system today. Sacrifice: a migration at very large scale |
+| **SSE** for streaming | One-way, simple HTTP, auto-reconnect | **WebSocket:** more infra. **Polling:** no token feel. Sacrifice: separate POST for stop |
+| **In-memory priority queue + admission control** | Graceful degrade, paid priority | **Straight to GPU:** OOM on spikes. **Kafka/SQS:** useless durability, latency. Sacrifice: client retries on router crash |
+| **Model routing small vs large** | 5–10x saving | **All large:** bill + latency. **All small:** poor on hard questions. Sacrifice: wrong route → weak answer |
+| **Summary + recent turns** for context | Lower token cost, long chats work | **Full history:** overflow, every turn costly. Sacrifice: summary is lossy |
+| **Prefix/KV cache + sticky routing** | Saves prefix compute, lower TTFT | **Random LB:** prefix recomputed per turn. Sacrifice: hot nodes |
+| **DynamoDB/Cassandra** for messages | ~1.5TB/day, ~12K writes/sec, simple key access | **Postgres:** heavy sharding, no joins needed. Sacrifice: no ad-hoc queries/joins |
+| **Kafka** for usage events | ~20K events/sec, 3 consumers, replay | **SQS:** one consumer, no replay. **Sync billing:** slow billing → slow chat. Sacrifice: Kafka ops cost |
+| **Redis** for rate limits | Shared counters across gateways, sub-ms | **Local limits:** bypassed by switching nodes. Sacrifice: fail open when down, approximate |
+| **pgvector** for RAG | Small per-user set, Postgres already runs | **Pinecone/Milvus:** right at billions, extra system now. Sacrifice: migrate at large scale |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle it |
 |---|---|---|
-| GPU pool overload | Queue gets long, TTFT goes up | Small model or 429 for the free tier, autoscale, reserved capacity for enterprise |
-| Inference node crash mid-stream | Answer stops midway | Chat Service retries on another node (continue after the partial or regenerate), mark message `FAILED` |
-| Client disconnect | Stream breaks | Partial checkpoint in the DB, show it on reconnect. Configurable: cancel generation to free the GPU |
-| Moderation service down | Safety risk | Fail closed for high-risk categories, or a simple rule-based fallback |
-| Vector DB slow | RAG latency | Timeout, answer without RAG and tell the user |
-| A user spams with a bot | GPU waste | Token bucket rate limit, CAPTCHA, abuse detection |
+| Inference node crash mid-stream | Answer stops midway | Retry on another node (continue or regenerate), mark `FAILED` |
+| Client disconnect | Stream breaks | Partial checkpoint, show on reconnect; configurable cancel → GPU freed |
+| Moderation down | Safety risk | Fail closed for high-risk categories, or rule-based fallback |
+| Vector DB slow | RAG latency | Timeout, answer without RAG + tell the user |
+| Bot spam | GPU waste | Token bucket, CAPTCHA, abuse detection |
 
 ## Step 12: How to make it better (say this yourself at the end)
 
 > "If I had more time, I would improve these:"
-- **Speculative decoding:** a small model drafts tokens, the big one verifies them, tokens/sec goes up 2–3x
-- **Multi-region GPU fleet** and region-aware routing; if one region runs out of GPU capacity, spill to another
+- **Speculative decoding:** small model drafts, large verifies → tokens/sec 2–3x
+- **Multi-region GPU fleet:** region-aware routing, spill to another region when capacity runs out
 - **Batch/offline tier:** non-urgent jobs (summaries, evals) on cheaper off-peak GPUs
-- **Learned router:** a router trained on quality feedback (thumbs up/down) that decides small vs large better
-- **Observability:** dashboards for TTFT p50/p99, tokens/sec, queue wait, GPU utilization, cost per 1K tokens per tier, cache hit rate, and quality evals
-- **Memory feature:** store the user's long-term preferences separately, and put a small profile in the context
+- **Learned router:** thumbs up/down feedback decides small vs large better
+- **Observability:** TTFT p50/p99, tokens/sec, queue wait, GPU utilization, cost per 1K tokens per tier, cache hit rate, quality evals
 
 ## Step 13: Likely follow-up questions
 
-- "Why SSE vs WebSocket?" → the stream is one-way, SSE is simple and HTTP friendly. A separate POST is enough for stop
-- "What if the conversation gets bigger than the context window?" → summary + recent turns + RAG, cut using the token budget order
-- "What if traffic goes 5x and there are no GPUs?" → admission control, priority queue, small model for the free tier, tighter rate limits
-- "How will you cut cost?" → model routing, prompt caching, max tokens, cancel on stop, batching
-- "What is TTFT and how will you lower it?" → the time until the first token arrives. Less queue wait, prefix cache, shorter prompt, nearby region
-- "What if harmful content appears in the response?" → output moderation on streaming chunks, stop the stream and send a safe message
+- "Traffic 5x, no GPUs?" → admission control, priority queue, small model for free tier, tighter rate limits
+- "How to lower TTFT?" → time to first token: less queue wait, prefix cache, shorter prompt, nearby region
 - **Senior signal:** raise it yourself that GPU concurrency is limited by **KV-cache memory**, not FLOPs. Admission control should use KV-cache headroom, and hot nodes created by sticky routing need a fallback (send to another node and accept the prefix cache miss)
 
 ## 2-minute recap (read this before the interview)
 
-> In a ChatGPT-like app, the real cost and bottleneck is the GPU. The client POSTs a message and the response streams over SSE. The Chat Service (with its built-in context builder) builds the context from the system prompt + conversation summary + recent turns + pgvector RAG chunks, runs input moderation, and uses the Model Router to pick the small or large model. The request goes into the Router's in-memory priority queue (based on tier; not Kafka, because the request is interactive), where admission control protects the GPU from overload. Inference servers use continuous batching and a prefix KV cache, so the same conversation is sticky-routed. Tokens stream out, output moderation runs on chunks, and the message is saved in DynamoDB/Cassandra. Usage events (~20K/sec, 3 consumers, replay needed) go via Kafka to billing and ClickHouse. Rate limits are per user per tier in Redis: requests/min and tokens/day. Under overload we degrade gracefully: small model, 429 for the free tier.
+> GPU = cost + bottleneck. POST → SSE stream. Chat Service builds context (system prompt + summary + recent turns + RAG chunks), input moderation, Router picks small/large. In-memory priority queue (by tier, no Kafka) + admission control. Continuous batching + prefix KV cache → sticky routing. Output moderation on chunks, message in DynamoDB/Cassandra. Usage via Kafka → billing + ClickHouse. Redis rate limits: requests/min + tokens/day. Overload → small model, 429 for free tier.
 
 ## Checklist
 

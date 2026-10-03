@@ -10,9 +10,9 @@ askedAt: [Stripe, Amazon, Razorpay, PhonePe, Paytm, Uber]
 
 # Design a Payment System (Razorpay / Stripe)
 
-**Ek line me:** merchant (Swiggy) apne customer se paisa le, hum card/UPI/netbanking ke through bank/PSP se paisa collect karein, ledger me record karein, aur baad me merchant ko settle karein. Core challenge ye hai ki **paisa na double kate, na kho jaye**, chahe network, retry ya crash kuch bhi ho.
+**Ek line me:** merchant (Swiggy) ka customer card/UPI/netbanking se pay kare → PSP se collect → ledger → merchant settle. Challenge: **paisa na double kate, na kho jaye**, crash/retry ke baad bhi.
 
-**Is question me interviewer kya check karta hai:** idempotency, strong consistency, payment state machine, external PSP ke saath async (webhooks) kaam karna, ledger ka sahi design, aur reconciliation.
+**Is question me interviewer kya check karta hai:** idempotency, strong consistency, state machine, async PSP (webhooks), ledger, reconciliation.
 
 ---
 
@@ -20,49 +20,49 @@ askedAt: [Stripe, Amazon, Razorpay, PhonePe, Paytm, Uber]
 
 | Tum poochho | Typical jawab | Design pe asar |
 |---|---|---|
-| "Hum payment gateway (Razorpay) bana rahe hain ya ek e-commerce ka payment module?" | Gateway jaisa: merchants ke liye pay-in | Merchant APIs, webhooks to merchant, settlement |
-| "Card/UPI processing khud karenge ya PSP/acquirer bank use karenge?" | External PSP / bank | PSP adapter layer, async callbacks |
-| "Card data hum store karenge?" | Nahi, tokenization | PCI scope chhota, vault alag |
-| "Refunds aur payouts scope me?" | Refund haan, payouts brief | Ledger me reverse entries |
-| "Consistency kitni? Paisa galat dikhe to chalega?" | Bilkul nahi | SQL + ACID, consistency > availability |
-| "Scale?" | ~10M payments/day, festive sale pe 10x | Write load moderate, sharding by merchant baad me |
-| "Multi-currency, fraud detection?" | Brief / out of scope | Mention karke chhod do |
+| "Gateway ya e-commerce payment module?" | Gateway: merchant pay-in | Merchant APIs, webhooks, settlement |
+| "Card/UPI khud process ya PSP/acquirer?" | External PSP / bank | PSP adapter, async callbacks |
+| "Card data store karenge?" | Nahi, tokenization | PCI scope chhota, vault alag |
+| "Refunds, payouts scope me?" | Refund haan, payouts brief | Ledger me reverse entries |
+| "Paisa galat dikhe to chalega?" | Bilkul nahi | SQL + ACID, consistency > availability |
+| "Scale?" | ~10M payments/day, sale pe 10x | Moderate writes, merchant sharding baad me |
+| "Multi-currency, fraud?" | Brief / out of scope | Mention karke chhod do |
 
-> **Bolo:** "Is system me correctness sabse upar hai. Main har write ko idempotent rakhunga, payment ko ek state machine se chalaunga, paisa ek double-entry ledger me record karunga, aur PSP ke saath mismatch pakadne ke liye reconciliation rakhunga."
+> **Bolo:** "Correctness #1: idempotent writes, payment state machine, double-entry ledger, aur PSP mismatch ke liye reconciliation."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Merchants payment intent create kar sakein aur uska status API + webhook se jaan sakein
-2. Customers card/UPI/netbanking se pay kar sakein (hum PSP ke through charge karte hain)
-3. Merchants full/partial refund kar sakein
-4. Finance/ops har money movement ledger me dekh sakein aur PSP ke saath daily reconcile kar sakein
+1. Merchant payment intent create kare, status API + webhook se
+2. Customer card/UPI/netbanking se pay kare (PSP ke through)
+3. Merchant full/partial refund kare
+4. Finance/ops ledger me har money movement dekhe, PSP se daily reconcile
 
-**Out of scope:** fraud engine, multi-currency FX, merchant payouts ka detail, apna card network/acquiring.
+**Out of scope:** fraud engine, FX, payouts detail, apna acquiring.
 
 **Non-functional (priority order)**
-1. **Correctness:** exactly-once effect (double charge kabhi nahi), ledger me debit = credit hamesha
-2. **Consistency:** payment state + ledger strong. Merchant webhooks aur analytics eventual (seconds)
-3. **Durability + audit:** entries immutable, history kabhi delete nahi
-4. **Availability:** 99.99% create/confirm API, par doubt me fail-safe (charge mat karo)
+1. **Correctness:** exactly-once effect (no double charge), ledger debit = credit
+2. **Consistency:** state + ledger strong; webhooks, analytics eventual (seconds)
+3. **Durability + audit:** entries immutable, kabhi delete nahi
+4. **Availability:** 99.99% create/confirm, doubt me fail-safe (charge mat karo)
 5. **Latency + scale:** API p99 < 300 ms (PSP time chhod ke), 10M payments/day, peak ~1.2K TPS
 6. **Security:** PCI DSS, card data tokenized
 
-**CAP choice:** payment state aur ledger ke liye CP. Partition me request fail karna (merchant retry karega, idempotency key se safe) galat balance se behtar hai.
+**CAP choice:** state + ledger CP. Partition me fail karna (idempotent retry safe) > galat balance.
 
 ## Step 3: Estimation (sirf jo design badle)
 
-- 10M payments/day ≈ **115 TPS** avg, sale peak 10x ≈ **1,200 TPS**. Har payment pe ~5–10 DB writes (intent, attempts, ledger, outbox) → ~10K writes/sec peak. Ek bada Postgres primary sambhal leta hai, `merchant_id` sharding baad me.
-- Ledger entries: 10M × 4 = 40M rows/day, ~15B/year. Append-only, partition by month.
-- PSP latency 1–5 sec, kabhi 30 sec+. Isliye **async flow + webhooks**, synchronous wait nahi.
+- 10M payments/day ≈ **115 TPS** avg, sale peak 10x ≈ **1,200 TPS**. ~5–10 DB writes/payment (intent, attempts, ledger, outbox) → ~10K writes/sec peak → ek bada Postgres primary kaafi, `merchant_id` sharding baad me.
+- Ledger: 10M × 4 = 40M rows/day, ~15B/year. Append-only, monthly partitions.
+- PSP latency 1–5 sec, kabhi 30 sec+ → **async flow + webhooks**, sync wait nahi.
 
-> **Bolo:** "Throughput bahut bada nahi hai, isliye NoSQL ya Kafka ki zarurat nahi. Problem correctness hai, isliye SQL with ACID choose karunga."
+> **Bolo:** "Throughput chhota, NoSQL/Kafka nahi chahiye. Problem correctness hai → SQL with ACID."
 
 ## Step 4: Core entities
 
 - **Merchant**: id, api_keys, webhook_url, settlement account
 - **PaymentIntent**: id, merchant_id, amount, currency, order_id, status, idempotency_key
-- **PaymentAttempt**: id, intent_id, method, psp, psp_reference, status (ek intent ke multiple attempts ho sakte hain)
+- **PaymentAttempt**: id, intent_id, method, psp, psp_reference, status (ek intent ke multiple attempts)
 - **LedgerEntry**: id, txn_id, account_id, debit/credit, amount, created_at (immutable)
 - **Account** (ledger): customer_receivable, merchant_payable, psp_clearing, fees
 - **Refund**: id, intent_id, amount, status
@@ -81,11 +81,11 @@ POST /internal/psp/webhook  (PSP → us, signed)              → 200
 Outgoing: POST merchant.webhook_url {event: payment.succeeded, intentId}  (HMAC signed)
 ```
 
-> **Bolo:** "Create aur confirm alag hain, kyunki customer ko 3DS/OTP ya UPI app approve karna padta hai. Har mutating API pe Idempotency-Key mandatory hai."
+> **Bolo:** "Create aur confirm alag (3DS/OTP ya UPI approve beech me). Har mutating API pe Idempotency-Key mandatory."
 
 ## Step 6: High-level design
 
-**Simple v1 pehle:** Merchant → Payment Service → ek Postgres (intents, attempts, idempotency, ledger) → ek PSP pe synchronous call. FR1–FR3 isse chal jaate hain. Phir requirements cheezein jodti hain: PCI → Token Vault. PSP latency 1–30 sec → async + webhooks + poller. Merchant webhooks 72 hr tak retry → outbox + SQS. 99.99% (ek PSP ka outage = hamara outage) → multi-PSP router. FR4 → daily recon job. 1.2K TPS peak ke liye ek Postgres primary kaafi hai.
+**Simple v1:** Payment Service → ek Postgres → ek PSP pe sync call; FR1–FR3 ok. Phir: PCI → Vault. PSP 1–30 sec → async + webhooks + poller. Webhook retry 72 hr → outbox + SQS. 99.99% → multi-PSP router. FR4 → recon job. 1.2K TPS → ek primary kaafi.
 
 ```mermaid
 flowchart LR
@@ -105,15 +105,15 @@ flowchart LR
 ```
 
 **Har component kyun:**
-- **Token Vault (NFR security):** card number sirf yahan (alag PCI network), baaki system ko `tok_abc`. Card main DB me = poora system PCI scope me.
-- **Payment Service + ledger module (FR1–FR4):** state machine, idempotency, aur ledger entries **usi DB transaction** me jisme intent SUCCEEDED hota hai. Alag Ledger Service nahi: crash pe "payment SUCCEEDED, ledger missing" ho sakta hai. Split tab karo jab ledger volume (~15B rows/yr) ya team force kare, tab outbox + `txn_id` unique se.
-- **Postgres (NFR consistency, ~10K writes/sec peak):** ACID, unique constraints. Cassandra/DynamoDB ki zarurat is scale pe nahi.
-- **PSP Adapter + Router (FR2, 99.99%):** har PSP ka alag API, common interface, success-rate routing aur failover (Step 9.7).
-- **Webhook Ingest (FR2):** signature verify, `psp_event_id` dedup, jaldi 200. Payment Service ka endpoint bhi chalega, alag isliye ki sale peak ka webhook burst merchant API slow na kare.
-- **Outbox relay + SQS (FR1 webhooks):** ~1.2K payments/sec × ~2 events = ~2–3K msgs/sec, aur ek main consumer jise per-message retry, backoff aur DLQ chahiye. SQS yahi deta hai. **Kafka nahi:** throughput chhota, replay ki zarurat nahi (outbox table hi history hai), aur Kafka per-message retry/DLQ nahi deta. Kafka tab jab 4–5 internal consumers (fraud, analytics) same stream chahein.
-- **Reconciliation job (FR4):** daily batch, settlement file vs ledger. Cron job, always-on service nahi.
+- **Token Vault (security):** card number sirf yahan (alag PCI network), baaki system ko `tok_abc`.
+- **Payment Service + ledger module:** state machine, idempotency, ledger entries **usi transaction** me jisme intent SUCCEEDED (alag service → crash pe "SUCCEEDED, ledger missing"). Split jab volume (~15B rows/yr) force kare, outbox + unique `txn_id` se.
+- **Postgres (~10K writes/sec peak):** ACID + unique constraints.
+- **PSP Adapter + Router (FR2, 99.99%):** common interface, success-rate routing + failover (9.7).
+- **Webhook Ingest:** signature verify, `psp_event_id` dedup, jaldi 200. Alag → sale peak burst merchant API slow na kare.
+- **Outbox relay + SQS:** ~2–3K msgs/sec, ek consumer, per-message retry + DLQ. Kafka tab jab 4–5 consumers (fraud, analytics) chahein.
+- **Reconciliation job (FR4):** daily cron, settlement file vs ledger.
 
-**Mapping:** FR1 → Payment Service, Postgres, outbox + SQS + Dispatcher. FR2 → Vault, PSP Adapter, Webhook Ingest. FR3 → Payment Service + ledger reverse entries. FR4 → ledger tables + Recon job.
+**Mapping:** FR1 → Payment Service, Postgres, outbox/SQS/Dispatcher. FR2 → Vault, PSP Adapter, Webhook Ingest. FR3 → ledger reverse entries. FR4 → ledger + Recon.
 
 ## Step 7: Main flow: card payment
 
@@ -137,7 +137,7 @@ sequenceDiagram
   Q-->>M: dispatcher sends webhook payment.succeeded
 ```
 
-Agar webhook na aaye to **status poller** har 1–5 min PSP se `GET status(a1)` poochhta hai.
+Webhook miss → **status poller** har 1–5 min `GET status(a1)`.
 
 ## Step 8: Data model & DB choice
 
@@ -151,26 +151,25 @@ ledger_entries(id PK, txn_id, account_id, direction DEBIT|CREDIT, amount BIGINT,
 outbox(id PK, aggregate_id, event_type, payload, published BOOL)
 ```
 
-- **Postgres** (ya MySQL): ACID, unique constraints, transactions. Paisa hamesha **BIGINT paise me** (₹500 = 50000), float kabhi nahi.
-- Ledger tables same Postgres me (ek transaction, monthly partitions). Shard by `merchant_id` jab ek primary chhota pade.
-- Outbox relay `published=false` rows uthata hai, SQS pe bhejta hai, phir mark karta hai. Crash pe dobara bhej sakta hai, isliye dispatcher event id se dedup karta hai.
+- **Postgres** (ya MySQL). Paisa **BIGINT paise me** (₹500 = 50000), float kabhi nahi.
+- Ledger same DB (ek transaction, monthly partitions). Primary chhota → shard by `merchant_id`.
+- Relay: `published=false` → SQS → mark. Crash pe resend → dispatcher event id dedup.
 
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 Idempotency: double charge kaise rokoge?
 **NFR:** exactly-once effect.
-1. Merchant har request pe `Idempotency-Key` bheje. Hum `(merchant_id, key)` pe unique insert karte hain.
-2. Insert success → naya request, process karo, end me response save karo.
-3. Unique violation → key pehle aayi thi. `IN_PROGRESS` ho to 409 "retry later", `DONE` ho to **saved response return**. Request body ka hash alag ho to 422.
-4. PSP ko bhi hamara `attempt_id` idempotency key ke roop me bhejo. Hamara retry PSP pe double charge nahi karega.
-5. Webhooks duplicate aate hain: `psp_event_id` unique rakho, aur state transition idempotent ho (SUCCEEDED → SUCCEEDED no-op).
+1. `Idempotency-Key` → `(merchant_id, key)` pe unique insert. Success → process, end me response save.
+2. Unique violation → `IN_PROGRESS` = 409 "retry later", `DONE` = **saved response**, body hash alag = 422.
+3. PSP ko `attempt_id` idempotency key → retry pe PSP double charge nahi.
+4. Duplicate webhooks: `psp_event_id` unique, transition idempotent (SUCCEEDED → SUCCEEDED no-op).
 
-> **Bolo:** "Exactly-once delivery network me possible nahi hai. Main at-least-once retries + idempotent processing se exactly-once **effect** laata hoon."
+> **Bolo:** "Exactly-once delivery possible nahi. At-least-once retries + idempotent processing = exactly-once **effect**."
 
-**Trade-off:** har mutating request pe ek extra write aur keys ka 24 hr–7 din storage.
+**Trade-off:** extra write per request, keys 24 hr–7 din store.
 
 ### 9.2 Payment state machine
-**NFR:** correctness under timeouts.
+**NFR:** timeouts me bhi correctness.
 ```mermaid
 flowchart LR
   CR["CREATED"] --> PR["PROCESSING"]
@@ -183,59 +182,54 @@ flowchart LR
   UN --> FA
   SU --> RF["REFUNDED / PARTIALLY_REFUNDED"]
 ```
-- Transitions sirf allowed edges pe. Update aise: `UPDATE ... SET status='SUCCEEDED' WHERE id=? AND status IN ('PROCESSING','UNKNOWN')`. Optimistic, race-safe.
-- **UNKNOWN** sabse important state hai: PSP timeout pe hum maan nahi sakte ki fail hua. Poller/reconciliation resolve karega. Customer ko dobara charge karne mat do jab tak UNKNOWN resolve na ho.
+- Sirf allowed edges: `UPDATE ... SET status='SUCCEEDED' WHERE id=? AND status IN ('PROCESSING','UNKNOWN')`. Optimistic, race-safe.
+- **UNKNOWN** sabse important: timeout ≠ fail. Poller/recon resolve kare, tab tak dobara charge nahi.
 
-**Trade-off:** UNKNOWN resolve hone me minutes lag sakte hain, customer "processing" dekhega.
+**Trade-off:** UNKNOWN resolve me minutes, customer "processing" dekhega.
 
 ### 9.3 Double-entry ledger
-**NFR:** ledger kabhi galat na ho + audit.
-- Har money movement ek **txn** hai jisme kam se kam 2 entries: ek debit, ek credit, sum equal.
-- Payment success: `debit psp_clearing 500, credit merchant_payable 490, credit fees_revenue 10`.
-- Refund: ulti entries, purani entry edit nahi hoti. Isse audit trail milta hai.
-- Balance = entries ka sum (ya ek materialized balance table jo same transaction me update ho).
-- Nightly check: har txn ka debit = credit, aur system-wide total zero. Mismatch = alert.
-
-**Trade-off:** har payment pe 3–4 rows (~15B/yr), aur balance = sum ya alag materialized table.
+**NFR:** ledger kabhi galat nahi + audit.
+- Har money movement = **txn**, ≥2 entries, debit sum = credit sum.
+- Success: `debit psp_clearing 500, credit merchant_payable 490, credit fees_revenue 10`.
+- Refund: ulti entries, purani edit nahi → audit trail.
+- Balance = entries ka sum (ya materialized table, same transaction).
+- Nightly check: txn debit = credit, system total zero, warna alert.
 
 ### 9.4 Saga across Order and Payment
 **NFR:** services ke beech consistency, bina 2PC.
-Order Service (Swiggy) aur Payment alag services hain, ek DB transaction possible nahi.
-- **Choreography saga:** Order `PENDING_PAYMENT` → Payment succeeded event → Order `CONFIRMED`. Payment fail → Order `CANCELLED`.
-- Order confirm fail ho (restaurant band) → **compensation = refund** trigger.
-- Events **outbox pattern** se nikalte hain (outbox → SQS → merchant webhook → Order Service), taaki DB commit aur event dono ya to hon ya na hon. 2PC nahi, kyunki PSP 2PC support nahi karta aur ye blocking hai.
+Order (Swiggy) aur Payment alag services, ek DB transaction nahi.
+- **Choreography:** Order `PENDING_PAYMENT` → payment succeeded → `CONFIRMED`. Fail → `CANCELLED`.
+- Order confirm fail (restaurant band) → **compensation = refund**.
+- Events **outbox** se (→ SQS → webhook → Order Service): commit + event dono ya koi nahi. 2PC nahi (PSP support nahi, blocking).
 
-**Trade-off:** order aur payment kuch seconds eventual, aur compensation logic likhna padta hai.
+**Trade-off:** compensation logic likhna padta hai.
 
 ### 9.5 Reconciliation
 **NFR:** paisa kabhi kho na jaye.
-- PSP/bank har din settlement file deta hai (SFTP/API → S3).
-- Recon job: file ki har row ko `psp_ref` se hamare attempts aur ledger se match karta hai.
-- Teen buckets: **matched**, **hamare paas hai, PSP ke paas nahi** (UNKNOWN jo actually fail hua), **PSP ke paas hai, hamare paas nahi** (missed webhook → mark SUCCEEDED, ya auto refund).
-- Amount mismatch → manual ops queue. Ye last safety net hai.
+- Daily PSP settlement file (SFTP/API → S3), har row `psp_ref` se attempts + ledger se match.
+- Buckets: **matched**; **hamare paas, PSP pe nahi** (UNKNOWN jo fail hua); **PSP pe, hamare paas nahi** (missed webhook → SUCCEEDED ya auto refund).
+- Amount mismatch → manual ops queue (last safety net).
 
-**Trade-off:** mismatch T+1 pe pakda jaata hai, real-time nahi.
+**Trade-off:** mismatch T+1 pe, real-time nahi.
 
 ### 9.6 PCI aur tokenization
 **NFR:** PCI DSS.
-- Card number checkout page se seedha **Vault** (iframe/SDK) me jaata hai, merchant server pe bhi nahi.
-- Vault encrypt (HSM keys) karke `tok_abc` deta hai. Payment Service sirf token use karta hai. PCI audit sirf vault ka.
-- Network tokenization (Visa/Mastercard tokens) aur RBI card-on-file rules ke liye bhi yahi layer.
-
-**Trade-off:** vault ek extra critical hop hai, aur HSM ka cost.
+- Card number checkout → seedha **Vault** (iframe/SDK), merchant server pe bhi nahi.
+- HSM encrypt → `tok_abc`. Baaki sab token use kare, PCI audit sirf vault.
+- Network tokenization (Visa/Mastercard) + RBI card-on-file rules bhi yahin.
 
 ### 9.7 Multiple payment gateways: routing (Juspay jaisa)
 **NFR:** 99.99% availability + success rate.
-Bade merchants (Swiggy, Flipkart) ek PSP pe depend nahi karte. Ek **orchestration layer** Razorpay, PayU, Cashfree aur bank direct ke beech har payment ka best route chunti hai.
+Bade merchants (Swiggy, Flipkart): **orchestration layer** har payment ke liye Razorpay / PayU / Cashfree / bank direct me se best route.
 
-- **Routing rules:** har attempt ke liye inputs: method (card/UPI/netbanking), issuer bank, card network, UPI app (PhonePe/GPay), amount. Score = **success rate** (sabse bada weight) + **cost** (MDR fee) + **health** (latency, error rate). Merchant rules bhi: "HDFC credit cards → PayU", "₹1 lakh+ → bank direct".
-- **Real-time success rate:** har `(psp, bank, method)` ke liye **sliding window** (last 5–15 min) me success/total counts, Redis me time-bucketed counters (har minute ka bucket). Redis isliye ki saare router instances same stats dekhein (~1.2K updates/sec). Ye source of truth nahi: down ho to static rules pe fallback. Kam traffic wale combos pe global average, aur ~5% exploration traffic dusre PSPs pe.
-- **Automatic failover (circuit breaker):** PSP ka success rate threshold se neeche gire ya timeouts badhein → circuit **OPEN**, naya traffic dusre PSP pe. Kuch der baad **HALF_OPEN**: thoda traffic bhejke check, theek ho to CLOSED.
-- **Retry on another PSP sirf jab safe ho:**
-  - Safe: PSP ne clear **FAILED** diya (decline, connection refused, request PSP tak pahuncha hi nahi). Naya `PaymentAttempt` banao, naya attempt_id, dusre PSP pe bhejo.
-  - Unsafe: **timeout / UNKNOWN**. Pehle PSP pe charge ho chuka ho sakta hai. Yahan dusre PSP pe retry = **double debit**. Pehle status poll/resolve karo.
-  - Ek intent pe sirf ek attempt `PROCESSING` ho sakta hai (DB constraint), aur intent ek hi baar SUCCEEDED hoga. Galti se do success aaye to doosre ka auto refund.
-- **Apna vault zaroori:** card kisi PSP ke vault me save ho to sirf usi PSP pe chalega. Apne vault (ya network tokens) se koi bhi PSP chuna ja sakta hai.
+- **Inputs:** method, issuer bank, card network, UPI app (PhonePe/GPay), amount. Score = **success rate** (top weight) + **cost** (MDR) + **health**. Merchant rules: "HDFC credit → PayU", "₹1 lakh+ → bank direct".
+- **Success rate:** `(psp, bank, method)` ka **sliding window** (5–15 min), Redis per-minute counters → saare routers same stats (~1.2K updates/sec). Redis down → static rules. Low traffic → global average; ~5% exploration.
+- **Circuit breaker:** success rate gire / timeouts → **OPEN** (dusra PSP) → **HALF_OPEN** (thoda traffic) → CLOSED.
+- **Dusre PSP pe retry sirf jab safe:**
+  - Safe: clear **FAILED** (decline, connection refused, PSP tak nahi pahuncha) → naya `PaymentAttempt` + attempt_id.
+  - Unsafe: **timeout / UNKNOWN** → retry = **double debit** risk. Pehle resolve.
+  - Ek intent = max ek `PROCESSING` attempt (DB constraint), ek SUCCEEDED. Do success → doosre ka auto refund.
+- **Apna vault zaroori:** PSP vault ka card sirf usi PSP pe; apna vault / network tokens → koi bhi PSP.
 
 ```mermaid
 flowchart LR
@@ -249,59 +243,52 @@ flowchart LR
   A2 -- "result" --> SR
 ```
 
-> **Bolo:** "Router success rate, cost aur health dekh ke PSP chunta hai. Retry dusre PSP pe sirf definite failure pe hota hai, timeout pe nahi, kyunki wahan double debit ka risk hai."
+> **Bolo:** "Router success rate, cost, health se PSP chunta hai; dusre PSP pe retry sirf definite failure pe, timeout pe nahi."
 
-**Trade-off:** kai PSP integrations, contracts aur settlement files maintain karne padte hain.
+**Trade-off:** har PSP ka contract + settlement file bhi.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **Postgres (SQL, ACID), ledger same DB** | Transactions, unique constraints, ledger + status ek commit me. ~10K writes/sec peak | **Cassandra/DynamoDB:** multi-row transactions aur constraints kamzor. **Alag Ledger Service:** distributed write. Sacrifice: ek primary pe write limit, baad me merchant sharding |
-| **Idempotency key table** | Retry pe same result, double charge nahi | **Client pe trust:** timeouts pe retry hoga hi. Sacrifice: har request pe extra write |
-| **Double-entry append-only ledger** | Har paisa traceable, audit, errors pakad me | **Sirf `balance` column update:** history nahi. Sacrifice: 3–4x rows |
-| **Saga + outbox** | Services decoupled, compensation se recover | **2PC/XA:** PSP support nahi karta, blocking, coordinator SPOF. Sacrifice: seconds ki eventual consistency |
-| **Outbox relay → SQS for merchant webhooks** | ~2–3K msgs/sec, per-message retry + DLQ built-in | **Kafka:** is volume pe overkill, replay ki zarurat nahi, per-message retry nahi. **Seedha HTTP call commit ke baad:** crash pe event lost. Sacrifice: relay ki wajah se ~1 sec delay |
-| **Async PSP + webhooks + poller** | PSP slow ho to bhi threads block nahi | **Synchronous wait 30 sec:** threads khatam, timeout pe state unclear. Sacrifice: merchant ko PROCESSING handle karna padta |
-| **Token vault** | PCI scope sirf ek chhoti service | **Card data main DB me:** poora system PCI scope me. Sacrifice: extra hop + HSM cost |
-| **Explicit UNKNOWN state** | Timeout pe galat assumption nahi | **Timeout = FAILED:** retry pe double charge. Sacrifice: kuch payments minutes tak pending |
-| **Multi-PSP routing (Redis window stats)** | Failover, better success rate aur cost | **Single PSP:** uska outage = hamara outage. **Per-instance in-memory stats:** instances ka view alag. Sacrifice: kai integrations maintain karna |
+| **Postgres (ACID), ledger same DB** | Ledger + status ek commit, ~10K writes/sec | **Cassandra/DynamoDB:** weak transactions. **Alag Ledger Service:** distributed write. Sacrifice: primary write limit |
+| **Idempotency key table** | Retry pe same result | **Client pe trust:** timeout pe retry hoga hi. Sacrifice: extra write |
+| **Double-entry append-only ledger** | Har paisa traceable, audit | **Sirf `balance` column:** history nahi. Sacrifice: 3–4x rows |
+| **Saga + outbox** | Decoupled, compensation se recover | **2PC/XA:** PSP support nahi, blocking, coordinator SPOF. Sacrifice: seconds eventual |
+| **Outbox relay → SQS** | ~2–3K msgs/sec, retry + DLQ built-in | **Kafka:** overkill, no per-message retry. **HTTP after commit:** crash pe event lost. Sacrifice: ~1 sec delay |
+| **Async PSP + webhooks + poller** | Slow PSP pe threads block nahi | **Sync wait 30 sec:** threads khatam. Sacrifice: merchant PROCESSING handle kare |
+| **Token vault** | PCI scope ek chhoti service | **Card data main DB me:** poora system PCI scope. Sacrifice: extra hop + HSM |
+| **Explicit UNKNOWN state** | Timeout pe galat assumption nahi | **Timeout = FAILED:** retry pe double charge. Sacrifice: minutes tak pending |
+| **Multi-PSP routing (Redis stats)** | Failover, success rate + cost | **Single PSP:** uska outage = hamara. **Per-instance stats:** alag view. Sacrifice: kai integrations |
 
 ## Step 11: Failures & bottlenecks
 
 | Kya fail hua | Kya hoga | Handle kaise |
 |---|---|---|
-| PSP timeout | Pata nahi charge hua ya nahi | UNKNOWN state, poller + recon resolve kare, PSP idempotency key se safe retry |
-| Webhook miss | Paisa kata, status PROCESSING | Status poller + daily reconciliation |
-| Duplicate webhook | Double ledger entry ka risk | `psp_event_id` unique, idempotent transition |
-| Payment Service crash beech me | Half-done state | DB transaction + outbox, idempotency record `IN_PROGRESS` se resume |
-| PSP down | Payments fail | PSP Adapter dusre PSP pe route kare (smart routing by success rate) |
-| Merchant webhook endpoint down | Merchant ko update nahi | SQS se exponential backoff retries 24–72 hrs, phir DLQ, merchant GET API se poll kar sake |
-| Outbox relay down | Webhooks late, paisa safe | `published=false` rows se resume, lag pe alert |
+| PSP timeout | Charge hua ya nahi, pata nahi | UNKNOWN, poller + recon (9.2) |
+| Webhook miss | Paisa kata, status PROCESSING | Status poller + daily recon |
+| Payment Service crash | Half-done state | Transaction + outbox, `IN_PROGRESS` se resume |
+| Merchant endpoint down | Update nahi pahuncha | SQS backoff 24–72 hrs → DLQ, merchant GET poll |
+| Outbox relay down | Webhooks late, paisa safe | `published=false` se resume, lag alert |
 | Ledger imbalance | Paisa mismatch | Nightly invariant check, alert, ops queue |
 
 ## Step 12: "Isko aur better kaise karein" (end me khud bolo)
 
-> "Agar aur time ho to main ye improve karunga:"
-- **Fraud/risk engine:** velocity checks, device fingerprint, ML score confirm se pehle.
-- **Multi-region active-passive:** ledger ek primary region me (consistency), DR region me sync replica.
-- **Ledger ko dedicated immutable store** (jaise TigerBeetle ya QLDB style) jab scale bade.
-- **ML-based routing:** sliding-window rules ke upar bandit model jo har payment ke liye PSP success probability predict kare.
+- **Fraud engine:** velocity, device fingerprint, ML score confirm se pehle.
+- **Multi-region active-passive:** ledger ek primary region, DR me sync replica.
+- **Dedicated immutable ledger store** (TigerBeetle / QLDB style) jab scale bade.
+- **ML routing:** bandit model, per-payment PSP success probability.
 
 ## Step 13: Interviewer ke likely follow-up sawal
 
-- "Client ne retry kiya, double charge kaise nahi hua?" → Idempotency key + PSP pe attempt_id key (Step 9.1)
-- "PSP ne timeout diya, ab kya?" → UNKNOWN state, poll karo, blind retry nahi
 - "Exactly-once kaise?" → At-least-once + idempotent consumers + unique constraints = exactly-once effect
-- "Order aur payment me consistency?" → Saga with outbox, compensation = refund
-- "Ledger me galti ho gayi to?" → Entry edit nahi, reversal entry daalo
-- "Paise ke liye float kyun nahi?" → Rounding errors. Smallest unit BIGINT me rakho
-- "Card data kahan store?" → Sirf vault me, encrypted, baaki sab tokens
-- **Senior signal:** khud bolo ki sabse bada risk PSP timeout pe double debit hai (UNKNOWN, cross-PSP retry nahi), aur sale peak pe `psp_clearing` jaisa global ledger account ka materialized balance row hot ban jaata hai. Isliye append-only entries + periodic balance rollup, aur per-PSP UNKNOWN count pe alert.
+- "Ledger me galti?" → Edit nahi, reversal entry
+- "Paise ke liye float kyun nahi?" → Rounding errors; smallest unit BIGINT
+- **Senior signal:** khud bolo: sabse bada risk PSP timeout pe double debit (UNKNOWN, cross-PSP retry nahi); sale peak pe `psp_clearing` jaise global account ka balance row hot. Fix: append-only entries + periodic rollup, per-PSP UNKNOWN count alert.
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> Payment system me correctness sabse upar hai, isliye Postgres with ACID. Merchant intent create karta hai, fir confirm karta hai, dono pe Idempotency-Key jo `(merchant_id, key)` unique se enforce hoti hai. Payment ek state machine hai (CREATED → PROCESSING → SUCCEEDED/FAILED, aur timeout pe UNKNOWN). PSP ko hamara attempt_id idempotency key ke roop me jaata hai. PSP result async webhook se aata hai, dedup by event id, aur backup me poller. Har money movement double-entry append-only ledger me, status update ke same transaction me. Outbox row → relay → SQS → merchant webhooks (retry + DLQ). Kafka nahi, kyunki ~2–3K events/sec aur ek main consumer. Order ke saath saga, fail pe refund compensation. Daily reconciliation PSP settlement file vs ledger. Card data sirf token vault me (PCI).
+> Postgres ACID. Create + confirm pe Idempotency-Key (`(merchant_id, key)` unique). State machine, timeout → UNKNOWN. PSP ko attempt_id key; result webhook (dedup) + poller. Double-entry ledger, status ke same transaction me. Outbox → SQS → merchant webhooks. Order saga, fail → refund. Daily recon. Card sirf vault me.
 
 ## Checklist
 

@@ -10,52 +10,50 @@ askedAt: [Amazon, Meta, Uber, Flipkart, Microsoft]
 
 # Design BookMyShow / Ticketmaster
 
-**In one line:** users search for a movie/event, pick seats, and pay. The core challenge is that **one seat must never be sold to two people**, and the system must not crash during big launches.
+**In one line:** find a movie/event, pick seats, pay. Core challenge: **one seat must never sell to two people**, and big launches must not crash the system.
 
-**What the interviewer checks in this question:** handling contention (locks), the consistency vs availability trade-off, and peak traffic (the first-day-first-show of Avengers).
+**What the interviewer checks in this question:** contention (locks), consistency vs availability, peak traffic (Avengers first-day-first-show).
 
 ---
 
 ## Step 1: Clarify with the interviewer (3–5 min)
 
-Ask these questions before you start the design:
-
 | You ask | Typical answer | Effect on design |
 |---|---|---|
-| "Are search, seat selection and booking in scope? Can I assume payment is a third-party gateway?" | Yes | No need to design payment internals |
+| "Search, seats, booking in scope? Payment third-party?" | Yes | No payment internals |
 | "How long is a seat hold? 10 min?" | Yes, 10 min | Redis TTL = 10 min |
-| "Double booking is never allowed, so consistency > availability on the booking path?" | Yes | Strong consistency for booking (SQL + locks) |
-| "Is slightly stale data OK in search and browse?" | Yes | Search from a read replica + cache, eventual consistency |
-| "What is the scale? Peak traffic?" | ~10M DAU, 1 lakh+ people at once on a popular show | We need a virtual waiting queue |
-| "Are recommendations, reviews, food ordering in scope?" | No | Say they are out of scope |
+| "Zero double booking → consistency > availability?" | Yes | SQL + locks |
+| "Slightly stale search/browse OK?" | Yes | Read replica + cache, eventual |
+| "Scale? Peak?" | ~10M DAU, 1 lakh+ at once on a popular show | Virtual waiting queue |
+| "Recommendations, reviews, food?" | No | Out of scope |
 
-> **Say:** "So I will design 3 core flows: search events, view seat map, and book seats. I will keep strong consistency for booking, and availability + low latency for search."
+> **Say:** "3 flows: search, seat map, book seats. Strong consistency for booking, availability + low latency for search."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Users should be able to search shows by city/movie/date
-2. Users should be able to see the seat map of a show (which seats are free)
-3. Users should be able to hold seats for 10 min, confirm the booking with payment, and get a ticket notification
+1. Search shows by city/movie/date
+2. See a show's seat map (which seats are free)
+3. Hold seats for 10 min → confirm with payment → ticket notification
 
-**Out of scope:** payment internals (third-party gateway), recommendations, reviews, food ordering, dynamic pricing.
+**Out of scope:** payment internals, recommendations, reviews, food, dynamic pricing.
 
 **Non-functional (in priority order)**
-1. **No double booking:** one seat, only one booking (strong consistency)
+1. **No double booking:** one seat = one booking (strong consistency)
 2. **Availability:** search and browse 99.99%
 3. **Latency:** search p99 < 500 ms, hold p99 < 200 ms
 4. **Scale:** 10M DAU, ~100:1 read/write, 1 lakh users/min on one show at launch
 
-**CAP choice:** the booking path is CP: if the Postgres primary is down, showing an error is better than a double booking. Search and seat map are AP: slightly stale is fine, the final check happens at booking.
+**CAP choice:** booking is CP: Postgres primary down → error, better than double booking. Search + seat map AP; final check at booking.
 
 ## Step 3: Estimation (only what changes the design)
 
-- 10M DAU, each user does ~10 searches/browses → **100M reads/day ≈ 1,200 QPS** avg, peak 10x ≈ 12K QPS. So a cache is needed.
-- Bookings: ~1M/day ≈ **12 bookings/sec** avg. The write load is small, one SQL DB can handle it.
-- Popular launch: 1 lakh users on the same show in one minute. **This is the real problem**, not the average.
-- The catalog is small (a few thousand movies, ~1 lakh shows/day), and filters are structured. A Postgres index + cache is enough.
+- Reads: 10M DAU × ~10 = **100M/day ≈ 1,200 QPS**, peak 10x ≈ 12K → cache needed.
+- Bookings: ~1M/day ≈ **12/sec** → one SQL DB is enough.
+- Launch: 1 lakh users, one show, one minute. **This is the real problem**, not the average.
+- Small catalog (a few thousand movies, ~1 lakh shows/day), structured filters → Postgres index + cache.
 
-> **Say:** "The average write load is small, so throughput is not the problem. The problem is contention on the same seat and the sudden spike."
+> **Say:** "The problem is not throughput; it is contention on one seat and a sudden spike."
 
 ## Step 4: Core entities
 
@@ -75,11 +73,11 @@ POST /bookings/confirm {holdId, paymentToken}       → {bookingId, status}
      Header: Idempotency-Key: <uuid>
 ```
 
-> **Say:** "Hold and confirm are separate APIs, because blocking a seat and paying are two separate steps, and there can be a 10 min gap between them."
+> **Say:** "Separate hold and confirm APIs: blocking a seat and paying are two steps, up to 10 min apart."
 
 ## Step 6: High-level design
 
-**Start with a simple v1:** one service + one Postgres: an indexed show query, a seat status column, booking in one transaction. At 12 bookings/sec this meets all three FRs. The numbers break it: 12K peak reads/sec → Redis cache + read replica; 1 lakh users on one show → Redis holds + waiting room, so there is no DB lock contention on the same rows; sending tickets must not slow booking → outbox + worker.
+**Simple v1:** one service + Postgres (indexed query, seat status column, booking in one txn); meets the FRs at 12 bookings/sec. It breaks on: 12K peak reads → Redis + read replica; 1 lakh users on one show → Redis holds + waiting room (no row lock contention); sending tickets must not slow booking → outbox + worker.
 
 ```mermaid
 flowchart LR
@@ -99,13 +97,12 @@ flowchart LR
 
 **FR mapping:** FR1 + FR2 → Show Service + Redis + read replica. FR3 → Booking Service + Redis holds + Postgres primary + outbox worker.
 
-**Why each component:**
-- **API Gateway:** auth, rate limiting, stopping bots
-- **Separate Show Service and Booking Service:** the read path has ~100x the traffic and is AP, booking is CP. They scale separately
-- **Postgres search (index + `pg_trgm`) + cache, not Elasticsearch:** filters are structured, the catalog is small, and `pg_trgm` handles a typo like "avengr". ES = CDC + one more cluster, with no need for it
-- **Redis:** thousands of holds/sec on one show at launch. `SET NX PX` is cheaper than DB row locks and auto-releases with TTL. The waiting room + cache live here too
-- **Booking Service:** hold + confirm. All the consistency work happens here
-- **Outbox + worker, not Kafka:** only ~12 bookings/sec, one consumer. An outbox row in the booking transaction, and a worker sends SMS/email with retries. It also solves the dual-write problem
+**Why each component** (alternatives in Step 10):
+- **API Gateway:** auth, rate limit, bots.
+- **Show vs Booking Service:** reads ~100x + AP, booking CP (all consistency lives here); scale separately.
+- **`pg_trgm`:** handles typos like "avengr".
+- **Redis:** holds + waiting room + cache.
+- **Outbox + worker:** outbox row in the booking txn, worker sends SMS/email with retries; solves dual-write.
 
 ## Step 7: Main flow: booking a seat
 
@@ -139,7 +136,7 @@ booking_seats(booking_id, show_id, seat_id, UNIQUE(show_id, seat_id))
 outbox(id PK, booking_id, type, payload, status, created_at)   -- written in the same transaction
 ```
 
-`UNIQUE(show_id, seat_id)` is the most important line. With it, the DB itself stops double booking.
+`UNIQUE(show_id, seat_id)` is the most important line: the DB itself blocks double booking.
 
 ## Step 9: Deep dives (the interviewer will push here)
 
@@ -148,20 +145,20 @@ outbox(id PK, booking_id, type, payload, status, created_at)   -- written in the
 **NFR:** no double booking (strong consistency).
 
 Two layers:
-1. **Redis hold** (`SET NX PX`): fast, temporary, auto-expires after 10 min.
-2. **DB unique constraint:** the final truth. Even if Redis crashes, or a late payment arrives after the hold expired, the DB will not allow two bookings.
+1. **Redis hold** (`SET NX PX`): fast, temporary, auto-expires in 10 min.
+2. **DB unique constraint:** final truth. Even if Redis crashes or a late payment arrives after hold expiry, no two bookings.
 
-> If the payment succeeded but the DB insert failed (someone else took the seat), trigger an **auto refund**. This is a rare edge case, and mentioning it sends a strong signal.
+> Payment succeeds but DB insert fails (seat taken) → **auto refund**. Raise this edge case yourself, strong signal.
 
-**Trade-off:** state in two places (Redis + DB) and a rare refund path, in exchange for fast holds and guaranteed correctness in the DB.
+**Trade-off:** state in two places + rare refund path ↔ fast holds + guaranteed correctness in the DB.
 
 ### 9.2 Avengers launch: 1 lakh people, 1 minute
 
-**NFR:** availability and hold p99 < 200 ms even during the spike.
+**NFR:** availability and hold p99 < 200 ms even in a spike.
 
-- **Virtual waiting queue:** give users a token and put them in line in a Redis sorted set. Let ~5,000 users in at a time. Show the rest "you are #2,341 in line".
-- Serve the seat map from a **CDN/Redis cache**, so every request does not hit the DB.
-- Per-user rate limit + CAPTCHA at the gateway, so bots stay out.
+- **Virtual waiting queue:** token + Redis sorted set; ~5,000 let in at a time, rest see "you are #2,341 in line".
+- Seat map from **CDN/Redis cache**, not the DB.
+- Per-user rate limit + CAPTCHA at the gateway (bots).
 
 ```mermaid
 flowchart LR
@@ -170,66 +167,65 @@ flowchart LR
   WQ -. "position update via SSE" .-> U
 ```
 
-**Trade-off:** users have to wait in line, in exchange for no crash and a fair (FIFO) order.
+**Trade-off:** users wait ↔ no crash + fair FIFO.
 
 ### 9.3 How does the seat map stay live?
 
-**NFR:** seat map availability, slightly stale is fine (AP).
+**NFR:** availability, slightly stale is fine (AP).
 
-- Simple: poll every 5 sec. It is read-heavy, but cheap with a cache.
-- Better: push seat status over **SSE/WebSocket** when someone places a hold. Turn it on only for popular shows.
+- Simple: 5 sec polling, cheap from cache.
+- Better: **SSE/WebSocket** push on hold, only for popular shows.
 
-**Trade-off:** with polling the map is up to 5 sec stale, in exchange for being simple and cheap.
+**Trade-off:** 5 sec stale map ↔ simple, cheap.
 
 ### 9.4 No double charge on payment
 
-**NFR:** exactly-once-like charging, even after retries.
+**NFR:** exactly-once-like charge, even after retries.
 
-- The client sends an **Idempotency-Key** with every confirm request. The server first checks if this key came before. If yes, it returns the old result.
-- The payment webhook can also come twice. Keep `payment_id` unique.
+- **Idempotency-Key** on every confirm; key seen before → return the old result.
+- Webhooks can duplicate too → `payment_id` unique.
 
-**Trade-off:** idempotency keys must be stored, in exchange for safe retries.
+**Trade-off:** store idempotency keys ↔ safe retries.
 
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Postgres** for bookings | ACID + unique constraint, ~12 writes/sec | **Cassandra/DynamoDB:** weak multi-row transactions. Sacrifice: single primary, booking pauses a few sec on failover |
-| **Redis TTL** for seat hold | Thousands of holds/sec in a spike, atomic `NX`, TTL auto-release | **DB `held_until` column:** lock contention on the same rows in a spike. Sacrifice: Redis down = holds lost (DB constraint stays safe) |
-| **No pessimistic lock** | We cannot hold a DB lock for the 10 min payment window | Holding `SELECT FOR UPDATE` that long uses up all connections. Sacrifice: the rare refund case |
-| **Postgres + `pg_trgm` + cache** for search | Structured filters, small catalog, one DB | **Elasticsearch:** CDC + one more cluster, sync lag. **Plain LIKE:** does not understand typos. Sacrifice: basic relevance ranking |
-| **Outbox + worker** for notifications | ~12/sec, atomic with the booking, retries | **Kafka:** overkill at this volume. **Sync call:** slow SMS = slow booking. Sacrifice: a small worker polling delay |
-| **Virtual queue** at peak | Load control, fair FIFO | **Only autoscaling:** not fast enough, DB/locks still the bottleneck. Sacrifice: users wait |
+| **Postgres** for bookings | ACID + unique constraint, ~12 writes/sec | **Cassandra/DynamoDB:** weak multi-row txns. Sacrifice: single primary, failover pauses booking a few sec |
+| **Redis TTL** for seat hold | Thousands of holds/sec, atomic `NX`, auto-release | **DB `held_until`:** lock contention on same rows. Sacrifice: Redis down = holds lost (DB safe) |
+| **No pessimistic lock** | Cannot hold a DB lock for 10 min | `SELECT FOR UPDATE` → connections run out. Sacrifice: rare refund |
+| **Postgres + `pg_trgm` + cache** for search | Structured filters, small catalog | **Elasticsearch:** CDC + extra cluster, lag. **LIKE:** no typos. Sacrifice: basic ranking |
+| **Outbox + worker** for notifications | ~12/sec, atomic with booking, retries | **Kafka:** overkill, one consumer. **Sync call:** slow SMS = slow booking. Sacrifice: polling delay |
+| **Virtual queue** at peak | Load control, fair FIFO | **Autoscaling only:** slow, DB/locks still bottleneck. Sacrifice: users wait |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle |
 |---|---|---|
-| Redis down | Holds are gone | The DB constraint stops double booking. Run Redis with replica + sentinel |
-| Payment webhook missed | Money is deducted, booking is PENDING | A reconciliation job asks the gateway for the status every 5 min |
-| Booking service crash | In-flight requests fail | Stateless service + multiple instances. Safe retry with the idempotency key |
+| Redis down | Holds lost | DB constraint still blocks; Redis replica + sentinel |
+| Payment webhook missed | Money taken, booking PENDING | Reconciliation job asks gateway every 5 min |
+| Booking service crash | In-flight fail | Stateless replicas; retry safely with idempotency key |
 | Hot show | All load on one show | Waiting room + cache |
-| Notification worker down | Ticket SMS is late | Outbox rows stay pending, the worker retries when back. No effect on booking |
+| Notification worker down | Ticket SMS late | Outbox rows stay pending, retried later; booking safe |
 
 ## Step 12: How to make it better (say this yourself at the end)
 
-> "If I had more time, I would improve these:"
-- Make the seat map fully live with **WebSocket**
-- **Multi-region:** search in every region, booking in one primary region (for consistency)
-- **Elasticsearch when needed:** once we need full-text + relevance ranking over events, artists, venues
+- Fully live seat map via **WebSocket**
+- **Multi-region:** search in every region, booking in one primary region (consistency)
+- **Elasticsearch when** full-text + relevance ranking over events, artists, venues is needed
 
 ## Step 13: Likely follow-up questions
 
-- "What is the difference between a Redis lock and a DB lock? Why both?" → Step 9.1
-- "What if the user does not pay within 10 min?" → TTL expires, the seat is free, booking is `CANCELLED`
-- "Payment succeeded but the seat went to someone else?" → Auto refund
-- "What if a group takes 6 seats together?" → Hold all seats atomically in one Lua script. If even one fails, release all
-- "What if search results are stale?" → That is acceptable. The final check happens at booking time
-- **Senior signal:** raise it yourself: there is a race between the hold TTL and payment: if the gateway is slow, the hold expires, the seat goes to someone else, and a late payment arrives. The DB constraint stops double booking, but you need auto refund + a payment window shorter than the hold TTL.
+- "Redis lock vs DB lock, why both?" → Step 9.1
+- "No payment in 10 min?" → TTL expires, seat free, booking `CANCELLED`
+- "Payment succeeded, seat taken?" → auto refund
+- "Group of 6 seats?" → hold all atomically in one Lua script; one fails → release all
+- "Stale search?" → acceptable, final check at booking
+- **Senior signal:** hold TTL vs payment race: slow gateway → hold expires → seat goes to someone else → late payment. DB constraint blocks it, but auto refund + payment window < hold TTL are needed.
 
 ## 2-minute recap
 
-> BookMyShow is read-heavy, but booking needs strong consistency. Two services: Show Service (search + seat map: read replica + Redis cache, `pg_trgm`; no ES, the catalog is small) and Booking Service. Booking happens in two steps: hold and confirm. Hold uses Redis `SET NX PX 10min`, and confirm runs in a Postgres transaction with `UNIQUE(show_id, seat_id)`. So even if Redis fails, there is no double booking. Idempotency key on payment, and a reconciliation job for webhooks. For peak launches: virtual waiting queue + rate limit + cached seat map. Notifications go async through an outbox + worker (~12/sec, no need for Kafka).
+> Read-heavy, booking strongly consistent. Show Service (replica + Redis, `pg_trgm`, no ES) + Booking Service. Hold (Redis `SET NX PX 10min`) → confirm (Postgres txn, `UNIQUE(show_id, seat_id)`), safe even if Redis fails. Payment: idempotency key + reconciliation. Peak: virtual queue + rate limit + cached seat map. Notifications: outbox + worker (no Kafka).
 
 ## Checklist
 

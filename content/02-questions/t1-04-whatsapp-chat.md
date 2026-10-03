@@ -10,57 +10,55 @@ askedAt: [Meta, Amazon, Microsoft, Google, Uber, Swiggy]
 
 # Design WhatsApp / Messenger
 
-**Ek line me:** users 1:1 aur group me real-time messages bhejte hain, offline ho to baad me milte hain, aur sent/delivered/read ticks dikhte hain. Core challenge hai **crores of open connections ke beech sahi user tak message pahunchana**, **order sahi rakhna**, aur **message kabhi khona nahi**.
+**Ek line me:** 1:1 aur group real-time messages, offline ho to baad me milein, sent/delivered/read ticks. Core challenge: **crores of open connections me sahi user tak message**, **sahi order**, aur **message kabhi na khoye**.
 
-**Is question me interviewer kya check karta hai:** WebSocket connection management, servers ke beech routing, message storage + ordering, delivery guarantees (at-least-once + dedup), offline handling, aur group fan-out.
+**Is question me interviewer kya check karta hai:** WebSocket connections, server-to-server routing, ordering, at-least-once + dedup, offline, group fan-out.
 
 ---
 
 ## Step 1: Interviewer se ye confirm karo (3–5 min)
 
-Design shuru karne se pehle ye sawal poochho:
-
 | Tum poochho | Typical jawab | Design pe asar |
 |---|---|---|
-| "1:1 aur group dono? Group size max?" | Dono, group max 1000 | Group fan-out on write theek hai |
-| "Delivery receipts aur read receipts chahiye?" | Haan, sent/delivered/read | Receipts bhi messages ki tarah flow karenge |
-| "Offline user ko message kaise milega?" | Server pe store, online aate hi deliver + push notification | Persistent storage + push service |
-| "Messages server pe hamesha rehte hain?" | Multi-device sync ke liye haan, ya deliver hone tak | Cassandra me retention policy |
-| "Media (photo/video) bhejna?" | Haan | S3 + CDN, message me sirf URL |
-| "Scale?" | 500M DAU, 50B messages/day | Lakhs connections per server, sharded storage |
-| "Online/last seen presence?" | Haan | Heartbeat + Redis TTL |
-| "E2E encryption design karna hai?" | Sirf mention | Server ciphertext store karta hai, Signal protocol |
+| "1:1 aur group? Max group size?" | Dono, max 1000 | Group fan-out on write theek |
+| "Delivery aur read receipts?" | Haan, sent/delivered/read | Receipts bhi messages ki tarah flow |
+| "Offline user?" | Server store, online pe deliver + push | Storage + push service |
+| "Server pe kab tak?" | Multi-device sync, ya deliver tak | Cassandra retention |
+| "Media?" | Haan | S3 + CDN, message me sirf URL |
+| "Scale?" | 500M DAU, 50B msgs/day | Lakhs conns/server, sharded storage |
+| "Online/last seen?" | Haan | Heartbeat + Redis TTL |
+| "E2E encryption?" | Sirf mention | Server ciphertext store, Signal protocol |
 
-> **Bolo:** "Main 1:1 aur group messaging design karunga with persistent WebSocket connections, at-least-once delivery, per-chat ordering, receipts, offline delivery aur presence. E2E encryption ko sirf mention karunga."
+> **Bolo:** "1:1 + group, persistent WebSockets, at-least-once delivery, per-chat ordering, receipts, offline delivery, presence. E2E sirf mention."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Users 1:1 aur group (max 1000) me real-time messages bhej aur paa sakein
-2. Offline users online aane pe saare pending messages paayein, aur beech me push notification
-3. Users sent / delivered / read ticks aur online / last seen dekh sakein
-4. Users media (image, video, document) bhej sakein
+1. 1:1 aur group (max 1000) me real-time send/receive
+2. Offline users ko online aane pe pending messages, beech me push notification
+3. Sent / delivered / read ticks aur online / last seen
+4. Media (image, video, document) bhejna
 
-**Out of scope:** voice/video calls, status/stories, payments, E2E key exchange ka detail.
+**Out of scope:** voice/video calls, status/stories, payments, E2E key exchange detail.
 
 **Non-functional (priority order me)**
-1. **Durability:** "sent" tick ke baad message kabhi nahi khona chahiye
-2. **Ordering:** ek chat ke andar order sahi (global nahi)
-3. **Latency:** online-to-online delivery p99 < 200 ms
+1. **Durability:** "sent" tick ke baad message kabhi nahi khoye
+2. **Ordering:** ek chat ke andar sahi (global nahi)
+3. **Latency:** online-to-online p99 < 200 ms
 4. **Availability:** 99.99%
 5. **Scale:** 500M DAU, ~200M concurrent connections, 600K msgs/sec (peak 1.5M)
 
-**CAP choice:** message write pe per-chat consistency (quorum write ke baad hi sent tick). Presence, last seen aur receipts AP: thoda stale chalega.
+**CAP choice:** message write pe per-chat consistency (quorum write ke baad hi sent tick). Presence, last seen, receipts AP.
 
 ## Step 3: Estimation (sirf jo design badle)
 
-- Messages: 50B/day ≈ **600K msgs/sec**, peak ~1.5M/sec (Diwali/New Year midnight). Write-heavy storage chahiye.
-- Concurrent connections: ~200M online. Ek server ~100K–500K WebSocket connections → **~1,000 connection servers**.
-- Storage: 50B × 200 bytes ≈ **10 TB/day** (media alag). Saalon ka data, horizontal scale must.
-- Media: 5% messages media hain, avg 200 KB → ~500 TB/day. S3 + CDN hi option hai.
-- Async kaam (offline push + group fan-out): maan lo ~har doosra message → **~300K events/sec**, peak ~750K.
+- Messages: 50B/day ≈ **600K/sec**, peak ~1.5M (Diwali/New Year midnight) → write-heavy store.
+- Connections: ~200M online, ~100K–500K per server → **~1,000 connection servers**.
+- Storage: 50B × 200 bytes ≈ **10 TB/day** (media alag) → horizontal scale must.
+- Media: 5% messages × avg 200 KB → ~500 TB/day → S3 + CDN.
+- Async (offline push + group fan-out): ~har doosra message → **~300K events/sec**, peak ~750K.
 
-> **Bolo:** "600K messages/sec aur 10 TB/day ka matlab hai write-optimized, horizontally scalable store, isliye Cassandra. Aur 200M open connections ke liye stateful connection servers chahiye jinke beech routing karni padegi."
+> **Bolo:** "600K msgs/sec + 10 TB/day → Cassandra. 200M open connections → stateful connection servers + routing."
 
 ## Step 4: Core entities
 
@@ -72,7 +70,7 @@ Design shuru karne se pehle ye sawal poochho:
 
 ## Step 5: APIs
 
-Real-time sab kuch WebSocket pe, baaki REST.
+Real-time WebSocket pe, baaki REST.
 
 ```http
 WS   /connect  (auth token)                             → persistent connection
@@ -90,11 +88,11 @@ GET  /chats/{chatId}/messages?afterSeq=120&limit=50     → sync after reconnect
 POST /media/upload-url   {contentType, size}            → {uploadUrl, mediaUrl}
 ```
 
-> **Bolo:** "Client har message ke saath `clientMsgId` bhejta hai. Network retry pe same id aayega to server duplicate store nahi karega. Ye idempotency hai."
+> **Bolo:** "Har message ke saath `clientMsgId`; retry pe same id → server duplicate store nahi karta (idempotency)."
 
 ## Step 6: High-level design
 
-**Simple v1 pehle:** ek server jo saare WebSockets pakde, Postgres `messages` table, aur memory me `user → connection` map. Chhote scale pe ye chaaron FRs pure karta hai. Numbers isse todte hain: 200M connections → ~1,000 connection servers, isliye session registry; 600K writes/sec → Cassandra; ~300K async events/sec with per-chat order → Kafka; media 500 TB/day → S3 + CDN.
+**Simple v1:** ek server (WebSockets + Postgres + in-memory `user → connection` map), chaaron FRs pure. Numbers todte: 200M conns → ~1,000 servers → session registry; 600K writes/sec → Cassandra; 300K async events/sec → Kafka; 500 TB/day media → S3 + CDN.
 
 ```mermaid
 flowchart LR
@@ -115,14 +113,12 @@ flowchart LR
 
 **FR mapping:** FR1 → Connection Servers + Message Service + Cassandra + registry. FR2 → Kafka + Push workers + `afterSeq` sync. FR3 → receipts table + presence keys in Redis. FR4 → S3 + CDN.
 
-**Har component kyun:**
-- **L4 Load Balancer:** long-lived TCP/WebSocket connections ke liye. Least-connections routing
-- **Connection Servers (alag) + Message Service (alag):** connection servers stateful hain aur deploy pe 2 lakh users disconnect hote hain, isliye unme business logic nahi. Logic stateless Message Service me, jo bina reconnect ke deploy hota hai
-- **Session Registry (Redis):** `user_id → server_id`, aur presence keys bhi yahin (TTL 30s). ~200M keys, har message pe lookup. **Alag Presence Service nahi banayi**: connection server heartbeat pe key refresh kar deta hai
-- **Redis seq counter:** 600K `INCR`/sec. Cassandra LWT (simpler, ek hi store) Paxos ke 4 round trips leta hai, itne rate pe nahi chalega
-- **Cassandra:** 600K writes/sec, 10 TB/day, query hamesha "ek chat ke latest N". Postgres (simpler) is rate pe sharding nightmare
-- **Kafka:** ~300K events/sec (peak 750K), group delivery me per-chat order chahiye (partition by chat_id), do consumer groups (group fan-out, push), aur push provider outage ke baad replay. SQS (simpler) is throughput pe ordering nahi deta
-- **S3 + CDN:** media direct upload, message me sirf link
+**Har component kyun** (alternatives Step 10 me):
+- **L4 LB:** long-lived WebSockets, least-connections.
+- **Connection Servers vs Message Service:** connection servers stateful (deploy = 2 lakh disconnects) → logic stateless Message Service me, bina reconnect deploy.
+- **Session Registry (Redis):** `user_id → server_id` + presence (TTL 30s), ~200M keys. Alag Presence Service nahi: heartbeat pe key refresh.
+- **Redis seq counter:** 600K `INCR`/sec; Cassandra LWT = 4 Paxos round trips.
+- **Kafka:** 2 consumer groups (group fan-out, push), push outage ke baad replay.
 
 ## Step 7: Main flow: 1:1 message bhejna
 
@@ -151,7 +147,7 @@ sequenceDiagram
   WA-->>A: double tick
 ```
 
-Bob offline ho (registry me entry nahi), to message DB me already safe hai. Message Service Kafka pe event daalta hai, Push worker FCM/APNs se notification bhejta hai. Bob online aaye to `afterSeq` se sync karta hai.
+Bob offline (registry me nahi) → message DB me already safe; Kafka event → Push worker → FCM/APNs. Online aane pe `afterSeq` sync.
 
 ## Step 8: Data model & DB choice
 
@@ -174,104 +170,102 @@ Redis: seq:{chat_id}     → INCR counter
 Redis: presence:{user_id} → last_seen  TTL 30s
 ```
 
-- **Cassandra** kyunki: bahut zyada writes, query hamesha "ek chat ke latest N messages" hai, jo partition + clustering key se ek sequential read hai. Joins/transactions nahi chahiye.
-- **Redis** session aur presence ke liye: ephemeral, TTL based, fast.
+- **Cassandra:** write-heavy; "chat ke latest N" = partition + clustering pe ek sequential read. Joins nahi.
+- **Redis** session/presence: ephemeral, TTL, fast.
 
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 Message ek server se doosre server tak kaise jaata hai?
 
-**NFR:** delivery p99 < 200 ms, aur zero message loss.
+**NFR:** delivery p99 < 200 ms, zero message loss.
 
-Alice server 1 pe, Bob server 7 pe. Do options:
-- **Session registry + direct RPC (chosen):** Redis me `bob → server 7`. Message Service seedhe server 7 ko gRPC call karta hai. Fast, targeted.
-- **Redis Pub/Sub:** har connection server apne users ke channels subscribe kare (`user:bob`). Publisher ko server pata hona zaroori nahi. Simple, par Pub/Sub fire-and-forget hai (subscriber down = message lost), isliye DB persist pehle hona chahiye.
-- Server crash: uske users reconnect karenge doosre server pe, registry update hogi. Missed messages `afterSeq` sync se aa jayenge.
+Alice server 1 pe, Bob server 7 pe:
+- **Registry + direct RPC (chosen):** Redis `bob → server 7` → seedha gRPC. Fast, targeted.
+- **Redis Pub/Sub:** server apne users ke channels (`user:bob`) subscribe kare, publisher ko server pata nahi chahiye. Fire-and-forget (subscriber down = lost) → DB persist pehle.
+- Server crash: reconnect doosre server pe, registry update, `afterSeq` sync.
 
-> **Bolo:** "Routing best-effort hai, durability DB se aati hai. Agar real-time push fail bhi ho jaye, client reconnect pe last seq ke baad ke messages pull kar leta hai. Isliye message kabhi khota nahi."
+> **Bolo:** "Routing best-effort hai, durability DB se. Push fail ho to client reconnect pe last seq ke baad pull kar leta hai."
 
-**Trade-off:** registry lookup ka ek extra hop aur stale entry ka risk, badle me message sirf sahi server pe.
+**Trade-off:** registry ka extra hop + stale entry risk ↔ message sirf sahi server pe.
 
 ### 9.2 Ordering aur exactly-once jaisa behavior
 
 **NFR:** per-chat ordering + durability.
 
-- Har chat ka apna **monotonic seq_no** (Redis `INCR seq:{chat_id}`, ya chat ke owner shard pe counter). Global ordering ki zaroorat nahi, sirf per chat.
-- Client timestamps pe bharosa mat karo, clocks alag hote hain.
-- **At-least-once delivery + dedup:** client `clientMsgId` bhejta hai, server `IF NOT EXISTS` se dedup karta hai. Receiver side `message_id` se duplicate ignore karta hai. Result: user ko exactly-once jaisa dikhta hai.
-- Receiver ko seq gap dikhe (120 ke baad 122), to wo 121 fetch kar leta hai.
+- Har chat ka **monotonic seq_no** (Redis `INCR seq:{chat_id}`, ya chat owner shard pe counter). Global ordering nahi chahiye.
+- Client timestamps pe bharosa nahi (clocks alag).
+- **At-least-once + dedup:** server `clientMsgId` pe `IF NOT EXISTS`, receiver `message_id` se duplicate ignore → exactly-once jaisa dikhta hai.
+- Seq gap (120 ke baad 122) → receiver 121 fetch kare.
 
-**Trade-off:** har message pe ek Redis `INCR` + conditional insert ka cost, badle me simple ordering aur gap detection.
+**Trade-off:** har message pe `INCR` + conditional insert ↔ simple ordering + gap detection.
 
 ### 9.3 Receipts, offline users aur push
 
-**NFR:** offline user ka message durable, receipts cheap (AP).
+**NFR:** offline message durable, receipts cheap (AP).
 
-- **Sent (1 tick):** server ne DB me persist kiya.
-- **Delivered (2 ticks):** receiver device ne ack bheja. `receipts.last_delivered_seq` update.
-- **Read (blue ticks):** receiver ne chat kholi. `last_read_seq` update. Har message pe alag row nahi, sirf "is seq tak padh liya", isliye cheap.
-- **Offline:** registry me user nahi → Kafka → Push worker → FCM/APNs notification ("Alice: hi"). Online aate hi client `user_chats` se unread chats aur har chat ka `afterSeq` sync.
-- **Multi-device:** registry me har device ki entry, sabko deliver. Har device apna last seq yaad rakhta hai.
+- **Sent (1 tick):** DB me persist.
+- **Delivered (2 ticks):** receiver device ack → `receipts.last_delivered_seq`.
+- **Read (blue):** chat kholi → `last_read_seq`. Per-message row nahi, sirf "is seq tak", cheap.
+- **Offline:** Kafka → Push worker → FCM/APNs. Online pe `user_chats` se unread chats + `afterSeq` sync.
+- **Multi-device:** registry me har device, sabko deliver; har device apna last seq.
 
-**Trade-off:** per-message receipt history nahi milti, badle me receipts ka write load ~1 row per user per chat.
+**Trade-off:** per-message receipt history nahi ↔ ~1 row per user per chat.
 
 ### 9.4 Group chat fan-out, presence, media
 
-**NFR:** group delivery latency aur presence ka fan-out control me.
+**NFR:** group delivery latency + presence fan-out control me.
 
-- **Group (max 1000):** message ek baar `messages` table me (chat_id = group_id) store. Phir **fan-out on write** delivery: Kafka worker (partition by chat_id, isliye group order bana rehta hai) members list lekar har online member ke server pe push, offline ko notification. Storage ek copy, delivery N.
-- Bahut bade groups/channels (1 lakh+) me pull model: members khud fetch karein.
-- Group read receipts: "read by 45 of 120" aggregate, har member ka last_read_seq.
-- **Presence:** client har 20–30 sec heartbeat bhejta hai, connection server Redis `presence:{user}` TTL 30s set karta hai. Presence sirf unhe push karo jinki chat abhi khuli hai, poori contact list ko nahi (warna fan-out explosion).
-- **Media:** client pre-signed URL se seedha S3 upload, message me sirf `mediaUrl` + thumbnail. Download CDN se.
-- **E2E encryption:** Signal protocol, keys sirf devices pe. Server sirf ciphertext store aur route karta hai, content padh nahi sakta.
+- **Group (max 1000):** ek copy store (chat_id = group_id), **fan-out on write** delivery: Kafka worker (by chat_id → order) online members ko push, offline ko notification. 1 lakh+ channels: pull.
+- Group read receipts: "read by 45 of 120", har member ka last_read_seq.
+- **Presence:** heartbeat 20–30 sec → `presence:{user}` TTL 30s. Push sirf open chats ko, poori contact list ko nahi (fan-out explosion).
+- **Media:** pre-signed URL → S3, message me `mediaUrl` + thumbnail, CDN download.
+- **E2E:** Signal protocol, keys sirf devices pe; server sirf ciphertext store/route.
 
-**Trade-off:** 1000-member group = 1000 deliveries per message, badle me storage me ek hi copy.
+**Trade-off:** 1000-member group = 1000 deliveries ↔ storage me ek copy.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **WebSocket** | Bidirectional, low latency, ek connection pe send + receive | **Long polling:** har message pe naya request. **SSE:** sirf server → client. Sacrifice: stateful servers, reconnect storms handle karne padte |
-| **Session registry (Redis) + direct routing** | Targeted delivery, presence bhi yahin | **Broadcast to all servers:** 1000x waste. **Pub/Sub only:** no durability. Sacrifice: stale entry pe ek miss, push fallback |
-| **Cassandra by chat_id** | 600K writes/sec, chat history ek partition me sorted | **Postgres:** is rate pe sharding mushkil. **MongoDB:** chal sakta, par wide-column pattern natural. Sacrifice: joins/transactions nahi, chat list alag table |
-| **Per-chat seq_no via Redis INCR** | Simple ordering, gap detection, 600K/sec | **Client timestamps:** clock skew. **Global sequence:** bottleneck. **Cassandra LWT:** slow. Sacrifice: failover pe seq repeat ho sakta, insert pe check |
-| **At-least-once + clientMsgId dedup** | Message kabhi nahi khota, duplicates hidden | **At-most-once:** messages kho sakte. **True exactly-once:** bahut mehenga. Sacrifice: client + server dono pe dedup logic |
-| **Kafka (by chat_id) for group fan-out + push** | ~300K events/sec, per-chat order, 2 consumer groups, replay | **SQS:** is rate pe ordering nahi. **Sync fan-out in Message Service:** sender ka ack slow. Sacrifice: Kafka cluster ka ops |
-| **S3 + CDN for media** | 500 TB/day bandwidth chat servers pe nahi | **Media WebSocket se:** connection servers choke. Sacrifice: upload ka extra step |
+| **WebSocket** | Bidirectional, low latency, ek connection | **Long polling:** request per message. **SSE:** sirf server → client. Sacrifice: stateful servers, reconnect storms |
+| **Session registry + direct routing** | Targeted delivery, presence bhi yahin | **Broadcast:** 1000x waste. **Pub/Sub only:** no durability. Sacrifice: stale entry → push fallback |
+| **Cassandra by chat_id** | 600K writes/sec, history ek partition me sorted | **Postgres:** sharding mushkil. **MongoDB:** chalega, wide-column natural. Sacrifice: no joins, chat list alag table |
+| **Per-chat seq_no via Redis INCR** | Ordering + gap detection, 600K/sec | **Client timestamps:** skew. **Global seq:** bottleneck. **LWT:** slow. Sacrifice: failover pe seq repeat |
+| **At-least-once + clientMsgId dedup** | Kabhi nahi khota, duplicates hidden | **At-most-once:** loss. **True exactly-once:** mehenga. Sacrifice: dono side dedup logic |
+| **Kafka (by chat_id) for fan-out + push** | 300K events/sec, per-chat order, replay | **SQS:** ordering nahi. **Sync fan-out:** sender ack slow. Sacrifice: Kafka ops |
+| **S3 + CDN for media** | 500 TB/day chat servers pe nahi | **Media over WebSocket:** servers choke. Sacrifice: extra upload step |
 
 ## Step 11: Failures & bottlenecks
 
 | Kya fail hua | Kya hoga | Handle kaise |
 |---|---|---|
-| Connection server crash | Uske 2 lakh users disconnect | Client exponential backoff + jitter se reconnect, `afterSeq` sync se missed messages |
-| Reconnect storm (server restart) | Saare clients ek saath aayein | Jitter, gradual drain before deploy, LB connection limits |
-| Session registry stale | Message galat server pe | Server "user not here" bole to treat as offline, push notification bhejo |
-| Cassandra node down | Writes us partition pe | RF=3, QUORUM writes, ek node down se fark nahi |
-| Push provider slow | Notification late | Kafka retry, message to DB me safe hai |
-| Hot group (1000 members, bahut active) | Fan-out workers pe load | Kafka partition by chat_id, workers scale, batch delivery |
+| Connection server crash | 2 lakh disconnects | Backoff + jitter reconnect, `afterSeq` sync |
+| Reconnect storm | Saare clients ek saath | Jitter, gradual drain, LB conn limits |
+| Session registry stale | Galat server pe message | "User not here" → offline treat, push bhejo |
+| Cassandra node down | Us partition ke writes | RF=3, QUORUM writes |
+| Push provider slow | Notification late | Kafka retry; message DB me safe |
+| Hot group (1000, bahut active) | Fan-out workers pe load | Partition by chat_id, workers scale, batch delivery |
 
 ## Step 12: "Isko aur better kaise karein" (end me khud bolo)
 
-> "Agar aur time ho to main ye improve karunga:"
-- **Multi-region:** user ka home region, connection nearest edge pe, cross-region messages async replicate
-- **Message retention tiers:** delivered + 30 din purane messages cold storage me (ya E2E mode me server se delete)
-- **Large channels** (1 lakh+) ke liye pull-based model aur CDN cached messages
-- Connection servers ko **graceful drain** ke saath deploy, taaki reconnect storm na aaye
+- **Multi-region:** home region, nearest edge connection, async cross-region replicate
+- **Retention tiers:** delivered + 30 din purane cold storage me (ya E2E mode me server se delete)
+- **Large channels** (1 lakh+): pull model + CDN cached messages
+- **Graceful drain** deploys, reconnect storm se bachne ke liye
 
 ## Step 13: Interviewer ke likely follow-up sawal
 
-- "Message kabhi khoyega to nahi?" → pehle DB persist, phir sent tick. Delivery fail ho to reconnect sync
-- "Ordering kaise guarantee?" → per-chat seq_no server assign karta hai, client sort by seq
-- "Ek user 3 devices pe hai?" → registry me teeno, sabko deliver, har device ka apna last seq
-- "Redis seq counter down?" → replica failover. Ya seq ko Cassandra LWT / chat shard owner se assign
-- "Read receipt har message pe store karoge?" → nahi, sirf `last_read_seq` per user per chat
-- "E2E me group kaise?" → sender keys, har member ke liye encrypted key. Detail out of scope
-- **Senior signal:** khud bolo ki Redis seq counter async replica pe failover ho to kuch `INCR` kho sakte hain aur same seq dobara mil sakta hai. Insert `IF NOT EXISTS` on (chat_id, seq) fail ho to naya seq lo, warna do messages ek seq pe overwrite honge.
+- "Message khoyega?" → pehle DB persist, phir sent tick; delivery fail → reconnect sync
+- "Ordering?" → server per-chat seq_no, client sort by seq
+- "3 devices?" → registry me teeno, sabko deliver, har device ka last seq
+- "Redis seq counter down?" → replica failover, ya Cassandra LWT / chat shard owner se seq
+- "Har message ka read receipt?" → nahi, sirf `last_read_seq` per user per chat
+- "E2E group?" → sender keys, har member ke liye encrypted key; detail out of scope
+- **Senior signal:** async replica failover pe kuch `INCR` kho sakte → same seq dobara. (chat_id, seq) pe `IF NOT EXISTS` fail → naya seq lo, warna overwrite.
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> Clients WebSocket se stateful connection servers se jude rehte hain (L4 LB, ~2 lakh connections per server). Session registry (Redis) batata hai kaun user kis server pe hai. Message aane pe Message Service per-chat seq_no assign karta hai, Cassandra me `chat_id` partition + `seq_no` clustering ke saath persist karta hai (clientMsgId se dedup), sender ko sent tick deta hai, phir receiver ke server pe route karta hai. Receiver ack bheje to delivered, chat khole to read (sirf last seq store). Offline user ko Kafka → push worker → FCM/APNs, aur reconnect pe `afterSeq` sync. Kafka isliye kyunki ~300K async events/sec, per-chat order (partition by chat_id) aur do consumers hain. Groups me ek copy store, delivery fan-out on write. Presence heartbeat + Redis TTL, alag service nahi. Media S3 + CDN. E2E Signal protocol, server sirf ciphertext route karta hai.
+> WebSockets → stateful connection servers; Redis registry: user kis server pe. Message Service: per-chat seq_no → Cassandra (`chat_id` + `seq_no`, clientMsgId dedup) → sent tick → receiver server. Ack → delivered, open → read (last seq). Offline: Kafka → FCM/APNs, reconnect pe `afterSeq` sync. Groups: ek copy, fan-out on write. Presence: heartbeat + TTL. Media S3 + CDN. E2E: server sirf ciphertext.
 
 ## Checklist
 

@@ -10,9 +10,9 @@ askedAt: [Amazon, Google, Microsoft, Uber, LinkedIn]
 
 # Design a Distributed Key-Value Store / Distributed Cache
 
-**In one line:** Run `put(key, value)` and `get(key)` across thousands of machines so that data is **never lost**, the system keeps working when a machine dies, and latency stays in single-digit ms (like DynamoDB / Cassandra / Redis Cluster).
+**In one line:** `put(key, value)` / `get(key)` across thousands of machines: data **never lost**, keeps working when a machine dies, single-digit ms latency (like DynamoDB / Cassandra / Redis Cluster).
 
-**What the interviewer checks in this question:** how you split data across nodes (consistent hashing), the math of replication and quorum, the CAP trade-off, and how the system heals itself when nodes fail or join.
+**What the interviewer checks in this question:** partitioning (consistent hashing), replication + quorum math, the CAP trade-off, self-healing when nodes fail/join.
 
 ---
 
@@ -20,40 +20,40 @@ askedAt: [Amazon, Google, Microsoft, Uber, LinkedIn]
 
 | You ask | Typical answer | Effect on design |
 |---|---|---|
-| "Persistent store (DynamoDB) or cache (Redis/Memcached)?" | Store first, also cover the cache variant | Store needs durability + replication. Cache needs eviction + TTL |
-| "What consistency do we need: strong or eventual?" | Tunable, eventual by default | Quorum N/R/W is configurable |
-| "Key and value size?" | Key < 256B, value < 1MB | Simple KV, no queries or indexes |
-| "Scale?" | ~100TB data, 1M QPS, read:write 4:1 | Sharding + many nodes |
-| "Do we need multi-datacenter?" | Yes, it must work even if one DC fails | Replicas in different racks/DCs |
+| "Store (DynamoDB) or cache (Redis)?" | Store first, cache variant too | Store: durability + replication. Cache: eviction + TTL |
+| "Strong or eventual consistency?" | Tunable, eventual by default | Quorum N/R/W configurable |
+| "Key/value size?" | Key < 256B, value < 1MB | Simple KV, no queries/indexes |
+| "Scale?" | ~100TB, 1M QPS, read:write 4:1 | Sharding + many nodes |
+| "Multi-datacenter?" | Yes, must survive one DC failing | Replicas in different racks/DCs |
 | "Range scans, transactions?" | No | Hash partitioning is fine |
 
-> **Say:** "I will build a Dynamo-style leaderless design: partitioning with consistent hashing, N replicas, and tunable R/W quorum. This keeps availability high and lets the client choose its consistency."
+> **Say:** "Dynamo-style leaderless design: consistent hashing, N replicas, tunable R/W quorum. High availability, client picks consistency."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Clients should be able to `put(key, value)`, `get(key)`, `delete(key)`
-2. Clients should be able to set an optional TTL per key
-3. Clients should be able to choose the consistency level per request (ONE, QUORUM, ALL)
+1. `put(key, value)`, `get(key)`, `delete(key)`
+2. Optional TTL per key
+3. Consistency level per request (ONE, QUORUM, ALL)
 
 **Out of scope:** range scans, transactions, secondary indexes, multi-key ops.
 
 **Non-functional (in priority order)**
-1. **Availability:** 99.99% for reads/writes, even with a node, rack or AZ down
+1. **Availability:** 99.99% reads/writes, even with a node/rack/AZ down
 2. **Durability:** an acked write is never lost (N=3, different AZs)
 3. **Latency:** p99 < 10ms (same DC)
-4. **Scale:** 100TB, 1M QPS, read:write 4:1. Add nodes and data rebalances by itself
+4. **Scale:** 100TB, 1M QPS, read:write 4:1. New nodes → auto rebalance
 5. **Self-healing:** failures happen daily, no manual fixes
 
-**CAP choice:** **AP** by default (like Dynamo): accept writes on both sides of a partition and converge later. A request that needs consistency asks for QUORUM/ALL and pays in latency/availability.
+**CAP choice:** **AP** by default (Dynamo): accept writes on both sides of a partition, converge later. Consistency → QUORUM/ALL (W=ALL/R=ALL → towards CP), paid in latency/availability.
 
 ## Step 3: Estimation (only what changes the design)
 
-- 100TB data, replication factor 3 → **300TB raw**. One node has ~2TB SSD → **~150 nodes**.
-- 1M QPS = 800K reads + 200K writes. At QUORUM a read goes to 2 replicas and a write to 3 → ~2.2M replica ops/sec / 150 ≈ **~15K ops/sec per node**. Easy with SSD + memory cache.
-- With 150 nodes, some node will fail every day. So **failure is the normal case**, not an exception.
+- 100TB × RF 3 → **300TB raw**. ~2TB SSD/node → **~150 nodes**.
+- 1M QPS = 800K reads + 200K writes. QUORUM: read → 2 replicas, write → 3 → ~2.2M replica ops/sec / 150 ≈ **~15K ops/sec/node**. Easy with SSD + memory cache.
+- 150 nodes → some node fails daily. **Failure is the normal case**, not an exception.
 
-> **Say:** "With this many nodes, failures happen daily, so failure detection, hinted handoff and repair must be built into the design. No manual steps."
+> **Say:** "Failures are daily, so detection, hinted handoff and repair are built in, no manual steps."
 
 ## Step 4: Core entities
 
@@ -70,11 +70,15 @@ GET    /kv/{key}                   Header: Consistency: ONE      → {value, ver
 DELETE /kv/{key}                                                 → tombstone written
 ```
 
-> **Say:** "If we use vector clocks, `get` can return multiple conflicting versions, and the client merges them and writes the result back with the context in the next `put`."
+> **Say:** "With vector clocks, `get` can return conflicting versions; the client merges them and writes back with the context in the next `put`."
 
 ## Step 6: High-level design
 
-**Start with a simple v1:** one node, an in-memory hash map + a WAL on disk. It meets all three FRs. But **100TB** does not fit on one machine (→ partitioning with consistent hashing), a node dying loses data and availability (→ N=3 replicas in different AZs), membership of **150 nodes** through one master is a bottleneck (→ gossip), and replicas drift (→ hinted handoff + Merkle repair).
+**Simple v1:** one node, in-memory hash map + WAL on disk. Meets the FRs. Where it breaks:
+- **100TB** does not fit one machine → consistent hashing partitioning
+- Node dies → data + availability lost → N=3 replicas in different AZs
+- **150 nodes** of membership via one master is a bottleneck → gossip
+- Replicas drift → hinted handoff + Merkle repair
 
 ```mermaid
 flowchart LR
@@ -91,13 +95,13 @@ flowchart LR
 ```
 
 **Why each component:**
-- **Client SDK / Coordinator:** hashes the key and finds the owner nodes on the ring. Any node can be the coordinator (leaderless), which serves the 99.99% availability NFR. No separate "router tier": that would be one more hop and one more fleet.
-- **Consistent hashing ring with vnodes:** splits 100TB across 150 nodes. Each node takes ~256 tokens. With **hash mod N**, adding a node moves almost all data; here only ~1/N moves.
-- **Storage engine (LSM tree):** WAL (durability) → memtable → SSTables. 200K writes/sec × 3 replicas become sequential appends. Bloom filters + a row cache keep reads fast.
-- **Gossip:** membership and health for 150 nodes without a central master. ZooKeeper for every heartbeat would be a bottleneck/SPOF.
-- **Merkle tree sync:** fixes replicas after daily failures without a full scan (the self-healing NFR).
+- **Client SDK / Coordinator:** key hash → owner nodes. Any node can coordinate → 99.99%. No router tier: extra hop + fleet.
+- **Consistent hashing ring + vnodes:** 100TB → 150 nodes, ~256 tokens/node. **hash mod N** → adding a node moves almost all data; here only ~1/N.
+- **LSM tree:** 200K writes/sec × 3 → sequential appends. Reads: bloom filters + row cache.
+- **Gossip:** membership/health for 150 nodes without a master (ZooKeeper → bottleneck/SPOF).
+- **Merkle tree sync:** fixes replicas without a full scan (self-healing).
 
-**FR → component:** FR1 → coordinator + ring + LSM storage, FR2 → TTL stored with the value, checked on read, purged in compaction, FR3 → the coordinator's R/W quorum logic.
+**FR → component:** FR1 → coordinator + ring + LSM, FR2 → TTL stored with the value (checked on read, purged in compaction), FR3 → coordinator quorum logic.
 
 ## Step 7: Main flow: quorum write and read
 
@@ -124,7 +128,7 @@ sequenceDiagram
   CO->>D: read repair, write v2
 ```
 
-N=3, W=2, R=2. **R + W > N** (2+2 > 3), so the read set and the write set share at least one node, and that node has the latest value.
+N=3, W=2, R=2 → **R + W > N** (2+2 > 3) → read and write sets share at least one node, which has the latest value.
 
 ## Step 8: Data model & DB choice
 
@@ -136,18 +140,18 @@ SSTables (immutable, on disk)   → after flush, with bloom filter + index
 Compaction                      → merge old SSTables, remove tombstones
 ```
 
-Read path: memtable → bloom filter check → SSTable. The bloom filter can say "this key is definitely not in this SSTable", which saves disk reads.
+Read path: memtable → bloom filter ("definitely not here" → skip disk read) → SSTable.
 
 ## Step 9: Deep dives (where the interviewer will push)
 
 ### 9.1 Consistent hashing + vnodes + replication
-**NFR: scale (rebalances by itself) + availability (rack/AZ loss).**
+**NFR: scale (auto rebalance) + availability (rack/AZ loss).**
 
-- `hash(key)` is a point on the ring. The first node clockwise = owner. The next **N-1 distinct physical nodes** = replicas (preference list).
-- **Why vnodes:** without vnodes, all of a node's load goes to just one neighbour. With vnodes, data and load spread across all nodes, and a bigger node can take more tokens.
-- Put replicas in **different racks/AZs** (rack-aware placement), so one rack going down does not take out all replicas.
+- `hash(key)` → first node clockwise = owner, next **N-1 distinct physical nodes** = replicas (preference list).
+- **Vnodes:** without them, a dead node's load lands on one neighbour. With vnodes it spreads across all; bigger nodes take more tokens.
+- **Rack-aware placement:** replicas in different racks/AZs, so one rack cannot take all of them.
 
-**Trade-off:** vnodes make rebalancing smooth, but ring metadata grows and repair has to compare more ranges.
+**Trade-off:** smooth rebalancing, but bigger ring metadata and more ranges to compare during repair.
 
 ### 9.2 Quorum and tunable consistency
 **NFR: p99 < 10ms vs consistency, per request.**
@@ -155,87 +159,80 @@ Read path: memtable → bloom filter check → SSTable. The bloom filter can say
 | Setting | Meaning | Use case |
 |---|---|---|
 | W=1, R=1 | Fastest, stale reads possible | Cache, analytics counters |
-| W=2, R=2 (N=3) | R+W>N, you get the latest read (in the normal case) | Default |
+| W=2, R=2 (N=3) | R+W>N, latest read (normal case) | Default |
 | W=3, R=1 | Fast reads, slow/fragile writes | Read-heavy config data |
 | W=1, R=3 | Fast writes | Write-heavy logs |
 
-> **Say:** "Quorum behaves like strong consistency, but with sloppy quorum and concurrent writes it is not linearizable. If we truly need linearizability, we need a Raft-based leader per shard, like etcd or Spanner."
+> **Say:** "Quorum looks strong, but with sloppy quorum + concurrent writes it is not linearizable. For that we need a per-shard Raft leader (etcd, Spanner)."
 
-**Trade-off:** at QUORUM every request waits for 2 replicas, so p99 depends on the slower of the two.
+**Trade-off:** at QUORUM, p99 = the slower of two replicas.
 
 ### 9.3 Conflicts: vector clocks vs last-write-wins
 **NFR: durability (a valid write must not be silently lost under concurrent writes).**
 
-- **LWW (timestamp):** simple. The bigger timestamp wins. Problem: clock skew can silently lose a valid write. Cassandra does this.
-- **Vector clocks:** every write carries `{nodeA: 3, nodeB: 1}`. If one clock is bigger than the other, it is newer. If they cannot be compared, it is a **conflict**: give both versions to the client and let it merge (like a shopping cart union). This is the Dynamo paper approach.
-- **Choice:** LWW by default (simple, fine for most use cases), and vector clocks or CRDT counters/sets where data must never be lost (cart).
+- **LWW (timestamp, Cassandra):** bigger timestamp wins. Simple, but clock skew → a valid write silently lost.
+- **Vector clocks (Dynamo paper):** each write carries `{nodeA: 3, nodeB: 1}`. One bigger → newer. Incomparable → **conflict**: client merges both versions (cart union).
+- **Choice:** LWW by default; where loss is unacceptable (cart) → vector clocks or CRDT counters/sets.
 
-**Trade-off:** with LWW we accept a rare silent loss on clock skew in exchange for simplicity.
-
-### 9.4 Handling failures: hinted handoff, read repair, anti-entropy, gossip
+### 9.4 Failures: hinted handoff, read repair, anti-entropy, gossip
 **NFR: availability + self-healing (150 nodes, daily failures).**
 
-- **Gossip + failure detection:** every node gossips heartbeat counters. If a node's counter does not increase for ~10s, mark it SUSPECT/DOWN. A phi-accrual detector reduces false alarms.
-- **Hinted handoff (temporary failure):** if Node C is down, the write goes to Node D with a "hint" (sloppy quorum). When C comes back, D delivers the hint. Availability is kept.
-- **Read repair:** if a stale replica is found during a read, the coordinator writes the latest value to it (Step 7).
-- **Anti-entropy with Merkle trees (long failure):** each node builds a Merkle tree for its key range (leaf = hash of keys, parent = hash of children). Two replicas compare the root. Same means done. Different means go down only into the subtree that differs. Only the different ranges are synced, without comparing all the data.
-- **Delete:** write a tombstone, do not delete right away. Otherwise, during repair the old value will "come back to life". Remove the tombstone in compaction after `gc_grace` (like 10 days).
+- **Gossip detection:** nodes gossip heartbeat counters; no increase for ~10s → SUSPECT/DOWN. Phi-accrual → fewer false alarms.
+- **Hinted handoff (temporary failure):** C down → write goes to D with a "hint" (sloppy quorum); C returns → D delivers the hint.
+- **Read repair:** stale replica found on read → coordinator writes the latest value (Step 7).
+- **Merkle anti-entropy (long failure):** leaf = hash of keys, parent = hash of children. Compare roots → descend only into differing subtrees → sync only diff ranges.
+- **Delete:** write a tombstone, or repair brings the old value "back to life". Remove it in compaction after `gc_grace` (like 10 days).
 
-**Trade-off:** sloppy quorum raises availability, but during that time the R+W>N overlap guarantee breaks (stale reads possible).
+**Trade-off:** sloppy quorum → higher availability, but the R+W>N overlap breaks (stale reads possible).
 
 ### 9.5 Cache variant (like Redis/Memcached) and hot keys
-**NFR: sub-ms latency, and one hot key must not take down a node.**
+**NFR: sub-ms latency, one hot key must not take down a node.**
 
-- Data lives in memory, disk is optional. Replication is small (1 replica) or none.
-- **Eviction:** when memory is full use **LRU** (or approximate LRU sampling, like Redis), TTL expiry is lazy (checked on access) + periodic sampling. Use LFU when some keys are always hot.
-- **Hot key** (like the IPL final score key): all load lands on one node. Fix: client-side local cache (1–2 sec), replicate the key as `score#1..score#10` and read a random one, or add more read replicas for that key.
+- In memory, disk optional, replication 1 or none.
+- **Eviction:** **LRU** (Redis: approximate sampling); always-hot keys → LFU. TTL expiry lazy (on access) + periodic sampling.
+- **Hot key** (IPL final score) → all load on one node. Fix: client cache (1–2 sec), replicate as `score#1..score#10` + random read, or more read replicas.
 
-**Trade-off:** a cache gives up durability for speed. If a node is lost, cold misses fall on the DB.
+**Trade-off:** durability traded for speed. Node lost → cold misses hit the DB.
 
 ## Step 10: Decision table (what we chose, why, what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Consistent hashing + vnodes** | Only ~1/N data moves when a node is added/removed, even load | **hash mod N:** if node count changes, almost all data reshuffles. **Range partitioning:** hotspots, and we do not need range scans. Sacrifice: range scans are impossible |
-| **Leaderless replication, N=3** | Any replica can take a write, 99.99% availability | **Single leader per shard (Raft):** if the leader is down, writes stop until failover. Sacrifice: no linearizability, conflicts must be resolved |
-| **Tunable quorum R/W** | Each use case picks its own latency vs consistency | **Fixed ALL:** one slow node makes everything slow. **Fixed ONE:** stale reads always possible. Sacrifice: clients must understand the trade-off |
-| **LWW default, vector clocks optional** | LWW is simple and cheap. Vector clocks for critical data | **Only vector clocks:** every client must write merge logic. Sacrifice: rare silent loss on clock skew |
-| **Gossip membership** | Decentralized, scales to 150+ nodes | **ZooKeeper for every heartbeat:** bottleneck and SPOF. Sacrifice: membership changes reach everyone in seconds, not instantly |
-| **Merkle tree anti-entropy** | Syncs only the different ranges, less network | **Full data compare:** transferring TBs. Sacrifice: CPU/IO to build trees, repair must run periodically |
-| **LSM tree storage** | 600K replica writes/sec as sequential appends, bloom filters keep reads fine | **B-tree:** valid for read-heavy loads (reads are 4:1), but random writes and page splits. Sacrifice: compaction IO and read amplification |
+| **Consistent hashing + vnodes** | ~1/N data moves, even load | **hash mod N:** full reshuffle. **Range partitioning:** hotspots. Sacrifice: no range scans |
+| **Leaderless, N=3** | Any replica takes writes, 99.99% | **Raft leader per shard:** writes stop until failover. Sacrifice: no linearizability, resolve conflicts |
+| **Tunable quorum R/W** | Each use case picks latency vs consistency | **ALL:** one slow → all slow. **ONE:** stale. Sacrifice: clients must understand trade-off |
+| **LWW default, vector clocks optional** | Simple, cheap; vector clocks for critical data | **Only vector clocks:** every client writes merge logic. Sacrifice: rare silent loss on skew |
+| **Gossip membership** | Decentralized, scales to 150+ nodes | **ZooKeeper per heartbeat:** bottleneck, SPOF. Sacrifice: changes take seconds to spread |
+| **Merkle tree anti-entropy** | Syncs only differing ranges, less network | **Full compare:** TBs transferred. Sacrifice: tree CPU/IO, periodic repair |
+| **LSM tree storage** | 600K replica writes/sec sequential, bloom filter reads | **B-tree:** valid for 4:1 reads, but random writes + page splits. Sacrifice: compaction IO, read amplification |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle it |
 |---|---|---|
-| One node down for a few minutes | It misses writes | Hinted handoff + sloppy quorum, replay hints when it comes back |
-| Node gone forever | Replicas drop from 3 to 2 | New node joins, vnode ranges stream to it, verify with Merkle trees |
-| Network partition | Writes on both sides, conflicts | In AP mode accept both, resolve later with LWW or vector clocks |
-| Hot key | One node overloaded | Client cache, key splitting, extra read replicas |
-| Compaction storm | Latency spike | Throttle compaction, schedule off-peak |
+| Node gone forever | Replicas 3 → 2 | New node joins, ranges stream, Merkle verify |
+| Compaction storm | Latency spike | Throttle, schedule off-peak |
 | Clock skew | Wrong write wins under LWW | NTP monitoring, vector clocks on critical keys |
 
 ## Step 12: How to make it better (say this yourself at the end)
 
 > "If I had more time, I would improve these:"
-- **Strong consistency mode:** a Raft group per shard, for keys that need linearizability (like locks, counters)
-- **Multi-DC:** `LOCAL_QUORUM` so a write waits only for the local DC quorum, remote is async
-- **Speculative reads:** for p99, if one replica is slow, send the request to another too and take whichever answers first
-- **Tiered storage:** cold keys on S3, hot keys on SSD/memory, lower cost
-- **Observability:** per-node p99, hinted handoff queue size, repair lag, hot key detection dashboard
+- **Strong consistency mode:** per-shard Raft group for linearizable keys (locks, counters)
+- **Multi-DC:** `LOCAL_QUORUM`: wait only for the local DC quorum, remote async
+- **Speculative reads:** slow replica → also ask another (p99)
+- **Tiered storage:** cold keys on S3, hot on SSD/memory, lower cost
+- **Observability:** per-node p99, hint queue size, repair lag, hot key detection
 
 ## Step 13: Likely follow-up questions
 
-- "Why R + W > N?" → the read and write sets overlap, so at least one node returns the latest value
-- "Where is this in CAP?" → AP by default. Available during a partition, converges later. You can move towards CP with W=ALL/R=ALL
-- "How does a new node join?" → announces itself via gossip, takes tokens, streams ranges from neighbour nodes, then starts serving reads
-- "Why does data come back after a delete?" → no tombstone was kept, or it was removed before gc_grace, and repair copied the old value back
-- "Difference between Redis Cluster and Dynamo?" → Redis Cluster has 16384 hash slots with one master per slot (leader-based), Dynamo uses a leaderless quorum
+- "How does a new node join?" → gossip announce → tokens → stream ranges from neighbours → serve reads
+- "Why does data come back after a delete?" → no tombstone, or removed before gc_grace; repair copied the old value back
+- "Redis Cluster vs Dynamo?" → Redis: 16384 hash slots, one master per slot (leader-based). Dynamo: leaderless quorum
 - **Senior signal:** say it yourself that QUORUM is not "strong": with sloppy quorum + LWW, stale or lost writes are possible. And repair debt: if anti-entropy does not run on every replica within `gc_grace`, deleted data comes back, so put repair lag on an alert
 
 ## 2-minute recap (read this before the interview)
 
-> In a distributed KV store, data is split on a consistent hashing ring, and each node takes ~256 vnodes so load stays even and rebalancing is small. Each key lives on N=3 replicas, in different racks. Leaderless: any node can be the coordinator. Tunable quorum: R + W > N gives the latest read (not guaranteed under sloppy quorum), W=1/R=1 gives speed. AP by default. For conflicts, last-write-wins by default, and vector clocks for data like a cart. Failures are normal: gossip for detection, hinted handoff for temporary failures, read repair at read time, and Merkle tree anti-entropy in the background. Storage is an LSM tree: WAL, memtable, SSTables, bloom filter. Deletes use tombstones. The cache variant uses LRU eviction + TTL, and hot keys are handled with a client cache or key splitting.
+> Ring + ~256 vnodes/node, N=3 replicas in different racks, leaderless coordinator. R + W > N → latest read (not under sloppy quorum), W=1/R=1 → speed. AP by default. Conflicts: LWW, vector clocks for a cart. Failures: gossip, hinted handoff, read repair, Merkle anti-entropy. LSM: WAL, memtable, SSTables, bloom filter. Deletes = tombstones. Cache: LRU + TTL; hot keys → client cache / key splitting.
 
 ## Checklist
 

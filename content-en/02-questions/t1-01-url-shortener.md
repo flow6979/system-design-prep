@@ -10,36 +10,34 @@ askedAt: [Google, Amazon, Microsoft, Flipkart, Paytm]
 
 # Design URL Shortener (TinyURL / Bitly)
 
-**In one line:** you give a long URL and get a short code back (`bit.ly/aB3x9Z`). When someone clicks the short link, they are redirected to the original URL. The core challenges are **generating unique short codes fast** and **redirecting a huge read load within milliseconds**.
+**In one line:** long URL → short code (`bit.ly/aB3x9Z`), click → redirect. Core challenges: **generating unique codes fast** and **redirecting a huge read load in ms**.
 
-**What the interviewer checks in this question:** the trade-offs of ID generation (hash vs counter vs pre-generated keys), caching in a read-heavy system, what 301 vs 302 means, and sharding at scale.
+**What the interviewer checks in this question:** ID generation trade-offs (hash vs counter vs pre-generated keys), read-heavy caching, 301 vs 302, sharding at scale.
 
 ---
 
 ## Step 1: Clarify with the interviewer (3–5 min)
 
-Ask these questions before you start the design:
-
 | You ask | Typical answer | Effect on design |
 |---|---|---|
-| "What is the scale? How many new URLs and how many clicks per day?" | 100M new URLs/day, read:write ~100:1 | Cache on the read path matters most |
-| "How short should the code be?" | 7 characters is fine | 7 Base62 chars = 3.5 trillion codes |
-| "Do we need custom aliases? (`bit.ly/ipl2026`)" | Yes, optional | Separate uniqueness check, same table |
-| "Do links expire?" | Yes, optional expiry, default is never | TTL column + lazy delete |
-| "Do we need analytics? Click count, country, device?" | Yes, but not real-time | Async pipeline, redirect path stays fast |
-| "If the same long URL comes twice, must it get the same code?" | Not required | We can skip dedup, simpler design |
-| "Are login/users and link edit/delete in scope?" | Basic delete yes, the rest no | Say it is out of scope |
+| "How many new URLs, clicks per day?" | 100M URLs/day, read:write ~100:1 | Cache on the read path matters most |
+| "How short should the code be?" | 7 characters | Base62: 3.5 trillion codes |
+| "Custom aliases (`bit.ly/ipl2026`)?" | Yes, optional | Separate uniqueness check, same table |
+| "Do links expire?" | Optional expiry, default never | TTL column + lazy delete |
+| "Analytics: clicks, country, device?" | Yes, not real-time | Async pipeline |
+| "Same long URL → same code?" | Not required | Skip dedup, simpler design |
+| "Login, link edit/delete?" | Basic delete yes, rest no | Out of scope |
 
-> **Say:** "I will design 2 core flows: create a short URL and redirect. I will keep the redirect path very fast and highly available, because it gets 100x more traffic. Analytics will be async."
+> **Say:** "2 core flows: create and redirect. Redirect gets 100x more traffic, so I keep it fast and highly available. Analytics is async."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Users should be able to turn a long URL into a short URL (optional custom alias and expiry), and delete their link
-2. Users should be able to open a short URL and get redirected to the original URL
-3. Users should be able to see basic analytics for their link: click count, country, referrer
+1. Long URL → short URL (optional custom alias + expiry); delete own link
+2. Short URL → redirect to the original URL
+3. Basic analytics: click count, country, referrer
 
-**Out of scope:** login/account UI, link edit, dedup of the same long URL, ML spam detection.
+**Out of scope:** login UI, link edit, long URL dedup, spam ML.
 
 **Non-functional (in priority order)**
 1. **Latency:** redirect p99 < 50 ms
@@ -47,19 +45,19 @@ Ask these questions before you start the design:
 3. **Uniqueness:** two long URLs never get the same code
 4. **Scale:** 100M new URLs/day, 100:1 read/write, 10-year retention
 5. **Analytics:** eventual, ~1 min delay is fine
-6. **Non-guessable:** codes should not look sequential (optional, ask about it)
+6. **Non-guessable:** codes should not look sequential (optional, ask)
 
-**CAP choice:** availability (AP) on the redirect path. A slightly stale cache is fine. Consistency is needed only on create (uniqueness), and it comes from range allocation + a conditional insert.
+**CAP choice:** AP on redirect, slightly stale cache is fine. Consistency only on create (uniqueness): range allocation + conditional insert.
 
 ## Step 3: Estimation (only what changes the design)
 
-- Writes: 100M/day ≈ **1,200 writes/sec**, peak ~5K/sec. Even one DB could handle this.
-- Reads: 100x ≈ **120K reads/sec**, peak ~500K/sec. **A cache is a must for this.**
-- Storage: one row is ~500 bytes. 100M × 365 × 10 years ≈ 365B rows ≈ **~180 TB**. It will not fit on one machine, so we need sharding.
-- Clicks: every redirect is a click event = **~10B events/day**, peak ~500K/sec. The analytics pipeline must take this volume.
-- Code length: 62^7 ≈ 3.5 trillion. That is enough for 365B rows.
+- Writes: 100M/day ≈ **1,200/sec**, peak ~5K/sec. Even one DB could handle it.
+- Reads: 100x ≈ **120K/sec**, peak ~500K/sec → **cache is a must**.
+- Storage: ~500 bytes/row × 100M × 365 × 10 years ≈ 365B rows ≈ **~180 TB** → sharding.
+- Clicks: **~10B events/day**, peak ~500K/sec → analytics pipeline volume.
+- Code length: 62^7 ≈ 3.5T, enough for 365B rows.
 
-> **Say:** "Reads are 120K QPS and storage is ~180 TB over 10 years. So two decisions are clear: heavy caching and a key-value store sharded on the short code."
+> **Say:** "120K read QPS and ~180 TB → heavy caching + a KV store sharded on the short code."
 
 ## Step 4: Core entities
 
@@ -77,11 +75,11 @@ DELETE /urls/{shortCode}                           → 204
 GET  /urls/{shortCode}/stats                       → {clicks, byCountry, byDay}
 ```
 
-> **Say:** "Redirect is a plain GET that returns 302 with a `Location` header. The browser then goes to the original URL by itself."
+> **Say:** "Redirect is a plain GET returning 302 with a `Location` header. The browser goes to the original URL itself."
 
 ## Step 6: High-level design
 
-**Start with a simple v1:** one service + one Postgres table `urls(short_code PK, long_url)`. On create, Base62 a DB sequence; on redirect, do a PK lookup. This meets all three FRs. Now the numbers break it: 120K–500K reads/sec → cache; 180 TB → sharded KV store; many write servers needing unique ids without per-write coordination → range allocation; ~10B clicks/day → async log + OLAP.
+**Simple v1:** one service + Postgres `urls(short_code PK, long_url)`, DB sequence → Base62, PK lookup. Meets all three FRs, but the numbers break it: 500K reads/sec → cache; 180 TB → sharded KV; many write servers without per-write coordination → range allocation; ~10B clicks/day → async log + OLAP.
 
 ```mermaid
 flowchart LR
@@ -99,13 +97,11 @@ flowchart LR
 
 **FR mapping:** FR1 → Write Service + range counter + DB. FR2 → Redirect Service + Redis + DB. FR3 → Kafka + Analytics consumer + ClickHouse.
 
-**Why each component:**
-- **Separate Write and Redirect services:** 100:1 traffic, they scale differently. Redirect stays isolated from create bugs (99.99%). One service was fine for v1.
-- **Range counter (etcd/ZooKeeper):** an allocator library inside the Write Service fetches the `next range` once per 1000 ids. Peak 5K writes/sec = only ~5 calls/sec, so **we do not build a separate Key Generation Service**. Not Redis `INCRBY`, because on an async replica failover increments can be lost and the same range can be handed out twice (duplicate codes). A DB sequence on every write (simpler) becomes a single-node bottleneck.
-- **Redis cache:** 120K–500K reads/sec, and 20% of links bring 80% of traffic, so a 90%+ hit ratio. Only DB replicas (simpler) would need many machines at this QPS and give a higher p99.
-- **Cassandra / DynamoDB:** ~180 TB, key lookups only. Postgres (simpler) would need manual sharding.
-- **Kafka:** ~120K click events/sec (peak 500K), two consumer groups (analytics loader + abuse detection), and 7-day replay so we can rerun after an aggregation bug. SQS (simpler) has no replay/multiple consumer groups, and is expensive at 10B msgs/day.
-- **ClickHouse:** aggregations like "clicks per day per country" over 10B rows/day. The main KV store cannot run these queries.
+**Why each component** (alternatives in Step 10):
+- **Separate Write and Redirect:** 100:1 traffic, scale differently; redirect isolated from create bugs (99.99%).
+- **Range counter:** allocator library in the Write Service fetches `next range` once per 1000 ids → peak ~5 calls/sec.
+- **Redis:** 20% of links = 80% of traffic → 90%+ hit ratio.
+- **Kafka:** 2 consumer groups (analytics loader + abuse detection), 7-day replay (rerun after an aggregation bug).
 
 ## Step 7: Main flow: create and redirect
 
@@ -140,101 +136,100 @@ urls(short_code PK, long_url, user_id, created_at, expires_at)
 -- custom alias also lives in this table, short_code = alias
 ```
 
-- There is only one access pattern: **lookup by short_code**. No joins/transactions, so **DynamoDB or Cassandra**, partition key = `short_code`.
-- A conditional write (`IF NOT EXISTS` / `attribute_not_exists`) guarantees custom alias uniqueness.
-- Analytics goes to a separate OLAP store (ClickHouse), so there are no aggregation queries on the main DB.
+- One access pattern: **lookup by short_code**, no joins/transactions → **DynamoDB/Cassandra**, partition key `short_code`.
+- Conditional write (`IF NOT EXISTS` / `attribute_not_exists`) → custom alias uniqueness.
 
 ## Step 9: Deep dives (the interviewer will push here)
 
 ### 9.1 How will you generate the short code? (most important)
 
-**NFR:** uniqueness + non-guessable, without coordination on every write.
+**NFR:** uniqueness + non-guessable, without per-write coordination.
 
 | Option | How | Problem |
 |---|---|---|
-| **Hash (MD5/SHA) + first 7 chars** | `base62(md5(longUrl))[0:7]` | Collisions are possible. Every write needs a DB check + retry with salt. Retries grow as load grows |
-| **Global counter + Base62** | DB/Redis `INCR`, convert the id to Base62 | A single counter is a bottleneck and a SPOF. Codes are sequential and easy to guess |
-| **Range allocation (chosen)** | A central counter (etcd/ZooKeeper) gives each server a block of 1000 ids. The server runs a counter in local memory | If a server crashes, some ids in its range are wasted. With 3.5T codes this is fine |
-| **Pre-generated keys** | Create random codes offline and keep them in an `unused_keys` table. Servers pick them up in batches | Extra table + marking a key as "used" must be atomic |
+| **Hash (MD5/SHA) + first 7 chars** | `base62(md5(longUrl))[0:7]` | Collision → DB check + salt retry, grows with load |
+| **Global counter + Base62** | DB/Redis `INCR` → Base62 | Bottleneck + SPOF; sequential, guessable |
+| **Range allocation (chosen)** | etcd/ZooKeeper gives each server 1000 ids; local counter | A few ids wasted on crash; fine with 3.5T |
+| **Pre-generated keys** | Offline random codes in `unused_keys` table | Extra table; "used" mark must be atomic |
 
-- To make codes non-guessable: apply a **bijective shuffle** (like XOR with a secret, or a Feistel cipher) to the id before Base62. There will still be no collisions.
+- Non-guessable: **bijective shuffle** (XOR with secret / Feistel cipher) before Base62. Still no collisions.
+- Not Redis `INCRBY`: async failover can lose increments → same range twice → duplicate codes. Per-write DB sequence = single-node bottleneck.
 
-> **Say:** "With hashing we have to handle collisions, and a single counter is a bottleneck. Range allocation solves both: it is collision-free, and coordination happens only once every 1000 writes."
+> **Say:** "Hashing needs collision handling, a single counter is a bottleneck. Range allocation is collision-free with coordination once per 1000 writes."
 
-**Trade-off:** a few ids wasted on crash and codes are roughly time-ordered, in exchange for zero collisions and almost zero coordination.
+**Trade-off:** ids wasted on crash, codes roughly time-ordered ↔ zero collisions, almost zero coordination.
 
 ### 9.2 301 vs 302 redirect
 
-**NFR:** accurate analytics and immediate delete/expiry, within the latency budget.
+**NFR:** accurate analytics, immediate delete/expiry.
 
-- **301 (Permanent):** the browser caches it. The next click never reaches the server. Lower server load, but **analytics are missed** and changing/deleting the link has no effect.
-- **302 (Temporary):** every click reaches the server. Analytics are accurate, and expiry/delete work immediately.
-- Chosen: **302** (Bitly does the same), because analytics is a requirement.
+- **301 (Permanent):** browser caches → less load, but **analytics missed**, change/delete has no effect.
+- **302 (Temporary):** every click reaches the server → accurate analytics, immediate expiry/delete.
+- Chosen: **302** (Bitly too), analytics is a requirement.
 
-**Trade-off:** every click hits our servers (more load and cost), in exchange for analytics and control.
+**Trade-off:** more server load/cost ↔ analytics and control.
 
 ### 9.3 How will you take the read path to 500K QPS?
 
 **NFR:** redirect p99 < 50 ms, 99.99% availability.
 
-- **Redis cache** (LRU, TTL 24h), sharded into a cluster with consistent hashing.
-- For a viral link (like the IPL final link), add an **in-process local cache** (Caffeine, 60 sec), so a single Redis node does not get hot.
-- Negative caching: cache codes that do not exist for 5 min too, otherwise random codes will hammer the DB.
+- **Redis cache** (LRU, TTL 24h), sharded with consistent hashing.
+- Viral link (IPL final) → **in-process local cache** (Caffeine, 60 sec) so one Redis node does not get hot.
+- Negative caching: cache missing codes for 5 min too, else random codes hammer the DB.
 
-**Trade-off:** after a delete, the local cache/CDN can serve the old link for up to 60 sec, in exchange for ~10x less DB load.
+**Trade-off:** old link served up to 60 sec after delete (local cache/CDN) ↔ ~10x less DB load.
 
 ### 9.4 Custom alias, expiry and analytics
 
 **NFR:** alias uniqueness (strong), analytics eventual.
 
-- **Custom alias:** `INSERT ... IF NOT EXISTS`. If it fails, return 409 Conflict. To avoid clashing with generated codes, check a minimum length or reserved words for aliases.
-- **Expiry:** `expires_at` column. Check it on redirect, and if expired return 410 Gone. Use the Cassandra/DynamoDB **TTL** for cleanup. Cache TTL = `min(24h, expires_at - now)`.
-- **Analytics:** the Redirect Service puts click events into Kafka in batches (async). A consumer enriches them (IP → country) and writes to ClickHouse.
+- **Custom alias:** `INSERT ... IF NOT EXISTS`, fail → 409. Avoid clashes with generated codes: min length / reserved words.
+- **Expiry:** check `expires_at` on redirect, expired → 410 Gone. Cleanup: Cassandra/DynamoDB **TTL**. Cache TTL = `min(24h, expires_at - now)`.
+- **Analytics:** Redirect Service → Kafka in batches (async) → consumer enriches (IP → country) → ClickHouse.
 
-**Trade-off:** click counts are ~1 min late and approximate (at-least-once), in exchange for zero extra latency on the redirect path.
+**Trade-off:** counts ~1 min late, approximate (at-least-once) ↔ zero extra latency on redirect.
 
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Range allocation + Base62**, counter in etcd/ZooKeeper | Collision-free, coordination once every 1000 writes (~5 calls/sec) | **Hash + collision check:** extra read on every write, retries. **Redis INCRBY:** a range can repeat after failover. **Separate KGS service:** an extra service for tiny load. Sacrifice: ids wasted on crash |
-| **302 redirect** | Every click reaches the server, so analytics and expiry work | **301:** browser caches it, analytics are missed. Sacrifice: more server load |
-| **DynamoDB / Cassandra** | Simple key lookup, 180 TB, built-in sharding | **Postgres:** manual sharding, and we need no joins. Sacrifice: no ad-hoc queries or multi-row transactions |
-| **Redis cache + local cache** | 120K–500K reads/sec, few hot links | **Only DB replicas:** many machines, higher p99. Sacrifice: ~60 sec staleness after delete + Redis cluster ops cost |
-| **Kafka** for clicks | ~120K events/sec, 2 consumer groups, 7-day replay | **SQS:** no replay/multi-consumer, expensive at 10B msgs/day. **Sync DB counter:** hot key contention. Sacrifice: running a Kafka cluster |
-| **ClickHouse** for analytics | Fast aggregations over 10B rows/day | **Aggregates on the main DB:** slows the redirect path. Sacrifice: one more store, eventual counts |
-| **Sharding by short_code** | Lookup is always by code, uniform distribution | **Shard by user_id:** at redirect time we do not know the user, so scatter-gather. Sacrifice: "all links of a user" becomes a scatter query |
+| **Range allocation + Base62** (etcd/ZooKeeper) | Collision-free, ~5 calls/sec | **Hash:** retries. **Redis INCRBY:** range repeat. **Separate KGS:** overkill. Sacrifice: ids wasted on crash |
+| **302 redirect** | Analytics and expiry work | **301:** browser cache, analytics missed. Sacrifice: more load |
+| **DynamoDB / Cassandra** | Key lookup, 180 TB, built-in sharding | **Postgres:** manual sharding. Sacrifice: no ad-hoc queries, multi-row txns |
+| **Redis + local cache** | 120K–500K reads/sec, hot links | **Only DB replicas:** many machines, higher p99. Sacrifice: ~60 sec stale + Redis ops |
+| **Kafka** for clicks | ~120K events/sec, 2 consumer groups, replay | **SQS:** no replay/multi-consumer, expensive. **Sync DB counter:** hot key. Sacrifice: Kafka ops |
+| **ClickHouse** for analytics | Fast aggregations on 10B rows/day | **Aggregates on main DB:** slows redirect. Sacrifice: one more store, eventual counts |
+| **Sharding by short_code** | Lookup always by code, uniform | **By user_id:** scatter-gather on redirect. Sacrifice: "user's links" query scatters |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle |
 |---|---|---|
-| Redis down | All reads go to the DB | DB replicas absorb it, local cache acts as a buffer. Redis cluster with replicas |
-| etcd / ZooKeeper down | No new ranges | Servers keep 1–2 ranges in buffer in advance. 3–5 node quorum cluster |
-| Viral link | Lakhs of hits on one Redis key | Local in-memory cache + CDN |
-| Spam / malicious URLs | Phishing links get created | Rate limit per API key, async Google Safe Browsing check |
-| Kafka lag | Analytics are late | No effect on redirect, scale the consumers |
+| Redis down | All reads hit the DB | DB replicas + local cache; Redis cluster with replicas |
+| etcd / ZooKeeper down | No new ranges | Servers buffer 1–2 ranges; 3–5 node quorum |
+| Viral link | Lakhs of hits on one Redis key | Local cache + CDN |
+| Spam / malicious URLs | Phishing links | Rate limit per API key, async Safe Browsing |
+| Kafka lag | Analytics late | No effect on redirect; scale consumers |
 
 ## Step 12: How to make it better (say this yourself at the end)
 
-> "If I had more time, I would improve these:"
-- **Multi-region:** redirect service + read replicas in every region, writes in one home region or with region-prefixed ranges
-- **CDN edge redirects:** serve the top 1% of links on Cloudflare Workers/Lambda@Edge, latency < 10ms
-- **Dedup option:** for paid users, the same long URL gets the same code (`hash(longUrl) → code` index)
-- 1-min aggregates with Kafka Streams / Flink for a real-time click dashboard
+- **Multi-region:** redirect + read replicas per region; writes in a home region or region-prefixed ranges
+- **CDN edge redirects:** top 1% of links on Cloudflare Workers/Lambda@Edge, latency < 10ms
+- **Dedup option:** for paid users, same long URL → same code (`hash(longUrl) → code` index)
+- Real-time dashboard: 1-min aggregates with Kafka Streams / Flink
 
 ## Step 13: Likely follow-up questions
 
-- "If you used a hash, how would you handle collisions?" → Conditional insert in the DB, and if it fails, hash the long URL + a salt again. Or check a bloom filter first
-- "Why exactly 7 chars?" → 62^7 ≈ 3.5T, which is 10x headroom for 365B rows over 10 years
-- "Why should codes not be guessable?" → People could scrape private links using sequential codes. Apply a bijective shuffle
-- "What if someone deleted a link but it is still in the cache?" → On delete, also delete the cache key. Since we use 302, browser caching is not an issue
-- "Do analytics need to be exactly accurate?" → Kafka at-least-once + event_id dedup on the consumer side. Usually approximate is fine
-- **Senior signal:** raise it yourself: when a viral link's cache entry expires, lakhs of requests hit the DB at once (cache stampede). Fix: request coalescing (single-flight) per key, local cache, and jitter on TTLs.
+- "Hash collisions?" → conditional insert, on fail rehash with a salt; or bloom filter pre-check
+- "Why 7 chars?" → 62^7 ≈ 3.5T, 10x headroom over 365B rows
+- "Why non-guessable?" → sequential codes let people scrape private links; bijective shuffle
+- "Deleted but still cached?" → delete the cache key too; with 302 there is no browser cache
+- "Exact analytics?" → at-least-once + consumer event_id dedup; usually approximate is fine
+- **Senior signal:** viral link's cache entry expires → lakhs of requests hit the DB (cache stampede). Fix: per-key single-flight, local cache, TTL jitter.
 
 ## 2-minute recap
 
-> A URL shortener is 100:1 read-heavy. Two flows: create and redirect. Simple v1 is one service + Postgres, but 500K reads/sec and 180 TB break it. For the short code we use range allocation: the Write Service takes a block of 1000 ids from an etcd/ZooKeeper counter and converts its local counter to Base62 (7 chars = 3.5T codes). No collisions, coordination is ~5 calls/sec, so no separate KGS service. Data goes in DynamoDB/Cassandra with short_code as the partition key. Redirect uses 302 so that analytics and expiry work. Read path: local cache → Redis → DB, with negative caching too. Custom aliases use a conditional insert, expiry uses `expires_at` + DB TTL. Clicks (~120K/sec, 2 consumers, replay) go async through Kafka into ClickHouse.
+> 100:1 read-heavy; v1 (service + Postgres) breaks at 500K reads/sec and 180 TB. Code: range allocation (block of 1000 ids from etcd/ZooKeeper → Base62, 7 chars = 3.5T), no collisions, no separate KGS. DynamoDB/Cassandra, key short_code. 302 so analytics/expiry work. Read: local cache → Redis → DB + negative caching. Alias: conditional insert; expiry: `expires_at` + DB TTL. Clicks (~120K/sec) Kafka → ClickHouse async.
 
 ## Checklist
 

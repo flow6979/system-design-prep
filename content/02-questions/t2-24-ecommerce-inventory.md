@@ -10,9 +10,9 @@ askedAt: [Amazon, Flipkart, Walmart, Myntra, Meesho, Shopify]
 
 # Design E-commerce Inventory & Orders (Amazon / Flipkart)
 
-**Ek line me:** users products browse karte hain, cart me daalte hain, checkout karte hain. Core challenge ye hai ki **jo stock hai hi nahi woh bik na jaaye (oversell)**, aur order, payment, inventory, shipping jaise alag services ke beech data consistent rahe.
+**Ek line me:** browse → cart → checkout. Core challenge: **oversell na ho**, aur order, payment, inventory, shipping services ke beech data consistent rahe.
 
-**Is question me interviewer kya check karta hai:** read path (catalog, search, cache) aur write path (inventory, orders) ko alag kaise sochte ho, reservation with TTL, oversell prevention, saga + compensation, outbox pattern, aur kahan eventual consistency chalegi vs kahan strong chahiye.
+**Is question me interviewer kya check karta hai:** read path (catalog, search, cache) vs write path (inventory, orders), reservation with TTL, oversell prevention, saga + compensation, outbox, eventual vs strong kahan.
 
 ---
 
@@ -20,43 +20,43 @@ askedAt: [Amazon, Flipkart, Walmart, Myntra, Meesho, Shopify]
 
 | Tum poochho | Typical jawab | Design pe asar |
 |---|---|---|
-| "Scope me catalog, cart, checkout, inventory, order tracking? Payment gateway third-party?" | Haan, payment third-party | Payment ka internal design nahi |
-| "Multiple warehouses hain? Stock per warehouse track hoga?" | Haan, 50+ warehouses | Inventory key = (sku, warehouse) |
-| "Oversell bilkul nahi chalega?" | Nahi chalega (thoda buffer ok) | Checkout pe strong consistency |
-| "Product page pe 'In stock' thoda stale chalega?" | Haan, kuch seconds | Cache + search index, eventual |
-| "Checkout ke time stock kitni der hold karein?" | 10–15 min | Reservation TTL |
-| "Flash sale (Big Billion Days) scope me hai?" | Normal flow pe focus, spike ka mention karo | Flash sale alag deep dive, link karo |
+| "Catalog, cart, checkout, inventory, tracking? Payment third-party?" | Haan | Payment internals nahi |
+| "Multiple warehouses? Stock per warehouse?" | Haan, 50+ | Inventory key = (sku, warehouse) |
+| "Oversell chalega?" | Nahi (thoda buffer ok) | Checkout strong consistency |
+| "'In stock' badge thoda stale chalega?" | Haan, kuch seconds | Cache + search index, eventual |
+| "Checkout pe stock kitni der hold?" | 10–15 min | Reservation TTL |
+| "Flash sale (Big Billion Days) scope me?" | Normal flow, spike mention karo | Flash sale alag, link karo |
 
-> **Bolo:** "Main read path aur write path alag rakhunga. Browse/search eventual consistent aur cached. Checkout pe inventory reservation strong consistent. Order, payment, inventory, shipping ke beech saga use karunga."
+> **Bolo:** "Browse/search cached aur eventual; checkout reservation strong. Order, payment, inventory, shipping ke beech saga."
 
 ## Step 2: Requirements
 
 **Functional**
-1. User products search kar sake aur product page (price, details, "In stock" badge) dekh sake
-2. User cart me items add/remove kar sake
-3. User checkout kar sake: stock reserve → payment → order confirm
-4. User order status track kar sake (placed, packed, shipped, delivered, cancelled)
+1. Search + product page (price, details, "In stock" badge)
+2. Cart add/remove
+3. Checkout: stock reserve → payment → order confirm
+4. Order tracking (placed, packed, shipped, delivered, cancelled)
 
-**Out of scope:** payment gateway internals, flash sale spike (alag problem), seller onboarding, pricing/discounts engine, reviews. Warehouse stock sync sirf input ke roop me (WMS events).
+**Out of scope:** payment internals, flash sale spike, seller onboarding, pricing/discounts, reviews. WMS events sirf input.
 
 **Non-functional (priority order me)**
-1. **No oversell:** checkout path pe strong consistency
-2. **Durability:** ek bhi confirmed order lost nahi
-3. **Availability:** browse aur cart 99.99%, checkout 99.9%
-4. **Latency:** product page p99 < 200ms, checkout < 2s (payment ke alawa)
+1. **No oversell:** checkout strong consistency
+2. **Durability:** confirmed order kabhi lost nahi
+3. **Availability:** browse/cart 99.99%, checkout 99.9%
+4. **Latency:** product page p99 < 200ms, checkout < 2s (excl. payment)
 5. **Scale:** 50M DAU, ~60K peak read QPS, ~600 orders/sec peak (100:1 read/write)
 
-**CAP choice:** inventory reserve aur order pe **CP** (stock galat bikne se better hai checkout fail ho). Catalog, search badge aur cart pe **AP** (thoda stale chalega, page down nahi).
+**CAP choice:** reserve + order → **CP** (galat bikne se better checkout fail). Catalog, badge, cart → **AP** (stale chalega, down nahi).
 
 ## Step 3: Estimation (sirf jo design badle)
 
-- 50M DAU × 20 page views = **1B reads/day ≈ 12K QPS**, peak 5x ≈ 60K. Catalog cache + CDN zaroori.
-- Orders: 5M/day ≈ **60 orders/sec**, sale day pe 10x ≈ 600/sec. Ek Postgres primary aaram se sambhal lega. **Sharding abhi nahi.**
-- Catalog: 100M SKUs × 5KB ≈ **500 GB**. Postgres me fit, search ke liye Elasticsearch.
-- Order events: ~5 per order → peak **~3K events/sec**. Ye Kafka wala volume nahi, managed queue kaafi hai.
-- Hot SKU (naya iPhone) pe ek hi row pe hazaron writes/sec ho sakte hain. **Asli problem contention hai**, throughput nahi.
+- 50M DAU × 20 views = **1B reads/day ≈ 12K QPS**, peak 5x ≈ 60K → cache + CDN.
+- Orders 5M/day ≈ **60/sec**, sale day 10x ≈ 600/sec → ek Postgres primary. **Sharding abhi nahi.**
+- Catalog 100M SKUs × 5KB ≈ **500 GB** → Postgres + Elasticsearch for search.
+- ~5 events/order → peak **~3K events/sec** → managed queue, Kafka nahi.
+- Hot SKU (naya iPhone): ek row pe hazaron writes/sec → **asli problem contention**.
 
-> **Bolo:** "Average order rate chhota hai. Do cheezein mushkil hain: read scale, jo cache se solve hota hai, aur ek hot SKU pe contention, jo conditional update aur reservation se."
+> **Bolo:** "Mushkil do: read scale (cache) aur hot SKU contention (conditional update + reservation)."
 
 ## Step 4: Core entities
 
@@ -67,7 +67,7 @@ askedAt: [Amazon, Flipkart, Walmart, Myntra, Meesho, Shopify]
 - **Order**: id, user_id, items, amount, status, idempotency_key
 - **Shipment**: id, order_id, warehouse_id, status, tracking_id
 
-`available = total - reserved` hai, alag column nahi.
+`available = total - reserved`, alag column nahi.
 
 ## Step 5: APIs
 
@@ -82,11 +82,11 @@ GET    /orders/{orderId}                              → status timeline
 POST   /orders/{orderId}/cancel                       → status
 ```
 
-> **Bolo:** "Checkout stock reserve karta hai aur payment URL deta hai. Order confirm payment webhook pe hota hai. Isliye checkout pe Idempotency-Key, taaki double click pe do orders na banein."
+> **Bolo:** "Checkout reserve + payment URL; confirm webhook pe. Idempotency-Key = double click pe ek hi order."
 
 ## Step 6: High-level design
 
-**Simple v1 pehle:** client → ek app service → ek Postgres (catalog, cart, inventory, orders). Checkout ek transaction me conditional UPDATE + order insert. Ye FR2–FR4 chala deta hai. Jo cheezein isse aage le jaati hain: **60K peak read QPS** (Redis + CDN), **full-text search over 100M SKUs** (Elasticsearch), **cart 99.99% always-writable** (DynamoDB), aur **external payment + shipping** (saga + outbox + queue).
+**Simple v1:** app → ek Postgres, checkout = ek txn (conditional UPDATE + order insert). Add-ons: **60K read QPS** → Redis + CDN, **search over 100M SKUs** → Elasticsearch, **cart 99.99% writable** → DynamoDB, **external payment + shipping** → saga + outbox + queue.
 
 ```mermaid
 flowchart LR
@@ -109,16 +109,14 @@ flowchart LR
 ```
 
 **Har component kyun:**
-- **Redis cache + CDN:** 60K peak read QPS, product page p99 < 200ms. Sirf read replicas se itne QPS pe tail latency badhti hai.
-- **Elasticsearch:** FR1 search, 100M SKUs pe full-text + typo + facets. Postgres full-text facets ke saath slow.
-- **Catalog Postgres (JSONB attributes):** 500GB, writes kam. Document store ki zarurat nahi.
-- **Cart DynamoDB:** cart 99.99% always-writable chahiye (AP), per-user key-value, TTL for abandoned carts. Redis me eviction pe cart lost. Cart me stock reserve **nahi** hota.
-- **Order Service:** saga orchestrator. Order state machine yahin.
-- **Inventory Service (alag):** stock ka single source of truth, do writers hain (checkout + WMS). Hot-row load orders DB se isolated.
-- **Outbox + SNS/SQS:** DB write aur event atomic. Peak ~3K events/sec, har consumer ko apni queue + retries + DLQ chahiye, replay nahi. Isliye managed queue, **Kafka nahi**. Kafka tab jab replay chahiye ya volume ~100K/sec ho.
-- **Warehouse WMS → SQS:** physical stock changes (inward, damage, returns) task ki tarah, retry ke saath.
-
-**FR → component:** FR1 → Catalog + ES + Redis/CDN. FR2 → Cart DynamoDB. FR3 → Order + Inventory + Payment. FR4 → Orders Postgres + queue consumers.
+- **Redis + CDN:** 60K QPS, p99 < 200ms; replicas pe tail latency badhti.
+- **Elasticsearch:** full-text + typo + facets on 100M SKUs; Postgres slow.
+- **Catalog Postgres (JSONB):** 500GB, kam writes; document store nahi chahiye.
+- **Cart DynamoDB:** 99.99% writable (AP), per-user KV, TTL. Redis eviction pe cart lost.
+- **Order Service:** saga orchestrator + state machine.
+- **Inventory Service (alag):** source of truth, 2 writers (checkout + WMS), hot row isolated.
+- **Outbox + SNS/SQS:** DB write + event atomic; ~3K/sec, per-consumer retries + DLQ → **Kafka nahi** (replay ya ~100K/sec pe hota).
+- **WMS → SQS:** stock changes (inward, damage, returns) retry ke saath.
 
 ## Step 7: Main flow: checkout to order confirm
 
@@ -132,7 +130,7 @@ sequenceDiagram
   U->>O: POST /checkout with Idempotency-Key
   O->>O: create order status PENDING
   O->>I: reserve sku 7 qty 1, ttl 15 min
-  I->>I: UPDATE inventory SET reserved = reserved + 1 WHERE available >= 1
+  I->>I: conditional UPDATE reserved + 1 if available
   I-->>O: reservationId
   O-->>U: paymentUrl
   U->>P: pay
@@ -156,16 +154,12 @@ order_items(order_id, sku_id, qty, price)
 outbox(id PK, aggregate_id, event_type, payload JSON, created_at, published BOOL)
 ```
 
-- **Inventory + Orders → Postgres:** ACID, conditional updates, unique constraints. Single primary + replica, 600 writes/sec easy. Data badhe tab `sku_id` pe shard.
-- **Catalog → Postgres JSONB + Elasticsearch:** flexible attributes, search.
-- **Cart → DynamoDB:** simple key-value, always writable, TTL for abandoned carts.
-
-`CHECK (reserved <= total)` aur conditional `WHERE` milke DB level pe oversell rokte hain.
+- Postgres: ACID, conditional updates, unique constraints. `CHECK` + conditional `WHERE` = DB-level oversell guard. Baad me `sku_id` pe shard.
 
 ## Step 9: Deep dives (interviewer yahin pressure dalega)
 
 ### 9.1 Oversell kaise rokoge?
-**NFR:** no oversell, strong consistency at checkout.
+**NFR:** no oversell.
 
 Option A, **conditional UPDATE** (atomic, simplest):
 ```sql
@@ -173,27 +167,26 @@ UPDATE inventory SET reserved = reserved + :qty
 WHERE sku_id = :sku AND warehouse_id = :wh AND total - reserved >= :qty;
 -- rows affected = 0  →  out of stock
 ```
-Option B, **optimistic lock** (version column): read row, check, `UPDATE ... SET version = version + 1 WHERE version = :old`. Conflict pe retry. Low contention me achha.
+- Option B, **optimistic lock**: `... WHERE version = :old`, conflict pe retry; low contention ke liye.
+- Option C, **`SELECT FOR UPDATE`**: hot SKU pe lock queue lambi.
 
-Option C, **pessimistic** `SELECT FOR UPDATE`: chalega par hot SKU pe lock queue lambi ho jaati hai.
+> **Bolo:** "Conditional UPDATE: ek statement me check + decrement, row lock milliseconds ka. Extreme spike pe Redis pre-decrement + queue ([Flash Sale](../02-questions/t2-15-flash-sale.md))."
 
-> **Bolo:** "Main conditional UPDATE use karunga. Ek hi statement me check aur decrement, DB row lock sirf milliseconds ka. Hot SKU pe bhi safe. Extreme spike (flash sale) ke liye Redis pre-decrement + queue lagaunga, jo [Flash Sale](../02-questions/t2-15-flash-sale.md) me cover hai."
-
-**Trade-off:** hot SKU pe saari writes ek row pe serialize hoti hain. Correctness ke badle throughput limit.
+**Trade-off:** hot SKU writes ek row pe serialize: correctness vs throughput.
 
 ### 9.2 Reservation with TTL: reserve → confirm → release
-**NFR:** no oversell + stock bekar block na ho.
-- **Reserve** (checkout pe): `reserved += qty`, reservation row `HELD`, `expires_at = now + 15 min`.
-- **Confirm** (payment success): reservation `CONFIRMED`, `total -= qty`, `reserved -= qty`. Ab stock physically allocated.
-- **Release** (payment fail / user cancel / TTL expire): `reserved -= qty`, status `RELEASED`.
-- **TTL expiry:** sweeper job har minute `WHERE status = 'HELD' AND expires_at < now()` uthata hai, release karta hai. Ya SQS delay message (max 15 min) jo release trigger kare.
-- Late payment aaya aur reservation already release ho gaya? Dobara reserve try karo. Stock nahi mila to **auto refund**.
-- Cart me reserve kyun nahi? Log hafton tak cart me cheezein rakhte hain. Stock bekar blocked rahega.
+**NFR:** no oversell + stock bekar block nahi.
+- **Reserve:** `reserved += qty`, `HELD`, `expires_at = now + 15 min`.
+- **Confirm** (paid): `CONFIRMED`, `total -= qty`, `reserved -= qty`.
+- **Release** (payment fail / cancel / TTL): `reserved -= qty`, `RELEASED`.
+- **TTL:** sweeper har minute `WHERE status = 'HELD' AND expires_at < now()`, ya SQS delay message (max 15 min).
+- Late payment after release → re-reserve, warna **auto refund**.
+- Cart me reserve nahi: carts hafton padi rehti hain.
 
-**Trade-off:** 15 min tak stock doosron ko "out of stock" dikh sakta hai, jo kabhi nahi bikega.
+**Trade-off:** 15 min tak stock "out of stock" dikhe jo shayad bike hi nahi.
 
 ### 9.3 Order state machine + saga
-**NFR:** durability, koi confirmed order ya paisa beech me na atke.
+**NFR:** durability, order/paisa beech me na atke.
 ```mermaid
 flowchart LR
   A["CREATED"] --> B["INVENTORY_RESERVED"]
@@ -207,7 +200,7 @@ flowchart LR
   D -- "user cancel before ship" --> X
 ```
 
-Saga (orchestration, Order Service orchestrator hai):
+Saga (Order Service orchestrator):
 
 | Step | Action | Compensation agar aage fail ho |
 |---|---|---|
@@ -217,73 +210,68 @@ Saga (orchestration, Order Service orchestrator hai):
 | 4 | Inventory confirm | Stock wapas `total += qty` |
 | 5 | Shipment create | Shipment cancel |
 
-- Har step **idempotent** ho (reservationId, paymentId unique), kyunki retries honge.
-- Orchestration kyun, choreography kyun nahi? Order flow me 5 steps aur clear order hai. Ek jagah state dikhti hai, debug easy. Choreography me events ka jaal ban jata hai.
-- 2PC nahi, kyunki payment gateway external hai aur 2PC me locks lambe pakde rehte hain.
+- Har step **idempotent** (reservationId, paymentId unique), retries honge.
+- Orchestration: 5 ordered steps, state ek jagah, debug easy. Choreography = events ka jaal.
+- 2PC nahi: payment gateway external, locks lambe.
 
-**Trade-off:** beech ke states (reserved par unpaid) kuch der dikhte hain. Atomicity ke badle compensation logic likhna padta hai.
+**Trade-off:** beech ke states (reserved, unpaid) dikhte hain; atomicity ki jagah compensation code.
 
 ### 9.4 Outbox + events, inventory sync, search updates
-**NFR:** durability (koi event lost nahi) + badge freshness kuch seconds me.
-- **Dual write problem:** order DB me save hua par queue publish fail hua → shipping ko pata hi nahi. Solution **outbox**: same DB transaction me `orders` update + `outbox` row insert. Relay (poller har ~1 sec, ya Debezium CDC) outbox se SNS pe publish karta hai, SNS har consumer ki SQS queue me fan-out karta hai. At-least-once, consumers idempotent.
-- **Warehouse sync:** WMS events (`STOCK_INWARD`, `DAMAGED`, `RETURN_RESTOCKED`) SQS pe. Inventory Service apply karta hai (`total += x`) with event id dedupe. Raat ko **reconciliation**: WMS physical count vs DB, mismatch pe alert/adjust.
-- **Search index / "In stock" badge:** inventory change pe `StockChanged` event → search indexer Elasticsearch update kare aur Redis cache invalidate. Har unit change pe nahi, sirf **threshold cross** pe (in stock ↔ out of stock ↔ "only 3 left"), warna index pe write storm.
+**NFR:** koi event lost nahi + badge fresh in seconds.
+- **Dual write:** DB save, publish fail → shipping ko pata nahi. **Outbox:** same txn me `orders` update + `outbox` row. Relay (~1 sec poller ya Debezium CDC) → SNS → har consumer ki SQS queue.
+- **Warehouse sync:** WMS events (`STOCK_INWARD`, `DAMAGED`, `RETURN_RESTOCKED`) via SQS, `total += x`, event id dedupe. Nightly **reconciliation**: physical count vs DB, mismatch pe alert/adjust.
+- **"In stock" badge:** `StockChanged` → ES update + Redis invalidate, sirf **threshold cross** pe (in stock ↔ out of stock ↔ "only 3 left"), warna write storm.
 
-**Trade-off:** at-least-once delivery, isliye har consumer ko event id se dedupe karna padta hai.
+**Trade-off:** at-least-once → har consumer event id se dedupe kare.
 
 ### 9.5 Badge eventual, checkout strong
-**NFR:** product page < 200ms + no oversell, dono ek saath.
-- Product page ka "In stock" cache/ES se aata hai, kuch seconds stale ho sakta hai. Galat ho to bhi nuksan chhota.
-- Checkout pe **final truth Inventory DB** ka conditional update hai. Badge "In stock" bole par reserve fail ho to user ko "Sorry, abhi out of stock ho gaya" dikhao.
-- Ye CQRS jaisa hai: write model (inventory DB) strong, read model (ES/cache) eventual.
+**NFR:** page < 200ms + no oversell.
+- CQRS: read model (ES/cache badge) seconds stale; write model (Inventory DB conditional update) = final truth.
+- Reserve fail → "Sorry, abhi out of stock ho gaya".
 
-**Trade-off:** kabhi kabhi user ko checkout pe "out of stock" milega. Fast page ke badle ye chhoti bad experience.
+**Trade-off:** kabhi checkout pe "out of stock"; badle me fast page.
 
 ## Step 10: Decision table (kya chuna, kyun, kya nahi)
 
 | Decision | Kyun chuna | Kya nahi chuna, kyun |
 |---|---|---|
-| **Conditional UPDATE** for reserve | Atomic check + decrement, short lock, oversell impossible | **Read-then-write app me:** race. **SELECT FOR UPDATE:** hot SKU pe lock queue. Sacrifice: hot row pe writes serialize |
-| **Reservation with TTL** at checkout | Payment window me stock safe, abandon pe auto release | **Cart me reserve:** stock hafton block. **Payment ke baad check:** oversell + refunds. Sacrifice: 15 min tak stock held |
-| **Saga (orchestration)** | Alag DBs, external payment, compensations clear | **2PC:** gateway support nahi karta, locks lambe. Sacrifice: compensation code, temporary inconsistent states |
-| **Outbox + SNS/SQS** | DB update aur event atomic, per-consumer retries + DLQ, ~3K events/sec | **Kafka:** replay aur 100K/sec ki zarurat nahi, ops zyada. **Direct publish after commit:** crash pe event miss. Sacrifice: no replay, at-least-once dedupe |
-| **Postgres single primary** (inventory, orders, catalog) | ACID + constraints, 600 writes/sec easy | **Sharding abhi:** complexity bina zarurat. **Cassandra:** conditional multi-row updates kamzor. Sacrifice: vertical limit, baad me shard |
-| **ES + Redis/CDN for catalog** | Search, facets, 60K QPS reads | **Seedha SQL se search:** slow, typo nahi samajhta. Sacrifice: badge seconds tak stale, sync pipeline |
-| **DynamoDB for cart** | Always-writable, per-user key, TTL | **Postgres table:** chalta, par checkout DB pe load. **Redis:** eviction pe cart lost. Sacrifice: ek aur datastore |
-| **Per-warehouse stock** | Nearest warehouse se ship, accurate allocation | **Single global count:** fulfilment galat. Sacrifice: zyada rows, allocation logic |
+| **Conditional UPDATE** for reserve | Atomic check + decrement, short lock | **App read-then-write:** race. **SELECT FOR UPDATE:** lock queue. Sacrifice: hot row serialize |
+| **Reservation with TTL** at checkout | Payment window safe, auto release | **Cart me reserve:** hafton block. **Payment ke baad check:** oversell + refunds. Sacrifice: 15 min held |
+| **Saga (orchestration)** | Alag DBs, external payment | **2PC:** gateway support nahi, locks lambe. Sacrifice: compensations, temp states |
+| **Outbox + SNS/SQS** | Atomic DB + event, DLQ, ~3K/sec | **Kafka:** replay nahi chahiye, ops zyada. **Publish after commit:** crash pe miss. Sacrifice: no replay, dedupe |
+| **Postgres single primary** (inventory, orders, catalog) | ACID, 600 writes/sec easy | **Sharding abhi:** bekar. **Cassandra:** weak conditional multi-row. Sacrifice: vertical limit |
+| **ES + Redis/CDN for catalog** | Search, facets, 60K QPS | **SQL search:** slow, no typo. Sacrifice: stale badge, sync pipeline |
+| **DynamoDB for cart** | Always-writable, per-user key, TTL | **Postgres:** checkout DB pe load. **Redis:** eviction pe lost. Sacrifice: ek aur datastore |
+| **Per-warehouse stock** | Nearest warehouse, accurate allocation | **Global count:** fulfilment galat. Sacrifice: rows + allocation logic |
 
 ## Step 11: Failures & bottlenecks
 
 | Kya fail hua | Kya hoga | Handle kaise |
 |---|---|---|
-| Payment webhook miss | Paisa kata, order PENDING, stock HELD | Reconciliation job gateway se status poochhe, reservation TTL se pehle |
-| Inventory Service down | Checkout band | Browse/cart chalte rahein. Multiple replicas, circuit breaker, clear error |
-| Sweeper job ruk gaya | Stock bekar HELD | Job ko HA banao, `available` check me expired reservations ignore karo |
-| Outbox relay / queue lag | Shipping/search late | Outbox me pending rows ka alert, relay scale, failed messages DLQ me + replay script |
-| Hot SKU | Ek row pe hazaron updates | Stock ko N sub-buckets me split karo, ya flash sale flow (Redis + queue) |
-| WMS aur DB mismatch | Oversell ya phantom stock | Nightly reconciliation + safety buffer (1–2 units hold back) |
+| Payment webhook miss | Paisa kata, PENDING, HELD | TTL se pehle reconciliation job gateway se poochhe |
+| Inventory Service down | Checkout band | Browse/cart chalein; replicas, circuit breaker |
+| Sweeper ruka | Stock bekar HELD | HA job; `available` me expired ignore |
+| Outbox relay / queue lag | Shipping/search late | Pending rows alert, relay scale, DLQ + replay script |
+| Hot SKU | Ek row pe hazaron updates | N sub-buckets, ya flash sale flow (Redis + queue) |
+| WMS vs DB mismatch | Oversell / phantom stock | Nightly reconciliation + 1–2 unit safety buffer |
 
 ## Step 12: "Isko aur better kaise karein" (end me khud bolo)
 
 > "Agar aur time ho to main ye improve karunga:"
-- **Smart allocation:** pincode ke nearest warehouse se reserve, cost + delivery time ke hisaab se
-- Hot SKUs ke liye **inventory buckets** aur Redis front, flash sale pattern
-- Order events ka **data warehouse** stream (yahan Kafka sahi hai: replay + kai analytics consumers), demand forecasting ke liye
+- **Smart allocation:** pincode ka nearest warehouse, cost + delivery time
+- Order events → **data warehouse** for demand forecasting (yahan Kafka sahi: replay + kai consumers)
 
 ## Step 13: Interviewer ke likely follow-up sawal
 
-- "Do log last unit ek saath kharidein to?" → conditional UPDATE, ek ko 1 row affected, doosre ko 0 → out of stock (Step 9.1)
-- "User ne payment nahi kiya to stock ka kya?" → TTL expire, sweeper release, order `CANCELLED`
-- "Payment success, par inventory confirm fail?" → saga retry (idempotent). Fir bhi fail to refund + order cancel
-- "Order ek warehouse se, doosre me stock tha?" → reserve per (sku, warehouse), allocation logic nearest available chunta hai
-- "Order DB save hua, queue down thi?" → outbox, relay baad me publish karega
-- "Search pe in stock dikha, checkout pe nahi mila?" → expected, badge eventual, checkout strong (Step 9.5)
-- "Big Billion Days pe 10 lakh log ek SKU pe?" → [Flash Sale](../02-questions/t2-15-flash-sale.md): Redis atomic decrement, queue, rate limit
-- **Senior signal:** khud bolo ki bottleneck average load nahi, **hot SKU ki ek inventory row** hai: saare reserves us row pe serialize hote hain, aur missed payment webhook stock ko 15 min tak HELD rakhta hai. Fix: sub-buckets, flash sale flow, aur webhook reconciliation job.
+- "Do log last unit ek saath?" → conditional UPDATE: ek ko 1 row, doosre ko 0 → out of stock
+- "Payment success, confirm fail?" → idempotent retry; phir bhi fail → refund + cancel
+- "Kaunsa warehouse?" → reserve per (sku, warehouse), nearest available
+- "Big Billion Days, 10 lakh log ek SKU pe?" → [Flash Sale](../02-questions/t2-15-flash-sale.md): Redis atomic decrement, queue, rate limit
+- **Senior signal:** bottleneck avg load nahi, **hot SKU ki ek row** (reserves serialize) + missed webhook = 15 min HELD. Fix: sub-buckets, flash sale flow, webhook reconciliation.
 
 ## 2-minute recap (interview se pehle ye padho)
 
-> E-commerce me read path aur write path alag hain. Catalog aur search read-heavy: Elasticsearch + Redis + CDN, eventual consistent "In stock" badge. Cart DynamoDB me, stock reserve nahi karta. Checkout pe Order Service saga chalata hai: order CREATED → Inventory reserve (conditional `UPDATE ... WHERE total - reserved >= qty`, 15 min TTL) → payment → confirm → shipment. Kahin fail ho to compensation: release, refund, cancel. Har step idempotent. Order state machine clear hai. Events outbox pattern se SNS/SQS pe (sirf ~3K/sec, isliye Kafka nahi), jisse shipping, search indexer, notifications chalte hain. Ek Postgres primary kaafi hai, sharding baad me. Inventory per (sku, warehouse), WMS events se sync aur nightly reconciliation. Badge eventual, checkout strong. Extreme spikes ke liye flash sale pattern.
+> Read path: ES + Redis + CDN, eventual badge. Cart: DynamoDB, no reserve. Checkout saga: reserve (conditional UPDATE, 15 min TTL) → payment → confirm → ship; fail → release/refund/cancel, idempotent. Outbox → SNS/SQS. Ek Postgres primary. Stock per (sku, warehouse) + nightly reconciliation. Spikes → flash sale.
 
 ## Checklist
 

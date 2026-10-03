@@ -10,9 +10,9 @@ askedAt: [Google, Meta, Amazon, InMobi, Flipkart, Uber]
 
 # Design Ad Click Aggregator
 
-**In one line:** capture every ad click, redirect the user to the advertiser's site, and show advertisers click counts per ad, per minute. These counts go into **billing**, so a wrong count = wrong money.
+**In one line:** capture every ad click, redirect to the advertiser's site, show advertisers per-ad per-minute counts. Counts go into **billing**: wrong count = wrong money.
 
-**What the interviewer checks in this question:** high QPS ingestion, stream processing (windows, watermarks), exactly-once counting, choice of OLAP store, and an accuracy guarantee through batch reconciliation.
+**What the interviewer checks:** ingestion, windows/watermarks, exactly-once, OLAP, batch reconciliation.
 
 ---
 
@@ -20,40 +20,38 @@ askedAt: [Google, Meta, Amazon, InMobi, Flipkart, Uber]
 
 | You ask | Typical answer | Impact on design |
 |---|---|---|
-| "How many clicks per second?" | ~10K avg, peak 50K QPS | Kafka + stream processor, not the DB directly |
-| "Query granularity? Per minute?" | Per ad per minute, plus hour/day rollups | 1 min tumbling window |
-| "How fresh must the dashboard be?" | ~1 min delay is fine | Streaming, not batch |
-| "Accuracy for billing?" | Must be exact, 100% | Dedup + daily batch reconciliation |
-| "Do we do the redirect too?" | Yes, the click goes through our server | The click server must be fast, < 50ms |
-| "Fraud detection, impressions?" | Basic dedup yes, ML fraud out of scope | Click dedup by click_id |
+| "Clicks per second?" | ~10K avg, peak 50K | Kafka + stream processor, not the DB directly |
+| "Granularity?" | Per ad per minute + hour/day rollups | 1 min tumbling window |
+| "Billing accuracy?" | Exact, 100% | Dedup + daily batch reconciliation |
+| "Do we redirect too?" | Yes, via our server | Click server < 50ms |
 
-> **Say:** "I will build two paths: a fast streaming path that updates the dashboard within 1 minute, and a batch path that computes the exact count from raw data at night and reconciles the streaming numbers. Billing will use the batch numbers."
+> **Say:** "Two paths: streaming that updates the dashboard within 1 min, and a nightly batch that counts exactly from raw data and reconciles. Billing uses batch numbers."
 
 ## Step 2: Requirements
 
 **Functional**
-1. Users should be able to click an ad and get redirected to the advertiser URL (click is recorded)
-2. Advertisers should be able to query clicks per minute for ad X (last 1 hour, or hour/day rollups)
+1. Users should be able to click an ad and be redirected to the advertiser URL (click recorded)
+2. Advertisers should be able to query an ad's clicks per minute (last 1 hour, or hour/day rollups)
 3. Advertisers should be able to filter by campaign, country, device
-4. Advertisers should be able to see the top N ads of a campaign (last 1 hour)
+4. Advertisers should be able to see a campaign's top N ads (last 1 hour)
 
-**Out of scope:** impressions/CTR, ML fraud detection, ad serving/auction, invoice generation UI.
+**Out of scope:** impressions/CTR, ML fraud (basic `click_id` dedup is in scope), ad serving/auction, invoice UI.
 
 **Non-functional (in priority order)**
-1. **Accuracy:** every click counted exactly once (billing), a click is never lost
+1. **Accuracy:** exactly-once count (billing), a click is never lost
 2. **Latency:** redirect p99 < 50 ms; dashboard query p99 < 1 sec
-3. **Freshness:** dashboard at most ~1 min old
-4. **Scale:** 50K QPS peak, ~1B clicks/day, data retained for 1 year
+3. **Freshness:** dashboard at most ~1 min old → streaming
+4. **Scale:** 50K QPS peak, ~1B clicks/day, 1 year retention
 
-**CAP choice:** availability for click ingestion (redirect even if Kafka is down, with a local buffer), and an eventual dashboard (~1 min). Strong correctness for billing numbers, so they are final only after the batch recount.
+**CAP choice:** ingestion → availability (redirect even if Kafka is down, local buffer); dashboard eventual (~1 min). Billing → strong, final only after the batch recount.
 
 ## Step 3: Estimation (only what changes the design)
 
-- 1B clicks/day ≈ **12K QPS avg, 50K peak**. An `UPDATE count+1` per click in any OLTP DB = hot rows, not possible. So pre-aggregation. 50K/sec alone does not justify Kafka; **replay + 2 consumers** do (Step 6).
-- Raw event ~200 bytes → **200 GB/day** raw. Raw in S3, aggregated in OLAP.
-- Aggregated: 10M ads × 1440 min = max 14B rows/day, but only rows for active ads → realistically ~100M rows/day. We need an OLAP store.
+- 1B/day ≈ **12K QPS avg, 50K peak**. `UPDATE count+1` per click = hot rows → pre-aggregation. Kafka is justified by **replay + 2 consumers**, not 50K/sec (Step 6).
+- ~200 bytes/event → **200 GB/day** raw → S3; aggregates in OLAP.
+- 10M ads × 1440 min = max 14B rows/day; active ads only → ~100M rows/day → OLAP store.
 
-> **Say:** "We cannot count every raw click in a DB. The stream processor will aggregate in 1 minute windows, so OLAP gets one row per ad per minute (country, device): 50K writes/sec drop to ~1K rows/sec."
+> **Say:** "Aggregate in 1 min windows: one row per ad per minute (country, device), 50K writes/sec → ~1K rows/sec."
 
 ## Step 4: Core entities
 
@@ -70,11 +68,11 @@ GET /ads/{adId}/clicks?from=..&to=..&granularity=minute&country=IN
 GET /campaigns/{id}/top-ads?window=1h&n=10    → [{adId, count}]
 ```
 
-> **Say:** "The click URL has a `click_id` and an HMAC signature, created when the ad is served. This gives us dedup, and nobody can build a fake URL to inflate clicks."
+> **Say:** "`click_id` + HMAC are created at ad serving: they give dedup, and nobody can inflate clicks with a fake URL."
 
 ## Step 6: High-level design
 
-**Start with a simple v1:** the Click Service inserts every click into Postgres, and the dashboard runs `GROUP BY ad_id, minute`. This works up to a thousand clicks/sec. The numbers break it: at 50K inserts/sec + 1B rows/day a `GROUP BY` takes seconds (→ pre-aggregation: Flink + OLAP), clicks cannot be lost and Flink restarts/recounts need replay (→ Kafka), billing must be exact (→ S3 raw + Spark recount).
+**Simple v1:** insert every click into Postgres, dashboard runs `GROUP BY ad_id, minute`; fine up to ~1K/sec. At 50K/sec + 1B rows/day the `GROUP BY` takes seconds → the components below.
 
 ```mermaid
 flowchart LR
@@ -92,12 +90,12 @@ flowchart LR
 ```
 
 **Why each component:** (FR1 → Click Service + Kafka, FR2/FR3/FR4 → Flink + OLAP + Query Service; accuracy NFR → S3 + Spark)
-- **Click Service:** stateless, writes the event to Kafka (acks=all), then returns 302. Redirect latency NFR.
-- **Kafka:** 50K/sec peak, **2 independent consumers** (Flink and the S3 sink), and **7-day replay** (recount after a Flink crash/bug fix). A simpler SQS gives each message to one consumer and has no replay.
-- **Flink:** 1 min event-time windows, watermarks, exactly-once checkpoints. A simpler "raw clicks straight into ClickHouse + materialized views" can work, but gives weaker control over click_id dedup and late events.
-- **OLAP (ClickHouse/Druid/Pinot):** slice-and-dice in < 1 sec over ~100M aggregated rows/day. Postgres is slow here.
-- **S3 + Spark:** a cheap permanent copy of raw data (200 GB/day), exact recount at night, billing truth.
-- **Query Service:** dashboard APIs, picks the rollup (minute/hour/day). A thin layer.
+- **Click Service:** stateless; writes to Kafka (acks=all), then 302.
+- **Kafka:** **2 consumers** (Flink, S3 sink) + **7-day replay** (recount after a Flink crash/bug fix). SQS: one consumer, no replay.
+- **Flink:** event-time windows, watermarks, exactly-once checkpoints.
+- **OLAP:** slice-and-dice in < 1 sec over ~100M rows/day.
+- **S3 + Spark:** cheap raw copy, exact nightly recount = billing truth.
+- **Query Service:** thin; picks the rollup (minute/hour/day).
 
 ## Step 7: Main flow: from click to dashboard
 
@@ -130,87 +128,83 @@ ad_clicks_1m(ad_id, campaign_id, minute_ts, country, device, clicks)
 ad_clicks_1h, ad_clicks_1d   -- materialized views
 ```
 
-- **OLAP column store:** sorted by time + ad_id, columnar compression, aggregates in ms.
+- **OLAP:** sorted by time + ad_id, columnar, aggregates in ms.
 - **S3 (Parquet):** raw clicks, 1 year, for batch.
 - **Billing DB (Postgres):** final daily numbers per advertiser, invoices.
 
 ## Step 9: Deep dives (where the interviewer will push)
 
 ### 9.1 Exactly-once counting
-**NFR:** accuracy, every click counted once.
-
-Duplicates can come from three places:
-1. **User double click / bot refresh:** dedup by `click_id`. Keyed state `seen(click_id)` in Flink with a 10 min TTL.
-2. **Click Service retry:** Kafka idempotent producer (`enable.idempotence=true`).
-3. **Flink restart:** checkpoints (Kafka offset + window state together) and an idempotent or transactional OLAP sink. Upsert on row key `(ad_id, minute)`, so a replay overwrites instead of adding twice.
-> We also have batch reconciliation, so if anything slips in streaming, it gets fixed at night.
-
-**Trade-off:** dedup state + checkpoints make the Flink job heavy and restarts slow; in return, billing is safe.
+**NFR:** every click counted once.
+1. **Double click / bot refresh:** Flink keyed state `seen(click_id)`, 10 min TTL.
+2. **Click Service retry:** idempotent producer (`enable.idempotence=true`).
+3. **Flink restart:** checkpoints (offset + window state together) + `(ad_id, minute)` upsert sink → replay overwrites, no double add.
+- Anything that slips in streaming gets fixed by the nightly batch.
+- **Trade-off:** dedup state + checkpoints = heavy job, slow restarts; in return billing is safe.
 
 ### 9.2 Windows, late events and watermarks
-**NFR:** freshness ~1 min and counts in the right minute.
-- **Tumbling window of 1 min**, using **event time** (the click's ts), not processing time. Otherwise, during Kafka lag, counts land in the wrong minute.
-- **Watermark** = "events up to this time have arrived". For example `max_event_ts - 30 sec`. When the watermark crosses 12:06, the 12:05 window closes and is emitted.
-- **Late events** (the phone was offline): update the window (upsert) up to `allowedLateness 5 min`. Anything later → side output → S3, and the batch job will count them.
-- **Trade-off:** a bigger watermark delay = more accurate but a later dashboard; smaller = fresher but more late events.
+**NFR:** ~1 min freshness, counts in the right minute.
+- **Tumbling 1 min**, **event time** (not processing time, or Kafka lag puts counts in the wrong minute).
+- **Watermark** = `max_event_ts - 30 sec`; crossing 12:06 → emit the 12:05 window.
+- **Late events:** upsert up to `allowedLateness 5 min`; later → side output → S3 → counted by batch.
+- **Trade-off:** big watermark = accurate but late dashboard; small = fresh but more late events.
 
 ### 9.3 Hot ad partitioning
-**NFR:** freshness; one viral ad must not lag the whole pipeline.
-- A viral ad (an IPL ad) gets 20K QPS → the single Kafka partition and single Flink task for that `ad_id` get overloaded.
-- Fix: key = `ad_id + random(0..N-1)` salt. Flink first does a partial count on the salted key, then sums by `ad_id` in a second stage.
-- Salt only known hot ads (config list or dynamic detection), use the normal key for the rest.
-- **Trade-off:** two-stage aggregation for hot ads = a bit more latency and code.
+**NFR:** one viral ad must not lag the whole pipeline.
+- Viral ad (IPL) at 20K QPS → one partition + one Flink task overloaded.
+- Key = `ad_id + random(0..N-1)` salt → partial counts, then stage 2 sums by `ad_id`.
+- Salt only known hot ads (config or dynamic detection).
+- **Trade-off:** two stages = a bit more latency + code.
 
 ### 9.4 Batch reconciliation (Lambda style)
 **NFR:** 100% billing accuracy.
-- Kafka → S3 raw (Kafka Connect, hourly Parquet files).
-- At night a **Spark job**: raw clicks, distinct on `click_id`, group by `ad_id, minute`. This is the exact truth.
-- Compare with the streaming result. If the difference > threshold, alert, and overwrite OLAP rows with the batch value. Billing always uses batch numbers.
-- If the interviewer asks about Kappa: "It can also work with Flink alone if replay and exactly-once are strong, but in billing a double check is cheap insurance."
-- **Trade-off:** two pipelines to maintain, and the final billing number arrives the next day.
+- Kafka → S3 (Kafka Connect, hourly Parquet).
+- Nightly **Spark:** distinct `click_id`, group by `ad_id, minute` = exact truth.
+- Compare with streaming; diff > threshold → alert + overwrite OLAP. Billing always from batch.
+- Kappa? "Flink alone works if replay + exactly-once are strong, but in billing a double check is cheap insurance."
+- **Trade-off:** two pipelines, final billing next day.
 
 ## Step 10: Decision table (what we chose, why, and what we did not)
 
 | Decision | Why we chose it | What we did not choose, and why |
 |---|---|---|
-| **Kafka** for ingestion | 50K QPS, 2 consumers (Flink, S3), 7-day replay | **Direct DB write:** hot rows, DB goes down. **SQS:** one consumer per message, no replay. Sacrifice: Kafka cluster ops |
-| **Flink** for aggregation | Event-time windows, watermarks, exactly-once checkpoints | **ClickHouse materialized views:** simpler, but weak dedup/late events. **Spark micro-batch:** higher latency. Sacrifice: a stateful job is hard to run |
-| **Tumbling 1 min window** | Simple, matches dashboard granularity | **Sliding window:** each event in many windows, more compute. Sacrifice: nothing finer than 1 min |
-| **OLAP (ClickHouse/Druid/Pinot)** | Group by in < 1 sec over ~100M rows/day, rollups | **Postgres:** slow over billions of rows. **Cassandra:** no ad-hoc group by. Sacrifice: costly updates/deletes, one more store |
-| **Spark batch reconciliation** | Exact truth from raw data, billing is safe | **Only streaming (Kappa):** a bug means wrong money and nobody notices. Sacrifice: two pipelines, next-day billing |
-| **click_id + HMAC** | Dedup and protection from fake click URLs | **IP + ad_id dedup:** real clicks behind NAT get dropped. Sacrifice: signing work at ad serving |
-| **Salted keys for hot ads** | No load concentrated on one partition | **Salting every ad:** pointless two-stage overhead. Sacrifice: maintaining a hot-ads list |
+| **Kafka** ingestion | 50K QPS, 2 consumers, 7-day replay | **Direct DB:** hot rows. **SQS:** one consumer, no replay. Sacrifice: Kafka ops |
+| **Flink** aggregation | Event-time windows, watermarks, exactly-once | **ClickHouse MVs:** weak dedup/late events. **Spark micro-batch:** latency. Sacrifice: stateful job is hard |
+| **Tumbling 1 min** | Simple, matches dashboard | **Sliding:** event in many windows. Sacrifice: nothing below 1 min |
+| **OLAP (ClickHouse/Druid/Pinot)** | Group by < 1 sec on ~100M rows/day | **Postgres:** slow. **Cassandra:** no ad-hoc group by. Sacrifice: costly updates, extra store |
+| **Spark reconciliation** | Exact truth from raw | **Kappa only:** a bug = wrong money, unnoticed. Sacrifice: two pipelines, next-day billing |
+| **click_id + HMAC** | Dedup + no fake URLs | **IP + ad_id dedup:** drops real clicks behind NAT. Sacrifice: signing at ad serving |
+| **Salted keys** (hot ads) | No single hot partition | **Salt every ad:** pointless overhead. Sacrifice: maintain a hot list |
 
 ## Step 11: Failures & bottlenecks
 
 | What failed | What happens | How to handle |
 |---|---|---|
-| Kafka slow / down | Click not recorded | Click Service buffers to local disk and still redirects. Kafka replication factor 3 |
-| Flink job crash | Dashboard stopped | Restart from the last checkpoint, replay from Kafka offsets, idempotent sink |
-| OLAP down | Dashboard down | Flink sink backpressure, data is safe in Kafka. Query Service shows a stale cache |
-| Hot ad | One task is lagging | Salting + two-stage aggregation |
-| Bot click flood | Advertiser gets a fake bill | Rate limit per IP/user, click_id dedup, fraud filter in batch before billing |
+| Kafka slow / down | Click not recorded | Local disk buffer, still redirect; RF 3 |
+| Flink crash | Dashboard stops | Restart from checkpoint, offset replay, idempotent sink |
+| OLAP down | Dashboard down | Sink backpressure, data safe in Kafka; show stale cache |
+| Hot ad | One task lags | Salting + two stages |
+| Bot click flood | Fake bill | Per IP/user rate limit, dedup, batch fraud filter before billing |
 
 ## Step 12: How to make it better (say this yourself at the end)
 
-> "If I had more time, I would improve these:"
-- **Fraud detection stage** in Flink: same user with 20 clicks in 1 min → flag
-- **Top-K ads** in real time in Flink with Count-Min Sketch + heap
-- Data retention tiers: 1-min data for 30 days, then only hourly rollups (lower cost)
-- **Data quality alerts:** if stream vs batch difference > 0.1%, page on-call
+- **Fraud stage** in Flink: 20 clicks in 1 min → flag
+- **Real-time top-K:** Count-Min Sketch + heap
+- **Retention tiers:** 1-min data for 30 days, then hourly only
+- **Drift alert:** stream vs batch > 0.1% → page on-call
 
 ## Step 13: Likely follow-up questions
 
-- "Why wait for the Kafka ack before redirecting so no click is lost?" → it is billing data. The Kafka ack is ~5–10ms, within the latency budget
-- "A late event came 1 day later?" → dropped in streaming, the batch job will count it
-- "How do you get exactly-once end to end?" → idempotent producer + Flink checkpoint + upsert sink + click_id dedup
-- "The advertiser queries 1 year of data?" → from the day rollup table, not the minute table
-- "Kappa vs Lambda?" → Step 9.4
-- **Senior signal:** raise it yourself: the Kafka ack is on the redirect's critical path, so a slow Kafka = a slow redirect for every user. Use a local disk buffer + redirect on timeout in the Click Service, and make stream-vs-batch drift an alerting metric, or billing errors pile up silently.
+- "Why wait for the Kafka ack before redirecting?" → billing data; ack ~5–10ms fits the budget
+- "Event 1 day late?" → dropped by streaming, counted by batch
+- "End-to-end exactly-once?" → idempotent producer + checkpoint + upsert sink + click_id dedup
+- "Query 1 year?" → from the day rollup table
+- "Kappa vs Lambda?" → 9.4
+- **Senior signal:** the Kafka ack is on the redirect's critical path → slow Kafka = every redirect slow. Local disk buffer + redirect on timeout; make stream-vs-batch drift an alerting metric, or billing errors pile up silently.
 
 ## 2-minute recap (read this before the interview)
 
-> The Click Service verifies the signed `click_id`, writes the event to Kafka (acks=all) and returns a 302 redirect. Kafka is partitioned by `ad_id` (chosen for 2 consumers + 7-day replay, not just for 50K/sec). Flink aggregates in event-time 1 min tumbling windows, closes windows by watermark, allows 5 min lateness, and sends later events to a side output. Exactly-once: click_id dedup state + idempotent producer + checkpoints + an `(ad_id, minute)` upsert sink. Results go to ClickHouse/Druid with hourly/daily rollups, and the dashboard reads from there. Raw clicks go to S3, and at night Spark does an exact recount and reconciles OLAP and billing. Hot ads use salted keys and two-stage aggregation.
+> Click Service verifies the signed `click_id` → Kafka (acks=all) → 302. Kafka partitioned by `ad_id` (for 2 consumers + 7-day replay). Flink: event-time 1 min tumbling, watermark close, 5 min lateness, the rest to a side output. Exactly-once = dedup state + idempotent producer + checkpoints + `(ad_id, minute)` upsert. OLAP (ClickHouse/Druid) + hourly/daily rollups. Raw in S3, nightly Spark recount reconciles OLAP + billing. Hot ads: salting + two stages.
 
 ## Checklist
 
