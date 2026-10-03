@@ -1,6 +1,7 @@
 // Small stroke icons for the top bar; colour follows currentColor so both themes work.
 const PATHS = {
   menu: 'M4 6h16M4 12h16M4 18h16',
+  file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
   panel: 'M4 5h16v14H4zM15 5v14',
   key: 'M14.5 9.5a4 4 0 1 1-1.2-2.8M14.5 9.5L21 16v3h-3v-2h-2v-2h-2l-.8-.8',

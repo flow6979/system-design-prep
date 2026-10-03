@@ -633,3 +633,16 @@ body { background: var(--bg); background-image: none; }
 .quiz-ask-msg.model > :last-child { margin-bottom: 0; }
 .quiz-ask-form { display: flex; gap: 8px; }
 .quiz-ask-form input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
+
+/* Resume questions */
+.resume { display: flex; flex-direction: column; gap: 14px; max-width: 860px; }
+.resume h1 { margin-bottom: 0; }
+.resume-upload { display: flex; flex-direction: column; gap: 10px; }
+.resume-drop { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1.5px dashed var(--line); border-radius: 12px; padding: 22px; justify-content: center; background: var(--surface); }
+.resume-paste { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.resume textarea { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; resize: vertical; }
+.resume-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.resume-q { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.resume-q-text { margin: 0; font-weight: 600; font-size: 1.02rem; }
+.resume-q details > summary { cursor: pointer; color: var(--accent); }
+.resume-q details[open] { display: flex; flex-direction: column; gap: 8px; }

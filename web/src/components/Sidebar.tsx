@@ -168,6 +168,10 @@ export function Sidebar({ current, onNavigate }: { current: string; onNavigate: 
         <Icon name="quiz" size={17} />
         Quiz
       </a>
+      <a href={href('resume')} className={`side-item home ${current === 'resume' ? 'active' : ''}`}>
+        <Icon name="file" size={17} />
+        {tr('Resume se sawal', 'Resume questions')}
+      </a>
       <input
         id="side-filter"
         className="side-filter"

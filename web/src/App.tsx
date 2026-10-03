@@ -8,6 +8,7 @@ import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './components/Dashboard'
 import { PageView } from './components/PageView'
 import { Quiz } from './components/Quiz'
+import { Resume } from './components/Resume'
 import { Planner } from './components/Planner'
 import { NotesPanel } from './components/NotesPanel'
 import { ChatPanel } from './components/ChatPanel'
@@ -35,6 +36,7 @@ function useRoute() {
   const path = usePath()
   const parts = path.split('/')
   if (parts[0] === 'quiz') return { view: 'quiz' as const, slug: 'quiz' }
+  if (parts[0] === 'resume') return { view: 'resume' as const, slug: 'resume' }
   if (parts[0] === 'plan') return { view: 'plan' as const, slug: 'plan' }
   if (parts[0] === 'agents') {
     const p = `/${parts.join('/')}`
@@ -100,7 +102,7 @@ export function App() {
   useEffect(() => writeLocal('hld.revision', revision), [revision])
 
   useEffect(() => {
-    document.title = page ? `${localize(page, lang).title} · Viewinter` : view === 'quiz' ? 'Quiz · Viewinter' : view === 'plan' ? 'Plan · Viewinter' : 'Viewinter'
+    document.title = page ? `${localize(page, lang).title} · Viewinter` : view === 'quiz' ? 'Quiz · Viewinter' : view === 'plan' ? 'Plan · Viewinter' : view === 'resume' ? 'Resume · Viewinter' : 'Viewinter'
     document.querySelector('.main')?.scrollTo(0, 0)
     window.scrollTo(0, 0)
   }, [page, view, lang])
@@ -192,6 +194,7 @@ export function App() {
           {view === 'home' && <Dashboard />}
           {view === 'plan' && <Planner />}
           {view === 'quiz' && <Quiz hasKey={hasKey} onOpenSettings={() => setShowSettings(true)} />}
+          {view === 'resume' && <Resume hasKey={hasKey} onOpenSettings={() => setShowSettings(true)} />}
           {view === 'page' && !page && (
             <div className="empty-state">
               <h1>{tr('Page nahi mila', 'Page not found')}</h1>
